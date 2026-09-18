@@ -1,29 +1,21 @@
 import express, { type Request, type Response } from 'express';
+import { addSupplier, deactivateSupplier, getAllSuppliers, searchSuppliers, updateSupplier } from '../controllers/supplierController.ts';
 
 const router = express.Router();
 
 // GET api/suppliers/
-router.get("/", (req: Request, res: Response) => {
-    res.json({httpMethod: "get"})
-})
+router.get("/", getAllSuppliers)
+
 // GET api/suppliers/search 
-router.get("/search", (req: Request, res: Response) => {
-    res.json({ httpMethod: "get", action: "GetSupplierByName", query: req.query });
-});
+router.get("/search", searchSuppliers);
 
 // POST api/suppliers
-router.post("/", (req: Request, res: Response) => {
-    res.json({ httpMethod: "post", action: "AddSupplier", body: req.body });
-});
+router.post("/", addSupplier);
 
 // PATCH api/suppliers/:id 
-router.patch("/:id", (req: Request, res: Response) => {
-    res.json({ httpMethod: "patch", action: "UpdateSupplier", id: req.params.id });
-});
+router.patch("/:id", updateSupplier);
 
 // PATCH api/suppliers/deactivate/:id
-router.patch("/deactivate/:id", (req: Request, res: Response) => {
-    res.json({ httpMethod: "patch", action: "DeactivateSupplier", id: req.params.id });
-});
+router.patch("/deactivate/:id", deactivateSupplier);
 
 export default router
