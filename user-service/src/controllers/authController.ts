@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import * as authService from "../services/authService.js";
+import { AppError } from "../utils/errors.js";
 
 // ============================================================
 // Registration
@@ -45,6 +46,32 @@ export const login = async (
     });
 
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// Logout
+// ============================================================
+
+export const logout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError(401, "Authentication required.");
+    }
+
+    await authService.logout({
+      userId: req.user.id,
+      jti: req.user.jti,
+      exp: req.user.exp,
+    });
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

@@ -206,3 +206,26 @@ export const login = async (
     },
   };
 };
+
+// ============================================================
+// Logout
+// ============================================================
+
+export interface LogoutInput {
+  userId: string;
+  jti: string;
+  exp: number;
+}
+
+export const logout = async (input: LogoutInput): Promise<void> => {
+  const { userId, jti, exp } = input;
+
+  const expiresAt = new Date(exp * 1000);
+
+  await query(
+    `INSERT INTO revoked_tokens (jti, user_id, expires_at)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (jti) DO NOTHING`,
+    [jti, userId, expiresAt]
+  );
+};
