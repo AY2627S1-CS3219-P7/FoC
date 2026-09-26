@@ -1,12 +1,17 @@
-import { pool } from "../config/db.js";
+import { pool, query } from "../config/db.js";
+import { generateAccessToken } from "../utils/jwt.js";
 import { AppError } from "../utils/errors.js";
 import {
   isNonEmptyString,
   isAllowedNusEmail,
   isValidPassword,
 } from "../utils/validators.js";
-import { hashPassword } from "../utils/password.js";
+import { hashPassword, comparePassword } from "../utils/password.js";
 import type { Role, User } from "../models/types.js";
+
+// ============================================================
+// Registration
+// ============================================================
 
 export interface RegisterInput {
   username: string;
@@ -123,4 +128,81 @@ export const register = async (input: RegisterInput): Promise<User> => {
   } finally {
     client.release();
   }
+};
+
+// ============================================================
+// Login
+// ============================================================
+
+export interface LoginInput {
+  identifier: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  user: User;
+}
+
+const getUserRoles = async (userId: string): Promise<Role[]> => {
+  const result = await query(
+    `SELECT r.name
+     FROM roles r
+     INNER JOIN user_roles ur ON ur.role_id = r.id
+     WHERE ur.user_id = $1`,
+    [userId]
+  );
+
+  return result.rows.map((row: { name: Role }) => row.name);
+};
+
+export const login = async (
+  input: LoginInput
+): Promise<LoginResponse> => {
+  const { identifier, password } = input;
+
+  // Validate required fields.
+  if (!isNonEmptyString(identifier) || !isNonEmptyString(password)) {
+    throw new AppError(400, "Identifier and password are required.");
+  }
+
+  const normalizedIdentifier = identifier.trim();
+
+  const userResult = await query(
+    `SELECT id, username, email, password_hash, first_name, last_name
+     FROM users
+     WHERE username = $1 OR email = LOWER($1)`,
+    [normalizedIdentifier]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw new AppError(401, "Invalid credentials.");
+  }
+
+  const userRow = userResult.rows[0];
+
+  const passwordMatches = await comparePassword(
+    password,
+    userRow.password_hash
+  );
+
+  if (!passwordMatches) {
+    throw new AppError(401, "Invalid credentials.");
+  }
+
+  const roles = await getUserRoles(userRow.id);
+
+  const accessToken = generateAccessToken(userRow.id);
+
+  return {
+    accessToken,
+    user: {
+      id: userRow.id,
+      username: userRow.username,
+      email: userRow.email,
+      firstName: userRow.first_name,
+      lastName: userRow.last_name,
+      roles,
+    },
+  };
 };
