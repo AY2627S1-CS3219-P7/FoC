@@ -1,20 +1,31 @@
-import express, { type Express, type Request, type Response } from 'express';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import express, {
+  type Express,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
+import { env } from "./config/env.js";
+import { query } from "./config/db.js";
+import errorMiddleware from "./middleware/errorMiddleware.js";
 
 const app: Express = express();
-const PORT = process.env.PORT || 3002;
 
-// Middleware
 app.use(express.json());
 
-// Health Check
-app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'UP', service: 'user-service' });
+app.get("/health", async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    await query("SELECT 1");
+
+    res.status(200).json({
+      status: "UP",
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-// Server
-app.listen(PORT, () => {
-  console.log(`Server running on PORT ${PORT}`);
+app.use(errorMiddleware);
+
+app.listen(env.port, () => {
+  console.log(`Server running on PORT ${env.port}`);
 });
