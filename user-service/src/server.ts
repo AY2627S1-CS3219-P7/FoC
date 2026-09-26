@@ -8,6 +8,7 @@ import { env } from "./config/env.js";
 import { query } from "./config/db.js";
 import errorMiddleware from "./middleware/errorMiddleware.js";
 import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 
 const app: Express = express();
 
@@ -26,6 +27,7 @@ app.get("/health", async (_req: Request, res: Response, next: NextFunction) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
 
 app.use(errorMiddleware);
 
