@@ -1,4 +1,5 @@
 import "dotenv/config";
+import type { StringValue } from "ms";
 
 export const env = {
   port: Number(process.env.PORT) || 3002,
@@ -14,6 +15,6 @@ export const env = {
 
   jwt: {
     secret: process.env.JWT_SECRET || "",
-    expiresIn: process.env.JWT_EXPIRES_IN || "7d",
+    expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as StringValue,
   },
 };
