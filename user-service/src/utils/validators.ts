@@ -19,3 +19,14 @@ export const isValidPassword = (password: string): boolean => {
 export const isNonEmptyString = (value: unknown): value is string => {
   return typeof value === "string" && value.trim().length > 0;
 };
+
+// ============================================================
+// UUID Validation
+// ============================================================
+
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const isValidUuid = (id: string): boolean => {
+    return UUID_REGEX.test(id);
+};

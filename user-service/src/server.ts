@@ -9,6 +9,7 @@ import { query } from "./config/db.js";
 import errorMiddleware from "./middleware/errorMiddleware.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import roleRoutes from "./routes/roleRoutes.js";
 
 const app: Express = express();
 
@@ -28,6 +29,7 @@ app.get("/health", async (_req: Request, res: Response, next: NextFunction) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api", roleRoutes);
 
 app.use(errorMiddleware);
 
