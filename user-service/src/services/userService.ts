@@ -1,10 +1,14 @@
+import type { PoolClient } from "pg";
 import { query } from "../config/db.js";
 import { AppError } from "../utils/errors.js";
 import type { Role } from "../models/types.js";
 import {
-  isAllowedNusEmail,
-  isValidEmail,
+    isAllowedNusEmail,
+    isNonEmptyString,
+    isValidEmail,
+    isValidPassword,
 } from "../utils/validators.js";
+import { hashPassword } from "../utils/password.js";
 
 export interface UserProfileResponse {
   id: string;
@@ -160,4 +164,115 @@ export const updateCurrentUserProfile = async (
   }
 
   return getCurrentUserProfile(userId);
+};
+
+// AI-generated
+// ============================================================
+// Initial Admin Provisioning
+// ============================================================
+
+interface ProvisionInitialAdminInput {
+    email: string;
+    password: string;
+    username: string;
+    firstName: string;
+    lastName: string;
+}
+
+export const provisionInitialAdmin = async (
+    input: ProvisionInitialAdminInput,
+    client: PoolClient
+): Promise<void> => {
+    const {
+        email,
+        password,
+        username,
+        firstName,
+        lastName,
+    } = input;
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim();
+
+    if (!isNonEmptyString(normalizedEmail)) {
+        throw new AppError(400, "Email is required.");
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+        throw new AppError(400, "Invalid email address.");
+    }
+
+    if (!isAllowedNusEmail(normalizedEmail)) {
+        throw new AppError(400, "Email must be a valid NUS email address.");
+    }
+
+    if (!isNonEmptyString(normalizedUsername)) {
+        throw new AppError(400, "Username is required.");
+    }
+
+    if (!isNonEmptyString(firstName)) {
+        throw new AppError(400, "First name is required.");
+    }
+
+    if (!isNonEmptyString(lastName)) {
+        throw new AppError(400, "Last name is required.");
+    }
+
+    if (!isValidPassword(password)) {
+        throw new AppError(400, "Password must be at least 15 characters.");
+    }
+
+    const existingUser = await client.query(
+        `SELECT id
+         FROM users
+         WHERE email = $1 OR username = $2
+         LIMIT 1`,
+        [normalizedEmail, normalizedUsername]
+    );
+
+    if (existingUser.rows.length > 0) {
+        throw new AppError(
+            409,
+            "Username or email already exists."
+        );
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const userResult = await client.query<{ id: string }>(
+        `INSERT INTO users (
+            username,
+            email,
+            password_hash,
+            first_name,
+            last_name
+         )
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id`,
+        [
+            normalizedUsername,
+            normalizedEmail,
+            passwordHash,
+            firstName.trim(),
+            lastName.trim(),
+        ]
+    );
+
+    const userId = userResult.rows[0].id;
+
+    const roleResult = await client.query<{ id: number }>(
+        `SELECT id
+         FROM roles
+         WHERE name = 'ADMIN'`,
+    );
+
+    if (roleResult.rows.length === 0) {
+        throw new AppError(500, "ADMIN role does not exist.");
+    }
+
+    await client.query(
+        `INSERT INTO user_roles (user_id, role_id)
+         VALUES ($1, $2)`,
+        [userId, roleResult.rows[0].id]
+    );
 };

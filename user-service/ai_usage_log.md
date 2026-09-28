@@ -168,3 +168,43 @@ Files affected:
 
 Author review:
 The output was reviewed against the project conventions and the finalized API contract. The implementation matched the required authentication, database-backed role lookup, and user-not-found error behavior with no scope creep beyond the specified endpoint.
+
+## Day 0 Admin Bootstrap implementation
+Date: 2026-09-29
+Time: 3:03 AM SGT
+Tool: ChatGPT
+Model: GPT-5.6-Luna
+
+Exact prompt:
+> Implement the Day 0 Admin Bootstrap mechanism for the existing CS3219 User Service.
+>
+> Scope is limited to one-time bootstrap: create the first admin, record a one-way completion flag, and make bootstrap safe under concurrency and transactional failure. Do not implement Day 2 recovery or any re-bootstrap logic based on current ADMIN count.
+>
+> The project already has the needed stack, schema, validation utilities, and roles; inspect the existing code before editing and follow its conventions. Use `.js` extensions in TypeScript imports. The bootstrap is controlled by `INITIAL_BOOTSTRAP_COMPLETED` stored in `system_metadata`.
+>
+> Requirements:
+> - check the bootstrap flag first; if it exists, exit 0 as a no-op
+> - only when absent, validate `INITIAL_ADMIN_EMAIL` and `INITIAL_ADMIN_PASSWORD`
+> - no hardcoded fallback password
+> - acquire a PostgreSQL client and transaction, then `SELECT pg_advisory_xact_lock(74839201)`
+> - perform a second flag check after acquiring the lock
+> - provision the initial administrator through the existing application-layer user service logic, not raw SQL in the script
+> - use the supplied transaction client for all provisioning queries so user creation, ADMIN role assignment, and completion flag insertion happen atomically
+> - record `INITIAL_BOOTSTRAP_COMPLETED` with value `true`
+> - rollback on any failure and release client resources
+> - add the Day 0 migration and script entry `"db:seed": "tsx scripts/seed.ts"`
+> - do not modify unrelated routes, controllers, auth, JWT, or API contracts
+> - verify the build and bootstrap behavior with actual runs, including no-op reruns and missing-credential failure conditions
+
+Key response:
+Implemented the Day 0 bootstrap flow for the User Service: a one-time bootstrap script, transaction-scoped advisory locking with a second flag check, and an application-layer `provisionInitialAdmin` method that reuses project validation and bcrypt hashing. The bootstrap records `INITIAL_BOOTSTRAP_COMPLETED` in `system_metadata`, uses environment-provided credentials only, and prevents re-running via a no-op after initialization. A migration was added for the metadata table, and the bootstrap script was wired to the project via `db:seed`.
+
+Files affected:
+- user-service/migrations/up/002_system_metadata.up.sql
+- user-service/migrations/down/002_system_metadata.down.sql
+- user-service/src/services/userService.ts
+- user-service/src/scripts/seed.ts
+- user-service/package.json
+
+Author review:
+The implementation followed the finalized Day 0 bootstrap design: it uses a flag-first initialization path, transaction-level locking, atomic provisioning, and fail-fast credential validation without adding a recovery mechanism or changing the existing API contracts.
