@@ -46,3 +46,21 @@ microservice (`user-service/`, `supplier-service/`, `order-service/`,
   one-service-per-folder skeleton** for core implementation.
 
 ---
+
+## AI Use Summary
+
+Tools used:
+- Cursor (GPT-5.6 Sol Medium) — frontend implementation, debugging and UI refinement.
+- ChatGPT (GPT-5.6 Sol) — learning support, code explanations and debugging guidance.
+
+Prohibited phases avoided:
+- Requirements elicitation
+- Architecture/design decisions
+- Service boundary and API design decisions
+
+The frontend implementation was developed with substantial Cursor assistance.
+The author reviewed and tested the generated code and iteratively refined the implementation through follow-up instructions.
+
+Project requirements, architecture, service boundaries and API decisions were determined by the team.
+
+See `/ai/usage-log.md` for prompts and usage details.
