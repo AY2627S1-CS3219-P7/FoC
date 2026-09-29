@@ -422,3 +422,23 @@ Model: GPT-5.6 Sol
 
 Usage:
 Learning support, code explanations and debugging guidance.
+
+## Supplier Service CRUD
+Author: Maegan Tan
+Tool: Gemini (model: 3.1 Pro)
+Model: GPT-5.6 Sol Medium
+Date: 2026-09-27
+
+### Type Implementation
+Prompt: Provided the SQL schema, AI was used to implement the types
+Author review: Code manually reviewed and verified
+Files affected:
+- supplier-service/src/models/types.ts
+
+### CRUD Implementation
+Prompt: Provided function names and the Supplier model, AI was used to implement the CRUD operations
+Author review: Code manually reviewed and tested with Postman
+Files affected:
+- supplier-service/src/models/types.ts
+- supplier-service/src/controllers/supplierController.ts
+- supplier-service/src/service/supplierService.ts

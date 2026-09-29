@@ -10,6 +10,8 @@ const app: Express = express();
 
 const PORT = process.env.PORT || 3001
 
+app.use(express.json());
+
 // Routes
 app.use('/api/suppliers/', router)
 

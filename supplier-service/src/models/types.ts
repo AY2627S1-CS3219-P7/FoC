@@ -1,3 +1,8 @@
+// AI Assistance Disclosure:
+// Tool: Gemini (model: 3.1 Pro), date: 2026-09-27
+// Scope: Provided the SQL schema, AI was used to implement the types
+// Author review: Code manually reviewed and verified
+
 export interface Supplier {
   id: string;
   name: string;
@@ -14,3 +19,10 @@ export interface Supplier {
   created_at: Date;
   updated_at: Date;
 }
+
+export type CreateSupplierDTO = Omit<
+  Supplier, 
+  'id' | 'created_at' | 'updated_at'
+> & {
+  is_active?: boolean;
+};
