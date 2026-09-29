@@ -28,7 +28,7 @@ import SupplierInfo from './SupplierInfo'
 
 // These props describe the supplier information that the card accepts.
 type SupplierCardProps = {
-  id: number
+  id: string
   name: string
   type: string
   location: string

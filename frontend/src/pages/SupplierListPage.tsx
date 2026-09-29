@@ -5,7 +5,7 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Box,
   Button,
@@ -24,6 +24,8 @@ import { Link } from 'react-router-dom'
 import { CampusBuildingIcon, IconBadge } from '../components/CampusArt'
 import SupplierCard from '../components/SupplierCard'
 import SupplierListStatus from '../components/SupplierListStatus'
+import type { Supplier } from "../interfaces"
+import { fetchSuppliers } from '../api/suppliers'
 
 // Temporary frontend-only data used while developing the page.
 // Shared with the supplier detail and edit pages while this stays frontend-only data.
@@ -124,28 +126,43 @@ type SupplierListPreviewState = 'ready' | 'loading' | 'empty' | 'error'
 function SupplierListPage({ isAdmin }: SupplierListPageProps) {
   // Change 'ready' to 'loading', 'empty', or 'error' to preview each list state.
   // TODO: Replace this preview state with results from the Supplier Service.
-  const [listPreviewState] = useState<SupplierListPreviewState>('ready')
+  const [listPreviewState, setListPreviewState] = useState<SupplierListPreviewState>('loading')
 
   const [searchText, setSearchText] = useState('')
   const [selectedType, setSelectedType] = useState('All')
   const [selectedSort, setSelectedSort] = useState('name-asc')
   const [page, setPage] = useState(1)
 
-  const supplierRecords =
-    listPreviewState === 'empty' ? [] : sampleSuppliers
+  const [supplierRecords, setSuppliers] = useState<Supplier[]>([]);
+  useEffect(() => {
+    fetchSuppliers()
+      .then((data) => {
+        setSuppliers(data)
+        setListPreviewState('ready')
+      })
+      .catch((error) => {
+        console.error(error)
+        setListPreviewState('error')
+      })
+  }, [])
+  // const supplierRecords =
+  // listPreviewState === 'empty' ? [] : sampleSuppliers
 
   const normalizedSearch = searchText.toLowerCase()
+
   const filteredSuppliers = supplierRecords.filter((supplier) => {
-    const matchesSearch =
-      supplier.name.toLowerCase().includes(normalizedSearch) ||
-      supplier.type.toLowerCase().includes(normalizedSearch) ||
-      supplier.location.toLowerCase().includes(normalizedSearch)
+  const matchesSearch =
+    supplier.name.toLowerCase().includes(normalizedSearch) ||
+    supplier.type.toLowerCase().includes(normalizedSearch) ||
+    supplier.building.toLowerCase().includes(normalizedSearch) ||
+    supplier.location_description.toLowerCase().includes(normalizedSearch)
 
     const matchesType =
-      selectedType === 'All' || supplier.type === selectedType
+      selectedType === 'All' || supplier.type.includes(selectedType)
 
     return matchesSearch && matchesType
   })
+
 
   const sortedSuppliers = [...filteredSuppliers].sort((first, second) => {
     if (selectedSort === 'name-desc') {
@@ -289,7 +306,7 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
                   id={supplier.id}
                   name={supplier.name}
                   type={supplier.type}
-                  location={supplier.location}
+                  location={`${supplier.building}, Level ${supplier.floor}`}
                   operatingHours={supplier.operatingHours}
                 />
               ))
