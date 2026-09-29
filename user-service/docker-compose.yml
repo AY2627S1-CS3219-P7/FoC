@@ -4,19 +4,44 @@ services:
     container_name: user_service_postgres
     restart: always
     environment:
-      POSTGRES_DB: user_service_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_DATABASE:?DB_DATABASE is required}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     ports:
-      - "${DB_EXTERNAL_PORT:-5433}:5432"
+      - "${DB_EXTERNAL_PORT:?DB_EXTERNAL_PORT is required}:5432"
     volumes:
       - ./migrations/up:/docker-entrypoint-initdb.d
       - user_db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d user_service_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?DB_USER is required} -d ${DB_DATABASE:?DB_DATABASE is required}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  user-service-api:
+    build: .
+    container_name: user_service_app
+    restart: unless-stopped
+    depends_on:
+      user-service-db:
+        condition: service_healthy
+    ports:
+      - "${PORT:?PORT is required}:3002"
+    environment:
+      PORT: ${PORT:?PORT is required}
+      NODE_ENV: ${NODE_ENV:-development}
+      DB_HOST: user-service-db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:?INITIAL_ADMIN_EMAIL is required}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:?INITIAL_ADMIN_PASSWORD is required}
+      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-admin}
+      INITIAL_ADMIN_FIRST_NAME: ${INITIAL_ADMIN_FIRST_NAME:-System}
+      INITIAL_ADMIN_LAST_NAME: ${INITIAL_ADMIN_LAST_NAME:-Admin}
 
 volumes:
   user_db_data:
