@@ -9,7 +9,8 @@ import {
     searchSuppliersService,
     addSupplierService,
     updateSupplierService,
-    deactivateSupplierService
+    deactivateSupplierService,
+    getSupplierByIdService
 } from '../service/supplierService.ts';
 
 export const getAllSuppliers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -18,6 +19,16 @@ export const getAllSuppliers = async (req: Request, res: Response, next: NextFun
         res.status(200).json(suppliers);
     } catch (error: any) {
         const errorWithMessage = new Error(`Failed to fetch suppliers: ${error.message}`);
+        next(errorWithMessage);
+    }
+};
+
+export const getSupplierById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const supplier = await getSupplierByIdService(req.params.id as string);
+        res.status(200).json(supplier);
+    } catch (error: any) {
+        const errorWithMessage = new Error(`Failed to fetch supplier by id: ${error.message}`);
         next(errorWithMessage);
     }
 };
