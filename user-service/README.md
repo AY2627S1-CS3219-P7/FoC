@@ -38,6 +38,33 @@ This service is built with:
 
 ## 3. Quick start
 
+### Start the service
+
+From this folder, run:
+
+```bash
+docker compose up --build
+```
+
+This starts both:
+
+- the PostgreSQL database
+- the user-service API
+
+You can verify the app is up with:
+
+```bash
+curl http://localhost:3002/health
+```
+
+Expected response:
+
+```json
+{
+  "status": "UP"
+}
+```
+
 ### Quick curl examples
 
 #### Register
