@@ -12,6 +12,13 @@ export const getAllSuppliersService = async (): Promise<Supplier[]> => {
     return result.rows;
 };
 
+export const getSupplierByIdService = async (id: string): Promise<Supplier> => {
+    const query = `SELECT * FROM suppliers WHERE id = $1;`
+    const result = await pool.query<Supplier>(query, [id]);
+    return result.rows[0];
+};
+
+
 export const searchSuppliersService = async (searchTerm: string): Promise<Supplier[]> => {
     const query = `
         SELECT * FROM suppliers 
