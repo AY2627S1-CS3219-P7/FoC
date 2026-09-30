@@ -5,7 +5,7 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Box,
   Button,
@@ -20,7 +20,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import type { UserMode } from '../components/AppNavigation'
 import {
   DeliveryBagIcon,
@@ -30,7 +30,8 @@ import {
 } from '../components/CampusArt'
 import SuccessSnackbar from '../components/SuccessSnackbar'
 import SupplierInfo from '../components/SupplierInfo'
-import { sampleSuppliers } from './SupplierListPage'
+import type { Supplier } from '../interfaces'
+import { deleteSupplier, fetchSupplierById } from '../api/suppliers'
 
 type SupplierDetailPageProps = {
   isAdmin: boolean
@@ -40,17 +41,71 @@ type SupplierDetailPageProps = {
 function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  // Route parameters are strings, so convert the ID to a number before comparing it.
+  const navigate = useNavigate()
+
   const { supplierId } = useParams()
-  const supplier = sampleSuppliers.find(
-    (item) => item.id === Number(supplierId),
-  )
+  
+  const [supplier, setSupplier] = useState<Supplier | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
 
-  function handleDelete() {
-    // TODO: Delete this supplier through the team's existing Supplier Service.
+  useEffect(() => {
+    if (!supplierId) return
+    fetchSupplierById(supplierId)
+      .then((data) => {
+        setSupplier(data)
+        setStatus('ready')
+      })
+      .catch((error) => {
+        console.error(error)
+        setStatus('error')
+      })
+  }, [supplierId])
+
+  function closeDeleteDialog() {
     setIsDeleteDialogOpen(false)
-    setIsSuccessOpen(true)
+    setDeleteError('')
+  }
+
+  async function handleDelete() {
+    if (!supplier) return
+    try {
+      setDeleteError('')
+      setIsDeleting(true)
+      await deleteSupplier(supplier.id)
+      setIsDeleteDialogOpen(false)
+      setIsSuccessOpen(true)
+    } catch (error) {
+      console.error(error)
+      setDeleteError('Could not delete supplier. Please try again.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  if (status === 'loading') {
+    return (
+      <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
+        <Typography color="text.secondary">Loading supplier…</Typography>
+      </Container>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
+        <Stack spacing={2}>
+          <Typography component="h1" variant="h4">
+            Couldn&apos;t load supplier
+          </Typography>
+          <Button component={Link} to="/suppliers" variant="outlined">
+            Back
+          </Button>
+        </Stack>
+      </Container>
+    )
   }
 
   if (!supplier) {
@@ -67,6 +122,8 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       </Container>
     )
   }
+
+  const isFood = supplier.type.includes('Food')
 
   return (
     <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
@@ -110,11 +167,11 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
                 height: 120,
                 placeItems: 'center',
                 borderRadius: 3,
-                color: supplier.type === 'Food' ? 'secondary.dark' : 'primary.dark',
-                bgcolor: supplier.type === 'Food' ? 'secondary.light' : 'primary.light',
+                color: isFood ? 'secondary.dark' : 'primary.dark',
+                bgcolor: isFood ? 'secondary.light' : 'primary.light',
               }}
             >
-              {supplier.type === 'Food' ? (
+              {isFood ? (
                 <FoodIcon sx={{ fontSize: 48 }} />
               ) : supplier.type === 'Printing' ? (
                 <PrinterIcon sx={{ fontSize: 48 }} />
@@ -130,12 +187,12 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
             <Chip
               label={supplier.type}
               size="small"
-              color={supplier.type === 'Food' ? 'secondary' : 'primary'}
+              color={isFood ? 'secondary' : 'primary'}
               variant="outlined"
               sx={{ alignSelf: 'flex-start' }}
             />
             <SupplierInfo
-              location={supplier.location}
+              location={`${supplier.building}, Level ${supplier.floor}`}
               operatingHours={supplier.operatingHours}
             />
             {mode === 'requester' && (
@@ -155,17 +212,23 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       {isAdmin && (
         <Dialog
           open={isDeleteDialogOpen}
-          onClose={() => setIsDeleteDialogOpen(false)}
+          onClose={closeDeleteDialog}
+          //onClose={() => setIsDeleteDialogOpen(false)}
         >
           <DialogTitle>Delete {supplier.name}?</DialogTitle>
           <DialogContent>
             <DialogContentText>
               Are you sure you want to delete this supplier?
             </DialogContentText>
+            {deleteError && (
+            <DialogContentText color="error" sx={{ mt: 1 }}>
+              {deleteError}
+            </DialogContentText>
+            )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
-            <Button color="error" variant="contained" onClick={handleDelete}>
+            <Button onClick={closeDeleteDialog}>Cancel</Button>
+            <Button color="error" variant="contained" onClick={handleDelete} disabled={isDeleting}>
               Delete
             </Button>
           </DialogActions>
@@ -175,7 +238,10 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       <SuccessSnackbar
         open={isSuccessOpen}
         message="Supplier deleted successfully (UI preview)."
-        onClose={() => setIsSuccessOpen(false)}
+        onClose={() => {
+          setIsSuccessOpen(false)
+          navigate('/suppliers')
+        }}
       />
     </Container>
   )

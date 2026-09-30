@@ -3,8 +3,13 @@
  * Tool: Cursor (GPT-5.6 Sol Medium)
  * Scope: Assisted with frontend implementation, debugging and UI refinement.
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
+ * 
+ * Tool: Claude (Sonnet 5.5 Medium)
+ * Scope: Assisted with populating fields with supplier info from supplier service
+ * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
+import { useEffect, useState } from 'react'
 import {
   Alert,
   Box,
@@ -17,7 +22,8 @@ import {
 } from '@mui/material'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import type { UserMode } from '../components/AppNavigation'
-import { sampleSuppliers } from './SupplierListPage'
+import { fetchSupplierById } from '../api/suppliers'
+import type { Supplier } from '../interfaces'
 
 type RequestCreationPageProps = {
   mode: UserMode
@@ -25,11 +31,62 @@ type RequestCreationPageProps = {
 
 function RequestCreationPage({ mode }: RequestCreationPageProps) {
   const [searchParams] = useSearchParams()
-  const supplierId = Number(searchParams.get('supplierId'))
-  const supplier = sampleSuppliers.find((item) => item.id === supplierId)
+  const supplierId = searchParams.get('supplierId')
+
+  const [supplier, setSupplier] = useState<Supplier | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+
+  useEffect(() => {
+    if (!supplierId || mode !== 'requester') {
+      setStatus('ready')
+      return
+    }
+    let cancelled = false
+    setStatus('loading')
+    fetchSupplierById(supplierId)
+      .then((data) => {
+        if (cancelled) return
+        setSupplier(data)
+        setStatus('ready')
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.error(error)
+        setStatus('error')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [supplierId, mode])
 
   if (mode !== 'requester') {
     return <Navigate to="/home" replace />
+  }
+
+  if (status === 'loading') {
+    return (
+      <Container component="main" maxWidth="sm" sx={{ py: { xs: 3, md: 6 } }}>
+        <Typography color="text.secondary">Loading supplier…</Typography>
+      </Container>
+    )
+  }
+
+  if (status === 'error') {
+    return (
+      <Container component="main" maxWidth="sm" sx={{ py: { xs: 3, md: 6 } }}>
+        <Stack spacing={2}>
+          <Typography component="h1" variant="h4">
+            Couldn&apos;t load supplier
+          </Typography>
+          <Typography color="text.secondary">
+            Something went wrong while loading the supplier. Please try again.
+          </Typography>
+          <Button component={Link} to="/suppliers" variant="outlined" sx={{ alignSelf: 'flex-start' }}>
+            Back to suppliers
+          </Button>
+        </Stack>
+      </Container>
+    )
   }
 
   if (!supplier) {
@@ -50,7 +107,7 @@ function RequestCreationPage({ mode }: RequestCreationPageProps) {
     )
   }
 
-  const pickupLocation = `${supplier.name}, ${supplier.location}`
+  const pickupLocation = `${supplier.name}, ${supplier.building}, Level ${supplier.floor}`
 
   return (
     <Container component="main" maxWidth="sm" sx={{ py: { xs: 3, md: 6 } }}>

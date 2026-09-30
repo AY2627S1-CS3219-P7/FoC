@@ -3,6 +3,10 @@
  * Tool: Cursor (GPT-5.6 Sol Medium)
  * Scope: Assisted with frontend implementation, debugging and UI refinement.
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
+ * 
+ * Tool: Claude (Sonnet 5.5 Medium)
+ * Scope: Assisted with integration with supplier service API.
+ * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -14,7 +18,9 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import 'leaflet/dist/leaflet.css'
 import { kentRidgeCentre, nusLocations, type NusLocation } from '../data/nusLocations'
-import { sampleSuppliers } from '../pages/SupplierListPage'
+import { fetchSuppliers } from '../api/suppliers'
+import type { Supplier } from '../interfaces'
+
 
 const campusZoom = 15
 const searchZoom = 16
@@ -33,29 +39,24 @@ type MapPoint = NusLocation & {
   kind: 'place' | 'supplier'
 }
 
-function supplierPoints(): MapPoint[] {
-  return sampleSuppliers.flatMap((supplier, index) => {
-    const match = nusLocations.find(
-      (place) => place.name.toLowerCase() === supplier.location.toLowerCase(),
-    )
-    if (!match) {
-      return []
-    }
+function supplierPoints(suppliers: Supplier[]): MapPoint[] {
+  return (
+    suppliers.map((supplier, index) => {
+      const shift = (index % 3) * 0.00015
 
-    const shift = (index % 3) * 0.00015
-    return [
-      {
+      return {
         id: `supplier-${supplier.id}`,
         name: supplier.name,
-        detail: `${supplier.type} at ${supplier.location}${
+        detail: `${supplier.type} at ${supplier.building}${
+          supplier.floor ? `, Level ${supplier.floor}` : ''}${
           supplier.operatingHours ? `. ${supplier.operatingHours}` : ''
         }`,
-        latitude: match.latitude + shift,
-        longitude: match.longitude + shift,
+        latitude: supplier.latitude + shift,
+        longitude: supplier.longitude + shift,
         kind: 'supplier' as const,
-      },
-    ]
-  })
+      }
+    })
+  )
 }
 
 function matchesQuery(point: MapPoint, query: string) {
@@ -167,7 +168,22 @@ function CampusMap() {
     () => nusLocations.map((place) => ({ ...place, kind: 'place' as const })),
     [],
   )
-  const suppliers = useMemo(() => supplierPoints(), [])
+
+  const [supplierRecords, setSupplierRecords] = useState<Supplier[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    fetchSuppliers()
+      .then((data) => {
+        if (!cancelled) setSupplierRecords(data)
+      })
+      .catch((error) => console.error(error))
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const suppliers = useMemo(() => supplierPoints(supplierRecords), [supplierRecords])
   const visiblePlaces = places.filter((place) => matchesQuery(place, query))
   const visibleSuppliers = suppliers.filter((supplier) => matchesQuery(supplier, query))
 

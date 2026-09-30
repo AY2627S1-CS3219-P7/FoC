@@ -5,7 +5,7 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import type { ReactNode } from 'react'
+import {useState, type ReactNode } from 'react'
 import {
   Box,
   Button,
@@ -28,7 +28,7 @@ import SupplierInfo from './SupplierInfo'
 
 // These props describe the supplier information that the card accepts.
 type SupplierCardProps = {
-  id: number
+  id: string
   name: string
   type: string
   location: string
@@ -77,7 +77,9 @@ function SupplierCard({
   operatingHours,
   imageUrl,
 }: SupplierCardProps) {
-  const placeholder = placeholderByType[type] ?? defaultPlaceholder
+  const [imageFailed, setImageFailed] = useState(false)
+  const placeholder = placeholderByType[type] ?? 
+  (type.includes('Food') ? placeholderByType.Food : defaultPlaceholder)
 
   return (
     <Card
@@ -97,12 +99,13 @@ function SupplierCard({
         },
       }}
     >
-      {imageUrl ? (
+      {imageUrl && !imageFailed ? (
         <CardMedia
           component="img"
           image={imageUrl}
           alt={name}
           sx={{ height: 148 }}
+          onError={() => setImageFailed(true)}
         />
       ) : (
         <Box
