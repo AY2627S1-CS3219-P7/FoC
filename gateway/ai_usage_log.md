@@ -109,3 +109,39 @@ Files affected:
 
 Author review:
 The output was reviewed and validated against the Phase 3 requirements. The implementation preserves the existing Gateway topology, does not log sensitive information, forwards X-Request-Id cleanly, and ensures proxy outages are surfaced to clients as a sanitized 502 without exposing backend internals.
+
+## Gateway Dockerization and orchestration implementation
+Date: 2026-09-30
+Time: 5:45 PM SGT
+Tool: ChatGPT
+Model: GPT-5.6-Luna
+
+Exact prompt:
+> Implement Phase 4: Dockerization & Orchestration for the API Gateway.
+>
+> Requirements:
+> - Create gateway/Dockerfile and gateway/.dockerignore with a multi-stage node:20-alpine build.
+> - Stage 1 runs npm ci, copies the source, builds with npm run build, and prunes production dependencies.
+> - Stage 2 runs as non-root, copies only the dist output, production node_modules, and package manifests, and serves on port 8080.
+> - Exclude node_modules, dist, .env, .git, and logs from the Docker build context.
+> - Update the root compose configuration to include the gateway container using the actual service names and internal DNS targets.
+> - Bind host port 8080:8080 and pass PORT, FRONTEND_ORIGIN, USER_SERVICE_URL, SUPPLIER_SERVICE_URL, and JWT_SECRET.
+> - Keep the existing reverse proxy, JWT auth, request ID propagation, and sanitized logging behavior unchanged.
+> - Use 2-space indentation and do not introduce new architecture or additional components.
+>
+> Deliverables:
+> - gateway/Dockerfile
+> - gateway/.dockerignore
+> - updated root compose configuration
+> - verification checklist covering health, request ID reflection, downstream proxying, and outage handling.
+
+Key response:
+Implemented the Phase 4 Dockerization layer for the Gateway: a two-stage Node Alpine Docker build, a production-safe .dockerignore, and a root Compose integration that connects the gateway to the actual user-service and supplier-service containers over the internal Docker network. The Gateway preserves its route separation, JWT enforcement, request ID propagation, and sanitized 502 handling while exposing the service on port 8080.
+
+Files affected:
+- gateway/Dockerfile
+- gateway/.dockerignore
+- compose.yaml
+
+Author review:
+The output was reviewed and validated against the finalized Phase 4 architecture. The container build is kept minimal, the internal network targets use the actual Compose service names, and the Gateway remains aligned with the already verified Phase 1–3 behavior without adding new infrastructure components.
