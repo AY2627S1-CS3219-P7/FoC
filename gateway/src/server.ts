@@ -55,11 +55,11 @@ const createJsonProxy = (
       proxyReq: (proxyReq, req) => {
         fixRequestBody(proxyReq, req);
 
-        const requestId = req.headers["x-request-id"];
+        // const requestId = req.headers["x-request-id"];
 
-        if (typeof requestId === "string" && requestId.length > 0) {
-          proxyReq.setHeader("X-Request-Id", requestId);
-        }
+        // if (typeof requestId === "string" && requestId.length > 0) {
+        //   proxyReq.setHeader("X-Request-Id", requestId);
+        // }
       },
       error: (_error, _req, res) => {
         const response = res as Response;
@@ -113,6 +113,6 @@ app.use((_req: Request, res: Response) => {
   });
 });
 
-app.listen(env.port, () => {
+app.listen(env.port, "0.0.0.0", () => {
   console.log(`Gateway running on PORT ${env.port}`);
 });
