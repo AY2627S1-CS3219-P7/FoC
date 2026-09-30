@@ -73,3 +73,39 @@ Files affected:
 
 Author review:
 The output was reviewed against the Phase 2 architecture constraints. It preserves the existing Gateway proxy behavior, adds JWT verification using the shared secret only, and keeps the implementation limited to authentication enforcement without introducing a second revocation model or role logic.
+
+## Gateway security hardening and observability implementation
+Date: 2026-09-30
+Time: 4:33 PM SGT
+Tool: ChatGPT
+Model: GPT-5.6-Luna
+
+Exact prompt:
+> Implement Phase 3: Security Hardening & Observability for the API Gateway.
+>
+> Scope:
+> - Add request tracing middleware that keeps existing X-Request-Id values or generates a new UUIDv4 when absent.
+> - Attach the request ID to the response headers and forward it to downstream services via http-proxy-middleware.
+> - Add a sanitized request logger that records `[ISO-Timestamp] [requestId] METHOD PATH -> STATUS (LATENCYms)` without logging tokens, passwords, request bodies, or credentials.
+> - Ensure downstream connection failures return HTTP 502 with { "status": 502, "message": "Bad Gateway" } and do not leak internal Node.js or network errors to the client.
+> - Keep the existing reverse proxy, CORS, and JWT authentication flows from Phase 1 and 2 unchanged.
+> - Use 4-space indentation and keep the implementation minimal.
+>
+> Deliverables:
+> - gateway/src/middleware/requestId.ts
+> - gateway/src/middleware/logger.ts
+> - updated gateway/src/server.ts
+>
+> Also provide curl verification commands for request ID reflection and simulated downstream outage handling.
+
+Key response:
+Implemented the Phase 3 Gateway hardening layer: request ID propagation middleware with UUID fallback and response header reflection, a sanitized logger that records only method/path/status/latency metadata, and proxy error handling that masks internal connectivity failures behind a uniform 502 Bad Gateway response. The Gateway continues to preserve the existing routing, CORS, and JWT authentication behavior while forwarding the request ID to upstream services.
+
+Files affected:
+- gateway/src/middleware/requestId.ts
+- gateway/src/middleware/logger.ts
+- gateway/src/server.ts
+- gateway/src/types/express.d.ts
+
+Author review:
+The output was reviewed and validated against the Phase 3 requirements. The implementation preserves the existing Gateway topology, does not log sensitive information, forwards X-Request-Id cleanly, and ensures proxy outages are surfaced to clients as a sanitized 502 without exposing backend internals.

@@ -1,9 +1,10 @@
 // AI Assistance Disclosure:
 // Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-09-30
-// Scope: Implemented the Phase 2 API Gateway JWT authentication flow
-// and selective route protection based on the finalized project design.
+// Scope: Implemented the Phase 3 API Gateway request ID propagation,
+// sanitized request logging, and downstream request ID forwarding
+// based on the finalized project design.
 // Author review: Reviewed and validated against the finalized gateway
-// architecture and Phase 2 requirements.
+// architecture and Phase 3 requirements.
 
 import "dotenv/config";
 import express, {
@@ -19,6 +20,8 @@ import {
 
 import { env } from "./config/env.js";
 import { authMiddleware } from "./middleware/authMiddleware.js";
+import { loggerMiddleware } from "./middleware/logger.js";
+import { requestIdMiddleware } from "./middleware/requestId.js";
 
 const app: Express = express();
 
@@ -30,6 +33,8 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(requestIdMiddleware);
+app.use(loggerMiddleware);
 
 app.get("/health", (_req: Request, res: Response) => {
   res.status(200).json({
@@ -47,7 +52,15 @@ const createJsonProxy = (
     changeOrigin: true,
     pathFilter,
     on: {
-      proxyReq: fixRequestBody,
+      proxyReq: (proxyReq, req) => {
+        fixRequestBody(proxyReq, req);
+
+        const requestId = req.headers["x-request-id"];
+
+        if (typeof requestId === "string" && requestId.length > 0) {
+          proxyReq.setHeader("X-Request-Id", requestId);
+        }
+      },
       error: (_error, _req, res) => {
         const response = res as Response;
 
@@ -88,9 +101,10 @@ const supplierServiceProxy = createJsonProxy(
 );
 
 app.use(publicAuthProxy);
+app.use(supplierServiceProxy);
+
 app.use(authMiddleware, protectedAuthProxy);
 app.use(authMiddleware, userProxy);
-app.use(supplierServiceProxy);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({
