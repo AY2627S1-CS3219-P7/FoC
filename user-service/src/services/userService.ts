@@ -260,19 +260,31 @@ export const provisionInitialAdmin = async (
 
     const userId = userResult.rows[0].id;
 
-    const roleResult = await client.query<{ id: number }>(
-        `SELECT id
+    const roleResult = await client.query<{ id: number; name: string }>(
+        `SELECT id, name
          FROM roles
-         WHERE name = 'ADMIN'`,
+         WHERE name IN ('ADMIN', 'REQUESTER', 'COURIER')`,
     );
 
-    if (roleResult.rows.length === 0) {
-        throw new AppError(500, "ADMIN role does not exist.");
+    if (roleResult.rows.length !== 3) {
+        const existingRoleNames = new Set(
+            roleResult.rows.map((role) => role.name)
+        );
+        const missingRoles = ["ADMIN", "REQUESTER", "COURIER"].filter(
+            (roleName) => !existingRoleNames.has(roleName)
+        );
+
+        throw new AppError(
+            500,
+            `Required roles are missing: ${missingRoles.join(", ")}`
+        );
     }
 
-    await client.query(
-        `INSERT INTO user_roles (user_id, role_id)
-         VALUES ($1, $2)`,
-        [userId, roleResult.rows[0].id]
-    );
+    for (const role of roleResult.rows) {
+        await client.query(
+            `INSERT INTO user_roles (user_id, role_id)
+             VALUES ($1, $2)`,
+            [userId, role.id]
+        );
+    }
 };
