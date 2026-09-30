@@ -7,6 +7,19 @@ export type ApiSupplier = Omit<Supplier, 'operatingHours' | 'latitude' | 'longit
   longitude: string
 }
 
+// create and update endpoints format
+export type SupplierInput = {
+  name: string
+  type: string
+  building: string
+  floor: string
+  location_description: string
+  starting_time: string
+  closing_time: string
+  latitude: number
+  longitude: number
+}
+
 export function formatTime(time: string) {
   const [h, m] = time.split(':').map(Number)
   const suffix = h >= 12 ? 'pm' : 'am'
@@ -30,7 +43,10 @@ function toSupplier(s: ApiSupplier): Supplier {
 
 async function request(url: string, init?: RequestInit) {
   const response = await fetch(url, init)
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => '')
+    throw new Error(`Request failed: ${response.status} ${errorBody}`)
+  }
   return response
 }
 
@@ -45,7 +61,29 @@ export async function fetchSupplierById(id: string): Promise<Supplier | null> {
   const response = await fetch(`${BASE_URL}/${id}`)
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`Request failed: ${response.status}`)
-  return toSupplier(await response.json())
+  const data: ApiSupplier | null = await response.json()
+  if (!data || !data.is_active) return null
+  return toSupplier(data)
 }
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
+
+export async function createSupplier(input: SupplierInput) {
+  await request(BASE_URL, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(input),
+  })
+}
+
+export async function updateSupplier(id: string, input: SupplierInput) {
+  await request(`${BASE_URL}/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify(input),
+  })
+}
+
+export async function deleteSupplier(id: string) {
+  await request(`${BASE_URL}/deactivate/${id}`, { method: 'PATCH' })
+}

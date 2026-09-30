@@ -30,7 +30,7 @@ import SupplierListPage from './pages/SupplierListPage'
 import theme from './theme'
 
 // TODO: Replace this preview value with role information from the team's User Service/auth integration.
-const TEMPORARY_IS_ADMIN = false
+const TEMPORARY_IS_ADMIN = true
 
 const requesterPageBackground = {
   bgcolor: '#F3F5F7',

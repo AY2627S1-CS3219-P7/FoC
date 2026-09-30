@@ -20,32 +20,50 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import SuccessSnackbar from '../components/SuccessSnackbar'
+import type { Supplier } from '../interfaces'
+import { createSupplier } from '../api/suppliers'
 
 function CreateSupplierPage() {
+  const navigate = useNavigate()
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
+  // default initial values
   const [formValues, setFormValues] = useState({
     supplierName: '',
     type: '',
-    location: '',
-    operatingHours: '',
+    building: '',
+    floor: '',
+    locationDescription: '',
+    startingTime: '',
+    closingTime: '',
+    latitude: '',
+    longitude: ''
   })
 
   const [errors, setErrors] = useState({
     supplierName: false,
     type: false,
-    location: false,
+    building: false,
+    startingTime: false,
+    closingTime: false,
+    latitude: false,
+    longitude: false
   })
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const newErrors = {
       supplierName: formValues.supplierName.trim() === '',
       type: formValues.type === '',
-      location: formValues.location.trim() === '',
+      building: formValues.building.trim() === '',
+      startingTime: formValues.startingTime === '',
+      closingTime: formValues.closingTime === '',
+      latitude: formValues.latitude.trim() === '' || Number.isNaN(Number(formValues.latitude)),
+      longitude: formValues.longitude.trim() === '' || Number.isNaN(Number(formValues.longitude))
     }
 
     setErrors(newErrors)
@@ -54,8 +72,25 @@ function CreateSupplierPage() {
       return
     }
 
-    // TODO: Send the validated form to the team's existing Supplier Service.
-    setIsSuccessOpen(true)
+    // Send the validated form to the team's existing Supplier Service.
+    try {
+      setSubmitError("")
+      await createSupplier({
+        name: formValues.supplierName.trim(),
+        type: formValues.type,
+        building: formValues.building.trim(),
+        floor: formValues.floor.trim(),
+        location_description: formValues.locationDescription.trim(),
+        starting_time: `${formValues.startingTime}:00`, // format in db is "HH:MM:SS"
+        closing_time: `${formValues.closingTime}:00`,
+        latitude: Number(formValues.latitude),
+        longitude: Number(formValues.longitude)
+      })
+      setIsSuccessOpen(true)
+    } catch (error) {
+      console.error(error)
+      setSubmitError("Uh oh, we could not create this supplier. Please try again.")
+    }
   }
 
   return (
@@ -107,35 +142,95 @@ function CreateSupplierPage() {
                   }
                 >
                   <MenuItem value="Food">Food</MenuItem>
+                  <MenuItem value="Food/Coffee">Food/Coffee</MenuItem>
                   <MenuItem value="Printing">Printing</MenuItem>
+                  <MenuItem value="Printing">Shopping</MenuItem>
                 </Select>
                 {errors.type && <FormHelperText>Type is required</FormHelperText>}
               </FormControl>
 
               <TextField
                 required
-                label="Location"
-                value={formValues.location}
+                label="Building"
+                value={formValues.building}
                 onChange={(event) =>
-                  setFormValues({
-                    ...formValues,
-                    location: event.target.value,
-                  })
+                  setFormValues({ ...formValues, building: event.target.value })
                 }
-                error={errors.location}
-                helperText={errors.location ? 'Location is required' : ''}
+                error={errors.building}
+                helperText={errors.building ? 'Building is required' : ''}
               />
 
               <TextField
-                label="Operating Hours"
-                value={formValues.operatingHours}
+                label="Floor"
+                value={formValues.floor}
                 onChange={(event) =>
-                  setFormValues({
-                    ...formValues,
-                    operatingHours: event.target.value,
-                  })
+                  setFormValues({ ...formValues, floor: event.target.value })
                 }
               />
+
+              <TextField
+                label="Location Description"
+                value={formValues.locationDescription}
+                onChange={(event) =>
+                  setFormValues({ ...formValues, locationDescription: event.target.value })
+                }
+              />
+
+              <TextField
+                required
+                fullWidth
+                type="time"
+                label="Opening Time"
+                value={formValues.startingTime}
+                onChange={(event) =>
+                  setFormValues({ ...formValues, startingTime: event.target.value })
+                }
+                error={errors.startingTime}
+                helperText={errors.startingTime ? 'Opening time is required' : ''}
+              />
+              <TextField
+                required
+                fullWidth
+                type="time"
+                label="Closing Time"
+                value={formValues.closingTime}
+                onChange={(event) =>
+                  setFormValues({ ...formValues, closingTime: event.target.value })
+                }
+                error={errors.closingTime}
+                helperText={errors.closingTime ? 'Closing time is required' : ''}
+              />
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <TextField
+                  required
+                  fullWidth
+                  type="number"
+                  label="Latitude"
+                  value={formValues.latitude}
+                  onChange={(event) =>
+                    setFormValues({ ...formValues, latitude: event.target.value })
+                  }
+                  error={errors.latitude}
+                  helperText={errors.latitude ? 'Valid latitude is required' : ''}
+                  slotProps={{ htmlInput: { step: 'any' } }}
+                />
+                <TextField
+                  required
+                  fullWidth
+                  type="number"
+                  label="Longitude"
+                  value={formValues.longitude}
+                  onChange={(event) =>
+                    setFormValues({ ...formValues, longitude: event.target.value })
+                  }
+                  error={errors.longitude}
+                  helperText={errors.longitude ? 'Valid longitude is required' : ''}
+                  slotProps={{ htmlInput: { step: 'any' } }}
+                />
+              </Stack>
+
+              {submitError && <FormHelperText error>{submitError}</FormHelperText>}
 
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                 <Button type="submit" variant="contained">
@@ -153,7 +248,10 @@ function CreateSupplierPage() {
       <SuccessSnackbar
         open={isSuccessOpen}
         message="Supplier created successfully (UI preview)."
-        onClose={() => setIsSuccessOpen(false)}
+        onClose={() => {
+          setIsSuccessOpen(false)
+          navigate('/suppliers')
+        }}
       />
     </Container>
   )
