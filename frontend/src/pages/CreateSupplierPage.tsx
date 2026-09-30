@@ -22,7 +22,6 @@ import {
 } from '@mui/material'
 import { Link, useNavigate } from 'react-router-dom'
 import SuccessSnackbar from '../components/SuccessSnackbar'
-import type { Supplier } from '../interfaces'
 import { createSupplier } from '../api/suppliers'
 
 function CreateSupplierPage() {
@@ -144,7 +143,7 @@ function CreateSupplierPage() {
                   <MenuItem value="Food">Food</MenuItem>
                   <MenuItem value="Food/Coffee">Food/Coffee</MenuItem>
                   <MenuItem value="Printing">Printing</MenuItem>
-                  <MenuItem value="Printing">Shopping</MenuItem>
+                  <MenuItem value="Shopping">Shopping</MenuItem>
                 </Select>
                 {errors.type && <FormHelperText>Type is required</FormHelperText>}
               </FormControl>
