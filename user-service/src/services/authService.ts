@@ -192,7 +192,7 @@ export const login = async (
 
   const roles = await getUserRoles(userRow.id);
 
-  const accessToken = generateAccessToken(userRow.id);
+  const accessToken = generateAccessToken(userRow.id, roles);
 
   return {
     accessToken,

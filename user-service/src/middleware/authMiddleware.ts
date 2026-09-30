@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { query } from "../config/db.js";
 import { verifyAccessToken } from "../utils/jwt.js";
 import { AppError } from "../utils/errors.js";
+import type { Role } from "../models/types.js";
 
 // ============================================================
 // Authentication Middleware
@@ -32,6 +33,8 @@ export const authMiddleware = async (
       throw new AppError(401, "Authentication required.");
     }
 
+    const roles = Array.isArray(payload.roles) ? payload.roles as Role[] : [];
+
     const revokedToken = await query(
       "SELECT 1 FROM revoked_tokens WHERE jti = $1",
       [payload.jti]
@@ -45,6 +48,7 @@ export const authMiddleware = async (
       id: payload.sub,
       jti: payload.jti,
       exp: payload.exp,
+      roles,
     };
 
     next();

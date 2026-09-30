@@ -13,4 +13,5 @@ export interface JwtPayload {
   sub: string;
   jti: string;
   exp: number;
+  roles: Role[];
 }
