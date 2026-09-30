@@ -249,7 +249,9 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
                 >
                   <MenuItem value="All">All</MenuItem>
                   <MenuItem value="Food">Food</MenuItem>
+                  <MenuItem value="Food/Coffee">Food/Coffee</MenuItem>
                   <MenuItem value="Printing">Printing</MenuItem>
+                  <MenuItem value="Shopping">Shopping</MenuItem>
                 </Select>
               </FormControl>
 
@@ -308,6 +310,7 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
                   type={supplier.type}
                   location={`${supplier.building}, Level ${supplier.floor}`}
                   operatingHours={supplier.operatingHours}
+                  imageUrl={supplier.image_url ?? undefined}
                 />
               ))
             ) : (

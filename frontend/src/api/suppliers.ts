@@ -32,9 +32,18 @@ export function formatHours(start: string, end: string) {
   return `${formatTime(start)} - ${formatTime(end)}`
 }
 
+// TODO: replace with s3 url when hosted on cloud
+function toRawImageUrl(url: string | null): string | null {
+  if (!url) return null
+  return url
+    .replace('https://github.com/', 'https://raw.githubusercontent.com/')
+    .replace('/blob/', '/')
+}
+
 function toSupplier(s: ApiSupplier): Supplier {
   return {
     ...s,
+    image_url: toRawImageUrl(s.image_url),
     latitude: Number(s.latitude),
     longitude: Number(s.longitude),
     operatingHours: formatHours(s.starting_time, s.closing_time)
