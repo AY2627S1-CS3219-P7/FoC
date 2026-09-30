@@ -442,3 +442,15 @@ Files affected:
 - supplier-service/src/models/types.ts
 - supplier-service/src/controllers/supplierController.ts
 - supplier-service/src/service/supplierService.ts
+
+### RBAC Implementation
+Tool: GitHub Copilot (GPT-6 Luna)
+Prompt: Implementation was done incrementally with the following prompts
+- Implement boilerplate code for a Role-Based Access Control middleware. Refer to the auth middleware in user-services. Include the jwt dependencies and create type files needed, but do not use the middleware in the routes yet
+- Implement the middleware in each route, include all three roles in the permissions each route
+  Author Review: Code reviewed and tested with postman
+  Files affected:
+- supplier-service/src/middleware/authMiddleware.ts
+- supplier-service/src/routes/supplierRoutes.ts
+- supplier-service/src/types/auth.ts
+- supplier-service/src/types/express.d.ts
