@@ -1,3 +1,10 @@
+// AI Assistance Disclosure:
+// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-09-30
+// Scope: Added the shared Gateway environment configuration for the
+// finalized Phase 2 JWT authentication setup.
+// Author review: Reviewed and validated against the project environment
+// contract and required defaults.
+
 import "dotenv/config";
 
 export const env = {

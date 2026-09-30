@@ -1,3 +1,10 @@
+// AI Assistance Disclosure:
+// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-09-30
+// Scope: Generated the Gateway JWT verification middleware according to
+// the finalized Phase 2 authentication design.
+// Author review: Reviewed and validated against the project JWT contract
+// and expected 401 behavior for invalid or missing tokens.
+
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 

@@ -1,3 +1,10 @@
+// AI Assistance Disclosure:
+// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-09-30
+// Scope: Implemented the Phase 2 API Gateway JWT authentication flow
+// and selective route protection based on the finalized project design.
+// Author review: Reviewed and validated against the finalized gateway
+// architecture and Phase 2 requirements.
+
 import "dotenv/config";
 import express, {
   type Express,
