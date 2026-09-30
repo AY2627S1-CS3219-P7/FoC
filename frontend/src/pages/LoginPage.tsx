@@ -18,6 +18,7 @@ import {
 } from '@mui/material'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import nusLogo from '../assets/nus-logo.png'
+import { login } from '../api/users'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -33,9 +34,19 @@ function LoginPage() {
       return
     }
 
-    // TODO: Replace this temporary frontend-only navigation with authentication
-    // through the team's existing User Service.
-    navigate('/home')
+
+
+      try {
+        login({
+          identifier: usernameOrEmail,
+          password: password
+        }).then((data) => console.log(data))
+        navigate('/home')
+      } catch (error) {
+        console.error(error)
+        // TODO: error handling
+      }
+    
   }
 
   return (

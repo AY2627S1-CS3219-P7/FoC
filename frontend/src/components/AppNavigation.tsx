@@ -25,6 +25,7 @@ import {
 } from '@mui/material'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CampusBuildingIcon } from './CampusArt'
+import { logout } from '../api/users'
 
 export type UserMode = 'requester' | 'courier'
 
@@ -163,12 +164,17 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
     },
   })
 
-  function handleLogout() {
+  async function handleLogout() {
     setMobileMenuAnchor(null)
 
     // TODO: Replace this navigation-only logout with real authenticated session
     // handling through the team's existing User Service.
-    navigate('/login')
+    try {
+      await logout()
+      navigate('/login')
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   return (

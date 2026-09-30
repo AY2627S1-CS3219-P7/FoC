@@ -1,4 +1,6 @@
 import type { Supplier } from '../interfaces'
+import { clearToken, getToken, 
+  UnauthorizedError, ForbiddenError, NotFoundError } from './users'
 
 const BASE_URL = 'http://localhost:3001/api/suppliers'
 
@@ -50,8 +52,23 @@ function toSupplier(s: ApiSupplier): Supplier {
   }
 }
 
-async function request(url: string, init?: RequestInit) {
-  const response = await fetch(url, init)
+async function request(url: string, init: RequestInit = {}) {
+  const token = getToken()
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      ...(token ? {Authorization: `Bearer ${token}`}: {}),
+      ...init.headers
+    },
+  })
+
+  if (response.status === 401) {
+    clearToken()
+    throw new UnauthorizedError('Not authenticated')
+  }
+  if (response.status === 403) throw new ForbiddenError('You do not have permission to do this')
+  if (response.status === 404) throw new NotFoundError('Not found')
+
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '')
     throw new Error(`Request failed: ${response.status} ${errorBody}`)

@@ -17,6 +17,7 @@ import {
 } from '@mui/material'
 import { Link as RouterLink } from 'react-router-dom'
 import nusLogo from '../assets/nus-logo.png'
+import { register } from '../api/users'
 
 const allowedEmailDomains = [
   '@u.nus.edu',
@@ -42,7 +43,7 @@ function RegisterPage() {
   })
   const [errors, setErrors] = useState(emptyErrors)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     const normalizedEmail = formValues.email.trim().toLowerCase()
@@ -74,8 +75,18 @@ function RegisterPage() {
       return
     }
 
-    // TODO: Replace this frontend-only validation with registration through
-    // the team's existing User Service.
+    try {
+      await register({
+        username: formValues.username.trim(),
+        email: formValues.email.trim(),
+        password: formValues.password.trim(),
+        firstName: formValues.firstName.trim(),
+        lastName: formValues.lastName.trim()
+      }).then((data) => console.log(data))
+    } catch (error) {
+      console.error(error)
+    }
+
   }
 
   return (

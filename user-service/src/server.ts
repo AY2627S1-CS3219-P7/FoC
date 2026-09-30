@@ -4,6 +4,8 @@ import express, {
   type Response,
   type NextFunction,
 } from "express";
+import cors from 'cors';
+import cookieParser from "cookie-parser";
 import { env } from "./config/env.js";
 import { query } from "./config/db.js";
 import errorMiddleware from "./middleware/errorMiddleware.js";
@@ -14,6 +16,8 @@ import roleRoutes from "./routes/roleRoutes.js";
 const app: Express = express();
 
 app.use(express.json());
+app.use(cors({ origin: 'http://localhost:5173' }))
+app.use(cookieParser());
 
 app.get("/health", async (_req: Request, res: Response, next: NextFunction) => {
   try {

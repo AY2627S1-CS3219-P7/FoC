@@ -15,3 +15,14 @@ export interface Supplier {
     created_at: string,
     updated_at: string
 }
+
+export type Role = 'ADMIN' | 'REQUESTER' | 'COURIER'
+
+export interface User {
+    id: string,
+    username: string,
+    email: string,
+    firstName: string,
+    lastName: string,
+    roles: Role[]
+}
