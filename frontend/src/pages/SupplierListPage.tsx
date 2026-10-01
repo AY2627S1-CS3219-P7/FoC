@@ -155,7 +155,7 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
     supplier.name.toLowerCase().includes(normalizedSearch) ||
     supplier.type.toLowerCase().includes(normalizedSearch) ||
     supplier.building.toLowerCase().includes(normalizedSearch) ||
-    supplier.location_description.toLowerCase().includes(normalizedSearch)
+    (supplier.location_description != null && supplier.location_description.toLowerCase().includes(normalizedSearch))
 
     const matchesType =
       selectedType === 'All' || supplier.type.includes(selectedType)
