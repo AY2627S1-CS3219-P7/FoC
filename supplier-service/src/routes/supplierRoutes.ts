@@ -16,19 +16,19 @@ const requireAdminRole = authorizeRoles("ADMIN")
 // GET api/suppliers/
 router.get("/", authMiddleware, requireAnyRole, getAllSuppliers)
 
-// GET api/suppliers/
-router.get("/:id", authMiddleware, requireAnyRole, getSupplierById)
-
 // GET api/suppliers/search 
 router.get("/search", authMiddleware, requireAnyRole, searchSuppliers);
+
+// GET api/suppliers/
+router.get("/:id", authMiddleware, requireAnyRole, getSupplierById)
 
 // POST api/suppliers
 router.post("/", authMiddleware, requireAdminRole, addSupplier);
 
-// PATCH api/suppliers/:id 
-router.patch("/:id", authMiddleware, requireAdminRole, updateSupplier);
-
 // PATCH api/suppliers/deactivate/:id
 router.patch("/deactivate/:id", authMiddleware, requireAdminRole, deactivateSupplier);
+
+// PATCH api/suppliers/:id 
+router.patch("/:id", authMiddleware, requireAdminRole, updateSupplier);
 
 export default router
