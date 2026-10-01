@@ -84,12 +84,17 @@ export async function fetchSuppliers(): Promise<Supplier[]> {
 
 
 export async function fetchSupplierById(id: string): Promise<Supplier | null> {
-  const response = await fetch(`${BASE_URL}/${id}`)
-  if (response.status === 404) return null
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`)
-  const data: ApiSupplier | null = await response.json()
-  if (!data || !data.is_active) return null
-  return toSupplier(data)
+  try {
+    const response = await request(`${BASE_URL}/${id}`)
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`)
+    const data: ApiSupplier | null = await response.json()
+    if (!data || !data.is_active) return null
+    return toSupplier(data)
+  } catch (error) {
+    if (error instanceof NotFoundError) return null
+    throw error
+  }
 }
 
 const jsonHeaders = { 'Content-Type': 'application/json' }

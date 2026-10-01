@@ -3,7 +3,7 @@ import type { Role, User } from '../interfaces'
 const BASE_URL = "http://localhost:3002/api"
 
 const TOKEN_KEY = 'auth_token'
- 
+
 export function getToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY)
@@ -11,7 +11,7 @@ export function getToken(): string | null {
     return null
   }
 }
- 
+
 export function setToken(token: string) {
   try {
     localStorage.setItem(TOKEN_KEY, token)
@@ -19,7 +19,7 @@ export function setToken(token: string) {
     /* ignore */
   }
 }
- 
+
 export function clearToken() {
   try {
     localStorage.removeItem(TOKEN_KEY)
@@ -32,6 +32,16 @@ export class UnauthorizedError extends Error {} // 401: missing, expired or revo
 export class ForbiddenError extends Error {}    // 403: logged in, but the role isn't allowed
 export class NotFoundError extends Error {}     // 404
 
+export class ApiError extends Error {
+  status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.status = status
+    this.name = 'ApiError'
+  }
+}
+
 async function request(path: string, init: RequestInit = {}, authenticated = false) {
   const token = authenticated ? getToken() : null
   const response = await fetch(`${BASE_URL}${path}`, {
@@ -42,10 +52,10 @@ async function request(path: string, init: RequestInit = {}, authenticated = fal
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   })
- 
+
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null)
-    throw new Error(`Request failed: ${response.status} ${errorBody}`)
+    throw new ApiError(response.status, errorBody?.message ?? `Request failed: ${response.status}`)
   }
   return response
 }
@@ -89,14 +99,17 @@ export async function logout() {
   }
 }
 
+// Restores the session on page load. Returns null when nobody is logged in.
 export async function fetchCurrentUser(): Promise<User | null> {
   if (!getToken()) return null
   try {
     const response = await request('/users/me', {}, true)
     return await response.json()
   } catch (error) {
-    console.log(error)
-    clearToken()
+    if (error instanceof ApiError && (error.status === 401 || error.status === 404)) {
+      clearToken()
+      return null
+    }
     throw error
   }
 }
@@ -124,7 +137,7 @@ export async function updateCurrentUser(input: UpdateProfileInput): Promise<User
 export function hasRole(user: User | null, role: Role): boolean {
   return !!user?.roles.includes(role)
 }
- 
+
 export function isAdmin(user: User | null): boolean {
   return hasRole(user, 'ADMIN')
 }

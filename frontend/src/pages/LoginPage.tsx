@@ -16,17 +16,22 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import nusLogo from '../assets/nus-logo.png'
-import { login } from '../api/users'
+import { ApiError } from '../api/users'
+import { useAuth } from '../auth/AuthContext'
 
 function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { login } = useAuth()
+  const from =
+    (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/home'
   const [usernameOrEmail, setUsernameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!usernameOrEmail.trim() || !password.trim()) {
@@ -34,19 +39,18 @@ function LoginPage() {
       return
     }
 
-
-
-      try {
-        login({
-          identifier: usernameOrEmail,
-          password: password
-        }).then((data) => console.log(data))
-        navigate('/home')
-      } catch (error) {
-        console.error(error)
-        // TODO: error handling
-      }
-    
+    try {
+      await login(usernameOrEmail.trim(), password)
+      navigate(from, { replace: true })
+    } catch (error) {
+      console.error(error)
+      // The User Service sends readable messages, e.g. "Invalid credentials."
+      setErrorMessage(
+        error instanceof ApiError
+          ? error.message
+          : 'Could not reach the server. Please try again.',
+      )
+    }
   }
 
   return (

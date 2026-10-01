@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react'
-import { Box, CssBaseline, ThemeProvider } from '@mui/material'
+import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material'
 import {
   BrowserRouter,
   Navigate,
@@ -28,9 +28,8 @@ import RequestCreationPage from './pages/RequestCreationPage.tsx'
 import SupplierDetailPage from './pages/SupplierDetailPage.tsx'
 import SupplierListPage from './pages/SupplierListPage'
 import theme from './theme'
-
-// TODO: Replace this preview value with role information from the team's User Service/auth integration.
-const TEMPORARY_IS_ADMIN = true
+import { AuthProvider, useAuth } from './auth/AuthContext'
+import { RequireAuth, RequireRole } from './auth/RouteGuards'
 
 const requesterPageBackground = {
   bgcolor: '#F3F5F7',
@@ -47,10 +46,16 @@ const courierPageBackground = {
 function AppContent() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, loading, isAdmin, availableModes } = useAuth()
   const isPublicPage =
     location.pathname === '/login' || location.pathname === '/register'
   // TODO: Load and persist the active mode through the team's User Service.
-  const [mode, setMode] = useState<UserMode>('requester')
+  const [preferredMode, setPreferredMode] = useState<UserMode>('requester')
+
+  const mode: UserMode = availableModes.includes(preferredMode)
+    ? preferredMode
+    : (availableModes[0] ?? preferredMode)
+
   const pageBackground =
     mode === 'courier' ? courierPageBackground : requesterPageBackground
 
@@ -59,8 +64,16 @@ function AppContent() {
       return
     }
 
-    setMode(newMode)
+    setPreferredMode(newMode)
     navigate('/home')
+  }
+
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: '100svh', display: 'grid', placeItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    )
   }
 
   return (
@@ -71,39 +84,105 @@ function AppContent() {
         pb: isPublicPage ? 0 : { xs: 8, md: 0 },
       }}
     >
-      {!isPublicPage && (
+      {!isPublicPage && user && (
         <AppNavigation mode={mode} onModeChange={handleModeChange} />
       )}
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/home" element={<HomePage mode={mode} />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/requests" element={<MyRequestsPage mode={mode} />} />
-        <Route path="/requests/new" element={<RequestCreationPage mode={mode} />} />
+        <Route
+          path="/"
+          element={<Navigate to={user ? '/home' : '/login'} replace />}
+        />
+
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/home" replace /> : <LoginPage />}
+        />
+        <Route
+          path="/register"
+          element={user ? <Navigate to="/home" replace /> : <RegisterPage />}
+        />
+
+        <Route
+          path="/home"
+          element={
+            <RequireAuth>
+              <HomePage mode={mode} />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <RequireAuth>
+              <AccountPage />
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path="/requests"
+          element={
+            <RequireRole roles={[mode === 'courier' ? 'COURIER' : 'REQUESTER']}>
+              <MyRequestsPage mode={mode} />
+            </RequireRole>
+          }
+        />
+
+        <Route
+          path="/requests/new"
+          element={
+            <RequireRole roles={['REQUESTER']}>
+              <RequestCreationPage mode={mode} />
+            </RequireRole>
+          }
+        />
+
         <Route
           path="/my-tasks"
           element={
-            mode === 'courier' ? (
-              <MyTasksPage />
-            ) : (
-              <Navigate to="/home" replace />
-            )
+            <RequireRole roles={['COURIER']}>
+              {mode === 'courier' ? (
+                <MyTasksPage />
+              ) : (
+                <Navigate to="/home" replace />
+              )}
+            </RequireRole>
           }
         />
-        <Route path="/account" element={<AccountPage />} />
+
         <Route
           path="/suppliers"
-          element={<SupplierListPage isAdmin={TEMPORARY_IS_ADMIN} />}
+          element={
+            <RequireRole roles={['REQUESTER', 'ADMIN']}>
+              <SupplierListPage isAdmin={isAdmin} />
+            </RequireRole>
+          }
         />
-        <Route path="/suppliers/new" element={<CreateSupplierPage />} />
+
+        <Route
+          path="/suppliers/new"
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <CreateSupplierPage />
+            </RequireRole>
+          }
+        />
         <Route
           path="/suppliers/:supplierId/edit"
-          element={<EditSupplierPage />}
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <EditSupplierPage />
+            </RequireRole>
+          }
         />
+
         <Route
           path="/suppliers/:supplierId"
-          element={<SupplierDetailPage isAdmin={TEMPORARY_IS_ADMIN} mode={mode} />}
+          element={
+            <RequireRole roles={['REQUESTER', 'ADMIN']}>
+              <SupplierDetailPage isAdmin={isAdmin} mode={mode} />
+            </RequireRole>
+          }
         />
       </Routes>
     </Box>
@@ -115,7 +194,9 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
-        <AppContent />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
   )

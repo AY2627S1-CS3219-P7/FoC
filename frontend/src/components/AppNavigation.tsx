@@ -25,7 +25,7 @@ import {
 } from '@mui/material'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CampusBuildingIcon } from './CampusArt'
-import { logout } from '../api/users'
+import { useAuth } from '../auth/AuthContext'
 
 export type UserMode = 'requester' | 'courier'
 
@@ -75,13 +75,20 @@ function NavigationIcon({ path }: { path: string }) {
   )
 }
 
+
 function ModeToggle({
   mode,
   onChange,
+  availableModes,
 }: {
   mode: UserMode
   onChange: (newMode: UserMode) => void
+  availableModes: UserMode[] // NEW
 }) {
+  if (availableModes.length === 0) {
+    return null
+  }
+
   const activeStyle = {
     color: mode === 'courier' ? '#145E59' : '#12324C',
     backgroundColor: '#FFFFFF',
@@ -104,22 +111,26 @@ function ModeToggle({
         },
       }}
     >
-      <ToggleButton
-        value="requester"
-        onClick={() => onChange('requester')}
-        style={mode === 'requester' ? activeStyle : undefined}
-        sx={{ flex: { xs: 1, md: 'initial' } }}
-      >
-        Requester
-      </ToggleButton>
-      <ToggleButton
-        value="courier"
-        onClick={() => onChange('courier')}
-        style={mode === 'courier' ? activeStyle : undefined}
-        sx={{ flex: { xs: 1, md: 'initial' } }}
-      >
-        Courier
-      </ToggleButton>
+      {availableModes.includes('requester') && (
+        <ToggleButton
+          value="requester"
+          onClick={() => onChange('requester')}
+          style={mode === 'requester' ? activeStyle : undefined}
+          sx={{ flex: { xs: 1, md: 'initial' } }}
+        >
+          Requester
+        </ToggleButton>
+      )}
+      {availableModes.includes('courier') && (
+        <ToggleButton
+          value="courier"
+          onClick={() => onChange('courier')}
+          style={mode === 'courier' ? activeStyle : undefined}
+          sx={{ flex: { xs: 1, md: 'initial' } }}
+        >
+          Courier
+        </ToggleButton>
+      )}
     </ToggleButtonGroup>
   )
 }
@@ -127,16 +138,26 @@ function ModeToggle({
 function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
   const location = useLocation()
   const navigate = useNavigate()
+  const { isAdmin, canRequest, canCourier, availableModes, logout } = useAuth()
   const requestLabel = mode === 'courier' ? 'Fulfil Requests' : 'My Requests'
   const visibleNavigationItems = navigationItems.filter((item) => {
+    
     if (item.value === 'suppliers') {
-      return mode === 'requester'
+      return isAdmin || (mode === 'requester' && canRequest)
+    }
+
+    if (item.value === 'requests') {
+      return (
+        (mode === 'requester' && canRequest) ||
+        (mode === 'courier' && canCourier)
+      )
     }
 
     if (item.value === 'tasks') {
-      return mode === 'courier'
+      return mode === 'courier' && canCourier
     }
 
+    // Home and Account always show (this navbar only renders when logged in)
     return true
   })
   const activeNavigationItem =
@@ -166,9 +187,7 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
 
   async function handleLogout() {
     setMobileMenuAnchor(null)
-
-    // TODO: Replace this navigation-only logout with real authenticated session
-    // handling through the team's existing User Service.
+    
     try {
       await logout()
       navigate('/login')
@@ -240,7 +259,7 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
                 </Typography>
               </Box>
             </Stack>
-            <ModeToggle mode={mode} onChange={onModeChange} />
+            <ModeToggle mode={mode} onChange={onModeChange} availableModes={availableModes} />
           </Stack>
 
           <Stack
@@ -340,7 +359,7 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
               </SvgIcon>
             </IconButton>
           </Stack>
-          <ModeToggle mode={mode} onChange={onModeChange} />
+          <ModeToggle mode={mode} onChange={onModeChange} availableModes={availableModes} />
         </Stack>
       </Paper>
 

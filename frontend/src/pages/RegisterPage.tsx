@@ -15,7 +15,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Link as RouterLink } from 'react-router-dom'
+import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import nusLogo from '../assets/nus-logo.png'
 import { register } from '../api/users'
 
@@ -34,6 +34,7 @@ const emptyErrors = {
 }
 
 function RegisterPage() {
+  const navigate = useNavigate()
   const [formValues, setFormValues] = useState({
     username: '',
     email: '',
@@ -82,7 +83,10 @@ function RegisterPage() {
         password: formValues.password.trim(),
         firstName: formValues.firstName.trim(),
         lastName: formValues.lastName.trim()
-      }).then((data) => console.log(data))
+      }).then((data) => {
+        console.log(data);
+        navigate('/login')
+      })
     } catch (error) {
       console.error(error)
     }

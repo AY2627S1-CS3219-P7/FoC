@@ -18,12 +18,13 @@ import {
   Typography,
 } from '@mui/material'
 import { IconBadge, StudentIcon } from '../components/CampusArt'
+import { useAuth } from '../auth/AuthContext'
+import type { Role } from '../interfaces'
 
-const temporaryProfile = {
-  username: 'sample.user',
-  email: 'sample.user@example.com',
-  firstName: 'Sample',
-  lastName: 'User',
+const roleChips: Record<Role, { label: string; color: 'default' | 'primary' | 'secondary' }> = {
+  ADMIN: { label: 'Admin', color: 'default' },
+  REQUESTER: { label: 'Requester', color: 'primary' },
+  COURIER: { label: 'Courier', color: 'secondary' },
 }
 
 function ProfileField({ label, value }: { label: string; value: string }) {
@@ -44,14 +45,22 @@ function ProfileField({ label, value }: { label: string; value: string }) {
 }
 
 function AccountPage() {
-  const [profile, setProfile] = useState(temporaryProfile)
-  const [formValues, setFormValues] = useState(temporaryProfile)
+  const { user } = useAuth()
+
+  const initialProfile = {
+    username: user?.username ?? '',
+    email: user?.email ?? '',
+    firstName: user?.firstName ?? '',
+    lastName: user?.lastName ?? '',
+  }
+
+  const [profile, setProfile] = useState(initialProfile)
+  const [formValues, setFormValues] = useState(initialProfile)
   const [isEditing, setIsEditing] = useState(false)
 
   function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    // TODO: Load and update profile data through the team's existing User Service.
     setProfile(formValues)
     setIsEditing(false)
   }
@@ -59,6 +68,10 @@ function AccountPage() {
   function handleCancel() {
     setFormValues(profile)
     setIsEditing(false)
+  }
+
+  if (!user) {
+    return null
   }
 
   return (
@@ -196,9 +209,15 @@ function AccountPage() {
             <Typography component="h2" variant="h6" sx={{ fontWeight: 600 }}>
               Available Roles
             </Typography>
-            <Stack direction="row" spacing={1}>
-              <Chip label="Requester" color="primary" variant="outlined" />
-              <Chip label="Courier" color="secondary" variant="outlined" />
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', rowGap: 1 }}>
+              {user.roles.map((role) => (
+                <Chip
+                  key={role}
+                  label={roleChips[role].label}
+                  color={roleChips[role].color}
+                  variant="outlined"
+                />
+              ))}
             </Stack>
             <Typography variant="body2" color="text.secondary">
               Roles are managed by the system and cannot be edited here.
