@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS suppliers (
     latitude NUMERIC NOT NULL,
     longitude NUMERIC NOT NULL,
     
-    starting_time TIME,
-    closing_time TIME,
+    starting_time TIME DEFAULT '00:00:00',
+    closing_time TIME DEFAULT '23:59:00',
     image_url TEXT,
     
     is_active BOOLEAN DEFAULT true,
