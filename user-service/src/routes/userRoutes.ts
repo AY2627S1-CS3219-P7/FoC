@@ -7,5 +7,6 @@ const router = Router();
 
 router.get("/me", authenticate, userController.getCurrentUserProfile);
 router.patch("/me", authenticate, userController.updateCurrentUserProfile);
+router.get("/:userId", authenticate, userController.getUserById);
 
 export default router;

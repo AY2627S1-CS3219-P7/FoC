@@ -288,3 +288,64 @@ export const provisionInitialAdmin = async (
         );
     }
 };
+
+export interface PublicUserProfileResponse {
+  id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  roles: Role[];
+}
+
+export const getUserProfileById = async (
+  targetUserId: string,
+  requestingUserId: string,
+  requestingUserRoles: Role[] = []
+): Promise<UserProfileResponse | PublicUserProfileResponse> => {
+  const userResult = await query(
+    `SELECT 
+       u.id, 
+       u.username, 
+       u.email, 
+       u.first_name, 
+       u.last_name, 
+       u.is_active,
+       COALESCE(
+         ARRAY_AGG(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL),
+         '{}'
+       ) AS roles
+     FROM users u
+     LEFT JOIN user_roles ur ON u.id = ur.user_id
+     LEFT JOIN roles r ON ur.role_id = r.id
+     WHERE u.id = $1 AND u.is_active = true
+     GROUP BY u.id`,
+    [targetUserId]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw new AppError(404, "User not found or account is deactivated.");
+  }
+
+  const row = userResult.rows[0];
+  const isSelf = requestingUserId === row.id;
+  const isAdmin = requestingUserRoles.includes("ADMIN" as Role);
+
+  if (isSelf || isAdmin) {
+    return {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      roles: row.roles as Role[],
+    };
+  }
+
+  return {
+    id: row.id,
+    username: row.username,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    roles: row.roles as Role[],
+  };
+};
