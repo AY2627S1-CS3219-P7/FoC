@@ -5,8 +5,9 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -19,6 +20,7 @@ import {
 } from '@mui/material'
 import { IconBadge, StudentIcon } from '../components/CampusArt'
 import { useAuth } from '../auth/AuthContext'
+import { updateCurrentUser } from '../api/users'
 import type { Role } from '../interfaces'
 
 const roleChips: Record<Role, { label: string; color: 'default' | 'primary' | 'secondary' }> = {
@@ -45,28 +47,64 @@ function ProfileField({ label, value }: { label: string; value: string }) {
 }
 
 function AccountPage() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
 
-  const initialProfile = {
+  const [formValues, setFormValues] = useState({
     username: user?.username ?? '',
     email: user?.email ?? '',
     firstName: user?.firstName ?? '',
     lastName: user?.lastName ?? '',
-  }
-
-  const [profile, setProfile] = useState(initialProfile)
-  const [formValues, setFormValues] = useState(initialProfile)
+  })
   const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  function handleSave(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (user) {
+      setFormValues({
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      })
+    }
+  }, [user])
+
+  async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setSaving(true)
+    setErrorMsg(null)
+    setSuccessMsg(null)
 
-    setProfile(formValues)
-    setIsEditing(false)
+    try {
+      const updatedUser = await updateCurrentUser({
+        username: formValues.username,
+        email: formValues.email,
+        firstName: formValues.firstName,
+        lastName: formValues.lastName,
+      })
+      setUser(updatedUser)
+      setSuccessMsg('Profile updated successfully!')
+      setIsEditing(false)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile'
+      setErrorMsg(message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleCancel() {
-    setFormValues(profile)
+    if (user) {
+      setFormValues({
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      })
+    }
+    setErrorMsg(null)
     setIsEditing(false)
   }
 
@@ -103,7 +141,8 @@ function AccountPage() {
             <Button
               variant="contained"
               onClick={() => {
-                setFormValues(profile)
+                setErrorMsg(null)
+                setSuccessMsg(null)
                 setIsEditing(true)
               }}
               sx={{ alignSelf: { xs: 'flex-start', sm: 'auto' } }}
@@ -113,12 +152,15 @@ function AccountPage() {
           )}
         </Stack>
 
+        {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+        {successMsg && <Alert severity="success">{successMsg}</Alert>}
+
         <Paper
           variant="outlined"
           sx={{
             p: { xs: 2, md: 3 },
             borderColor: 'divider',
-            boxShadow: '0 8px 24px rgba(23, 35, 45, 0.05)',
+            boxBoxShadow: '0 8px 24px rgba(23, 35, 45, 0.05)',
           }}
         >
           {isEditing ? (
@@ -179,10 +221,10 @@ function AccountPage() {
                 </Box>
 
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                  <Button type="submit" variant="contained">
-                    Save
+                  <Button type="submit" variant="contained" disabled={saving}>
+                    {saving ? 'Saving...' : 'Save'}
                   </Button>
-                  <Button variant="outlined" onClick={handleCancel}>
+                  <Button variant="outlined" onClick={handleCancel} disabled={saving}>
                     Cancel
                   </Button>
                 </Stack>
@@ -196,10 +238,10 @@ function AccountPage() {
                 gap: { xs: 1.5, sm: 2 },
               }}
             >
-              <ProfileField label="Username" value={profile.username} />
-              <ProfileField label="Email" value={profile.email} />
-              <ProfileField label="First Name" value={profile.firstName} />
-              <ProfileField label="Last Name" value={profile.lastName} />
+              <ProfileField label="Username" value={user.username} />
+              <ProfileField label="Email" value={user.email} />
+              <ProfileField label="First Name" value={user.firstName} />
+              <ProfileField label="Last Name" value={user.lastName} />
             </Box>
           )}
 
@@ -213,8 +255,8 @@ function AccountPage() {
               {user.roles.map((role) => (
                 <Chip
                   key={role}
-                  label={roleChips[role].label}
-                  color={roleChips[role].color}
+                  label={roleChips[role]?.label ?? role}
+                  color={roleChips[role]?.color ?? 'default'}
                   variant="outlined"
                 />
               ))}

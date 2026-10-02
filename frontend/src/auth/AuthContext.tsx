@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { User } from '../interfaces'
 import type { UserMode } from '../components/AppNavigation'
 import { fetchCurrentUser, hasRole, login as apiLogin, logout as apiLogout } from '../api/users'
- 
+
 type AuthState = {
   user: User | null
   loading: boolean // true while the saved session is being restored on page load
@@ -15,14 +15,15 @@ type AuthState = {
   availableModes: UserMode[] // the modes this user may switch between
   login: (identifier: string, password: string) => Promise<void>
   logout: () => Promise<void>
+  setUser: (user: User | null) => void
 }
- 
+
 const AuthContext = createContext<AuthState | null>(null)
- 
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
- 
+
   // Restore the session from the saved token. Resolves to null if there is no
   // token or it is expired/revoked, which simply means "not logged in".
   useEffect(() => {
@@ -34,23 +35,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => setLoading(false))
   }, [])
- 
+
   // Throws on failure (wrong password etc.) so the login page can show the message
   async function login(identifier: string, password: string) {
     setUser(await apiLogin({ identifier, password }))
   }
- 
+
   async function logout() {
     await apiLogout() // revokes the token on the server and clears it locally
     setUser(null)
   }
- 
+
   const canRequest = hasRole(user, 'REQUESTER')
   const canCourier = hasRole(user, 'COURIER')
   const availableModes: UserMode[] = []
   if (canRequest) availableModes.push('requester')
   if (canCourier) availableModes.push('courier')
- 
+
   return (
     <AuthContext.Provider
       value={{
@@ -62,13 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         availableModes,
         login,
         logout,
+        setUser,
       }}
     >
       {children}
     </AuthContext.Provider>
   )
 }
- 
+
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthState {
   const context = useContext(AuthContext)
