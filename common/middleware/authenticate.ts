@@ -1,17 +1,43 @@
 import type { NextFunction, Request, Response } from "express";
 
-import type { AuthenticatedUser } from "../types/auth.js";
+import { Role, type AuthenticatedUser } from "../types/auth.js";
 import { verifyAccessToken } from "../utils/verify.js";
 
 const unauthorized = (res: Response): void => {
   res.status(401).json({ status: 401, message: "Authentication required." });
 };
 
-const serverConfigError = (res: Response): void => {
-  res.status(500).json({
-    status: 500,
-    message: "Server configuration error: JWT_SECRET is not configured.",
-  });
+const parseTrustedGatewayRoles = (rawRoles: string | string[] | undefined): Role[] => {
+  const rawValues = Array.isArray(rawRoles)
+    ? rawRoles.flatMap((value) => String(value).split(","))
+    : typeof rawRoles === "string"
+      ? rawRoles.split(",")
+      : [];
+
+  const normalized = rawValues
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  return normalized.filter((role): role is Role => Object.values(Role).includes(role as Role));
+};
+
+const resolveTrustedUser = (req: Request): AuthenticatedUser | null => {
+  const rawUserId = req.headers["x-user-id"];
+  const userId =
+    typeof rawUserId === "string"
+      ? rawUserId.trim()
+      : Array.isArray(rawUserId)
+        ? rawUserId.find((value) => typeof value === "string" && value.trim().length > 0)?.trim()
+        : undefined;
+
+  if (!userId) {
+    return null;
+  }
+
+  return {
+    id: userId,
+    roles: parseTrustedGatewayRoles(req.headers["x-user-roles"]),
+  };
 };
 
 export const authenticate = (
@@ -19,6 +45,13 @@ export const authenticate = (
   res: Response,
   next: NextFunction
 ): void => {
+  const trustedUser = resolveTrustedUser(req);
+  if (trustedUser) {
+    req.user = trustedUser;
+    next();
+    return;
+  }
+
   const authorization = req.headers.authorization;
   const secret = process.env.JWT_SECRET;
 
@@ -28,7 +61,7 @@ export const authenticate = (
   }
 
   if (!secret || !secret.trim()) {
-    serverConfigError(res);
+    unauthorized(res);
     return;
   }
 
