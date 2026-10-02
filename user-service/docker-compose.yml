@@ -19,7 +19,9 @@ services:
       retries: 5
 
   user-service-api:
-    build: .
+    build:
+      context: ..
+      dockerfile: ./user-service/Dockerfile
     container_name: user_service_app
     restart: unless-stopped
     depends_on:
