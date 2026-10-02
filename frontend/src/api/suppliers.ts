@@ -1,8 +1,8 @@
 import type { Supplier } from '../interfaces'
-import { clearToken, getToken, 
-  UnauthorizedError, ForbiddenError, NotFoundError } from './users'
+import { clearToken, getToken, UnauthorizedError, ForbiddenError, NotFoundError } from './users'
 
-const BASE_URL = 'http://localhost:3001/api/suppliers'
+const API_ROOT = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080/api'
+const BASE_URL = `${API_ROOT}/suppliers`
 
 export type ApiSupplier = Omit<Supplier, 'operatingHours' | 'latitude' | 'longitude'> & {
   latitude: string
