@@ -8,13 +8,11 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 
+import type { AuthenticatedUser, Role } from "../../../common/types/auth.js";
 import { env } from "../config/env.js";
 
-export interface AuthenticatedUser {
-  id: string;
-  jti: string;
-  exp: number;
-}
+const isRole = (value: unknown): value is Role =>
+  value === "ADMIN" || value === "REQUESTER" || value === "COURIER";
 
 export const authMiddleware = (
   req: Request,
@@ -39,6 +37,8 @@ export const authMiddleware = (
       typeof decoded !== "object" ||
       decoded === null ||
       typeof decoded.sub !== "string" ||
+      !Array.isArray(decoded.roles) ||
+      !decoded.roles.every((role) => isRole(role)) ||
       typeof decoded.jti !== "string" ||
       typeof decoded.exp !== "number"
     ) {
@@ -50,6 +50,7 @@ export const authMiddleware = (
 
     const user: AuthenticatedUser = {
       id: decoded.sub,
+      roles: decoded.roles as Role[],
       jti: decoded.jti,
       exp: decoded.exp
     };

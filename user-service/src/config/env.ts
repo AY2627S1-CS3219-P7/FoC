@@ -14,7 +14,15 @@ export const env = {
   },
 
   jwt: {
-    secret: process.env.JWT_SECRET || "",
+    secret: (() => {
+      const secret = process.env.JWT_SECRET;
+
+      if (!secret || !secret.trim()) {
+        throw new Error("JWT_SECRET is not configured.");
+      }
+
+      return secret;
+    })(),
     expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as StringValue,
   },
 };

@@ -12,5 +12,13 @@ export const env = {
   frontendOrigin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173",
   userServiceUrl: process.env.USER_SERVICE_URL ?? "http://localhost:3002",
   supplierServiceUrl: process.env.SUPPLIER_SERVICE_URL ?? "http://localhost:3001",
-  jwtSecret: process.env.JWT_SECRET ?? ""
+  jwtSecret: (() => {
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret || !secret.trim()) {
+      throw new Error("JWT_SECRET is not configured.");
+    }
+
+    return secret;
+  })(),
 };

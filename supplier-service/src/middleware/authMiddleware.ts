@@ -8,7 +8,7 @@
 
 import jwt from "jsonwebtoken";
 import type { NextFunction, Request, Response } from "express";
-import type { AuthenticatedUser, JwtClaims, Role } from "../types/auth.js";
+import type { AuthenticatedUser, JwtPayload, Role } from "../../../common/types/auth.js";
 
 const isRole = (value: unknown): value is Role =>
 	value === "ADMIN" || value === "REQUESTER" || value === "COURIER";
@@ -43,12 +43,12 @@ export const authMiddleware = (
 			return;
 		}
 
-		const claims = payload as JwtClaims;
+		const claims = payload as JwtPayload;
 		const roles = Array.isArray(claims.roles) ? claims.roles.filter(isRole) : [];
 		const user: AuthenticatedUser = {
 			id: claims.sub,
-			jti: typeof claims.jti === "string" ? claims.jti : "",
-			exp: typeof claims.exp === "number" ? claims.exp : 0,
+			jti: typeof claims.jti === "string" ? claims.jti : undefined,
+			exp: typeof claims.exp === "number" ? claims.exp : undefined,
 			roles,
 		};
 
@@ -66,7 +66,7 @@ export const authorizeRoles = (...allowedRoles: Role[]) =>
 			return;
 		}
 
-		if (!req.user.roles.some((role) => allowedRoles.includes(role))) {
+		if (!req.user.roles.some((role: Role) => allowedRoles.includes(role))) {
 			res.status(403).json({ status: 403, message: "Forbidden." });
 			return;
 		}
