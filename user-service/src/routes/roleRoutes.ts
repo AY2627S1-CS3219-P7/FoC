@@ -1,6 +1,6 @@
 import { Router } from "express";
 
-import { authenticate } from "../../../common/index.js";
+import { authenticate } from "../../../common/middleware/authenticate.js";
 import * as roleController from "../controllers/roleController.js";
 
 const router = Router();
