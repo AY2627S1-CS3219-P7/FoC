@@ -1,6 +1,6 @@
 import type { Role, User } from '../interfaces'
 
-const BASE_URL = "http://localhost:3002/api"
+const BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || "http://localhost:8080/api"
 
 const TOKEN_KEY = 'auth_token'
 
@@ -50,10 +50,14 @@ async function request(path: string, init: RequestInit = {}, authenticated = fal
       // Only send Content-Type when there is a body (avoids needless preflights)
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
     },
   })
 
   if (!response.ok) {
+    if (response.status === 401) {
+      clearToken()
+    }
     const errorBody = await response.json().catch(() => null)
     throw new ApiError(response.status, errorBody?.message ?? `Request failed: ${response.status}`)
   }
@@ -61,22 +65,22 @@ async function request(path: string, init: RequestInit = {}, authenticated = fal
 }
 
 // Auth
-export async function login(input: { identifier: string, password: string}): Promise<User> {
-    const response = await request('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(input)
-    })
-    const data: { accessToken: string, user: User } = await response.json()
-    setToken(data.accessToken)
-    return data.user
+export async function login(input: { identifier: string; password: string }): Promise<User> {
+  const response = await request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  const data: { accessToken: string; user: User } = await response.json()
+  setToken(data.accessToken)
+  return data.user
 }
 
 interface RegisterInput {
-    username: string,
-    email: string,
-    password: string,
-    firstName: string,
-    lastName: string
+  username: string,
+  email: string,
+  password: string,
+  firstName: string,
+  lastName: string
 }
 
 export async function register(input: RegisterInput): Promise<User> {
@@ -115,10 +119,10 @@ export async function fetchCurrentUser(): Promise<User | null> {
 }
 
 interface UpdateProfileInput {
-    username?: string,
-    email?: string,
-    firstName?: string,
-    lastName?: string
+  username?: string,
+  email?: string,
+  firstName?: string,
+  lastName?: string
 }
 
 // Update profile

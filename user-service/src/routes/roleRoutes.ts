@@ -1,9 +1,10 @@
 import { Router } from "express";
+
+import { authenticate } from "../../../common/middleware/authenticate.js";
 import * as roleController from "../controllers/roleController.js";
-import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = Router();
 
-router.get("/users/:id/roles", authMiddleware, roleController.getUserRoles);
+router.get("/users/:id/roles", authenticate, roleController.getUserRoles);
 
 export default router;

@@ -5,62 +5,75 @@
 // Author review: Reviewed and validated against the project JWT contract
 // and expected 401 behavior for invalid or missing tokens.
 
-import type { NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
+// AI Assistance Disclosure:
+// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-10-02
+// Scope: Refactored the Gateway JWT guard to use the shared common
+// verification contract and enforce jti/exp validation before attaching
+// the authenticated user to the Express request context.
+// Author review: Reviewed and validated against the common auth contract,
+// required 401 response format, and downstream service trust boundary.
 
+import type { NextFunction, Request, Response } from "express";
+
+import { verifyAccessToken } from "../../../common/index.js";
+import type { AuthenticatedUser } from "../../../common/types/auth.js";
 import { env } from "../config/env.js";
 
-export interface AuthenticatedUser {
-  id: string;
-  jti: string;
-  exp: number;
-}
+const unauthorized = (
+  res: Response,
+  message: string = "Invalid or expired token"
+): void => {
+  res.status(401).json({
+    status: 401,
+    message
+  });
+};
 
 export const authMiddleware = (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
   const authorization = req.headers.authorization;
 
   if (!authorization?.startsWith("Bearer ")) {
-    return res.status(401).json({
-      status: 401,
-      message: "Missing or invalid Authorization header"
-    });
+    unauthorized(res, "Missing or invalid Authorization header");
+    return;
   }
 
-  const token = authorization.substring("Bearer ".length);
+  const token = authorization.slice("Bearer ".length).trim();
+
+  if (!token) {
+    unauthorized(res, "Missing or invalid Authorization header");
+    return;
+  }
 
   try {
-    const decoded = jwt.verify(token, env.jwtSecret);
+    const payload = verifyAccessToken(token, env.jwtSecret);
+
+    if (typeof payload.jti !== "string" || payload.jti.trim().length === 0) {
+      unauthorized(res, "Invalid token");
+      return;
+    }
 
     if (
-      typeof decoded !== "object" ||
-      decoded === null ||
-      typeof decoded.sub !== "string" ||
-      typeof decoded.jti !== "string" ||
-      typeof decoded.exp !== "number"
+      typeof payload.exp !== "number" ||
+      payload.exp <= Math.floor(Date.now() / 1000)
     ) {
-      return res.status(401).json({
-        status: 401,
-        message: "Invalid token"
-      });
+      unauthorized(res, "Invalid or expired token");
+      return;
     }
 
     const user: AuthenticatedUser = {
-      id: decoded.sub,
-      jti: decoded.jti,
-      exp: decoded.exp
+      id: payload.sub,
+      roles: payload.roles,
+      jti: payload.jti,
+      exp: payload.exp
     };
 
     req.user = user;
-
     next();
   } catch {
-    return res.status(401).json({
-      status: 401,
-      message: "Invalid or expired token"
-    });
+    unauthorized(res, "Invalid or expired token");
   }
 };

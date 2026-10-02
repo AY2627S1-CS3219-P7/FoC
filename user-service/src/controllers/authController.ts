@@ -65,6 +65,10 @@ export const logout = async (
       throw new AppError(401, "Authentication required.");
     }
 
+    if (!req.user.jti || req.user.exp === undefined) {
+      throw new AppError(401, "Authentication required.");
+    }
+
     await authService.logout({
       userId: req.user.id,
       jti: req.user.jti,

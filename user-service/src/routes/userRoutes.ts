@@ -1,10 +1,11 @@
 import { Router } from "express";
+
+import { authenticate } from "../../../common/middleware/authenticate.js";
 import * as userController from "../controllers/userController.js";
-import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = Router();
 
-router.get("/me", authMiddleware, userController.getCurrentUserProfile);
-router.patch("/me", authMiddleware, userController.updateCurrentUserProfile);
+router.get("/me", authenticate, userController.getCurrentUserProfile);
+router.patch("/me", authenticate, userController.updateCurrentUserProfile);
 
 export default router;

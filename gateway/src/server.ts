@@ -1,10 +1,19 @@
 // AI Assistance Disclosure:
-// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-09-30
-// Scope: Implemented the Phase 3 API Gateway request ID propagation,
-// sanitized request logging, and downstream request ID forwarding
-// based on the finalized project design.
-// Author review: Reviewed and validated against the finalized gateway
-// architecture and Phase 3 requirements.
+// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-10-02
+// Scope: Hardened the Gateway reverse proxy to forward request IDs and
+// authenticated user context securely, while locking protected routes to
+// the shared auth middleware and preserving 404/502 handling.
+// Author review: Reviewed to ensure the proxy still respects the existing
+// gateway contract, public routes remain open, and protected routes remain
+// behind authentication.
+
+// AI Assistance Disclosure:
+// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-10-02
+// Scope: Fixed the reverse-proxy lifecycle in the API Gateway by ensuring
+// all custom headers are injected before the request body is rewritten, while
+// keeping public/authenticated route behavior intact.
+// Author review: Reviewed against the request-stream contract and the Node
+// runtime requirement that headers must be set before body forwarding begins.
 
 import "dotenv/config";
 import express, {
@@ -27,8 +36,14 @@ const app: Express = express();
 
 const corsOptions = {
   origin: env.frontendOrigin,
+  credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Request-Id",
+    "Cookie"
+  ]
 };
 
 app.use(cors(corsOptions));
@@ -43,6 +58,32 @@ app.get("/health", (_req: Request, res: Response) => {
   });
 });
 
+const resolveRequestId = (req: Request): string | undefined => {
+  const headerValue = req.headers["x-request-id"];
+
+  if (typeof headerValue === "string" && headerValue.trim().length > 0) {
+    return headerValue.trim();
+  }
+
+  const customReq = req as Request & {
+    id?: string;
+    requestId?: string;
+  };
+
+  if (typeof customReq.id === "string" && customReq.id.trim().length > 0) {
+    return customReq.id.trim();
+  }
+
+  if (
+    typeof customReq.requestId === "string" &&
+    customReq.requestId.trim().length > 0
+  ) {
+    return customReq.requestId.trim();
+  }
+
+  return undefined;
+};
+
 const createJsonProxy = (
   target: string,
   pathFilter: (path: string) => boolean
@@ -53,13 +94,43 @@ const createJsonProxy = (
     pathFilter,
     on: {
       proxyReq: (proxyReq, req) => {
-        fixRequestBody(proxyReq, req);
+        proxyReq.removeHeader("x-user-id");
+        proxyReq.removeHeader("x-user-roles");
 
-        // const requestId = req.headers["x-request-id"];
+        if (!proxyReq.headersSent) {
+          const requestId = resolveRequestId(req as Request);
+          if (requestId) {
+            proxyReq.setHeader("x-request-id", requestId);
+          }
 
-        // if (typeof requestId === "string" && requestId.length > 0) {
-        //   proxyReq.setHeader("X-Request-Id", requestId);
-        // }
+          const user = (req as Request & {
+            user?: {
+              id?: string;
+              roles?: unknown[];
+            };
+          }).user;
+
+          if (user) {
+            if (typeof user.id === "string" && user.id.trim().length > 0) {
+              proxyReq.setHeader("x-user-id", user.id);
+            }
+
+            if (Array.isArray(user.roles) && user.roles.length > 0) {
+              proxyReq.setHeader(
+                "x-user-roles",
+                user.roles.map((role) => String(role)).join(",")
+              );
+            }
+          }
+        }
+
+        const expressReq = req as Request & {
+          body?: unknown;
+        };
+
+        if (expressReq.body !== undefined && !proxyReq.headersSent) {
+          fixRequestBody(proxyReq, expressReq);
+        }
       },
       error: (_error, _req, res) => {
         const response = res as Response;
@@ -69,10 +140,14 @@ const createJsonProxy = (
           typeof response.status === "function" &&
           !response.headersSent
         ) {
-          response.status(502).json({
-            status: 502,
-            message: "Bad Gateway"
-          });
+          response.statusCode = 502;
+          response.setHeader("Content-Type", "application/json");
+          response.end(
+            JSON.stringify({
+              status: 502,
+              message: "Bad Gateway"
+            })
+          );
         }
       }
     }
@@ -101,10 +176,9 @@ const supplierServiceProxy = createJsonProxy(
 );
 
 app.use(publicAuthProxy);
-app.use(supplierServiceProxy);
-
 app.use(authMiddleware, protectedAuthProxy);
 app.use(authMiddleware, userProxy);
+app.use(authMiddleware, supplierServiceProxy);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({

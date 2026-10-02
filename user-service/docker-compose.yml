@@ -19,7 +19,9 @@ services:
       retries: 5
 
   user-service-api:
-    build: .
+    build:
+      context: ..
+      dockerfile: ./user-service/Dockerfile
     container_name: user_service_app
     restart: unless-stopped
     depends_on:
@@ -28,6 +30,7 @@ services:
     ports:
       - "${PORT:?PORT is required}:3002"
     environment:
+      NODE_PATH: /app/user-service/node_modules
       PORT: ${PORT:?PORT is required}
       NODE_ENV: ${NODE_ENV:-development}
       DB_HOST: user-service-db

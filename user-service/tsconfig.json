@@ -3,8 +3,11 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "paths": {
+      "@common/*": ["../common/*"]
+    },
 
-    "rootDir": "./src",
+    "rootDir": "..",
     "outDir": "./dist",
 
     "strict": true,
@@ -14,6 +17,6 @@
 
     "sourceMap": true
   },
-  "include": ["src/**/*", "src/scripts"],
+  "include": ["src/**/*", "src/scripts", "../common/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
