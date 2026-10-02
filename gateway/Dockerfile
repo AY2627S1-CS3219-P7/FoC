@@ -4,18 +4,30 @@
 # based on the finalized Phase 4 Dockerization requirements.
 # Author review: Reviewed and validated against the finalized project design.
 
+# AI Assistance Disclosure:
+# Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-10-02
+# Scope: Adjusted the Gateway Docker build context to include the shared
+# monorepo common module so TypeScript can resolve the unified auth contract
+# during containerized build steps.
+# Author review: Reviewed and validated against the monorepo layout and the
+# Gateway Docker build dependency on the shared common package.
+
 # Stage 1: Build
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json tsconfig*.json ./
-RUN npm ci
+COPY package*.json ./
+RUN npm install
 
-COPY . .
-RUN npm run build
+COPY gateway/package*.json gateway/tsconfig*.json ./gateway/
+COPY common ./common
+RUN cd gateway && npm ci
 
-RUN npm prune --production
+COPY gateway ./gateway
+RUN cd gateway && npm run build
+
+RUN cd gateway && npm prune --production
 
 
 # Stage 2: Runtime
@@ -25,12 +37,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY --chown=node:node --from=builder /app/package*.json ./
-COPY --chown=node:node --from=builder /app/node_modules ./node_modules
-COPY --chown=node:node --from=builder /app/dist ./dist
+COPY --chown=node:node --from=builder /app/gateway/package*.json ./
+COPY --chown=node:node --from=builder /app/gateway/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/gateway/dist ./dist
 
 USER node
 
 EXPOSE 8080
 
-CMD ["node", "dist/server.js"]
+CMD ["node", "dist/gateway/src/server.js"]
