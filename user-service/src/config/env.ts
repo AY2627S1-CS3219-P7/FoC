@@ -23,6 +23,7 @@ export const env = {
 
       return secret;
     })(),
-    expiresIn: (process.env.JWT_EXPIRES_IN || "7d") as StringValue,
+    expiresIn: (process.env.JWT_EXPIRES_IN || "15m") as StringValue,
+    refreshExpiresDays: Number(process.env.REFRESH_TOKEN_EXPIRES_DAYS) || 30,
   },
 };

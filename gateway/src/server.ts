@@ -157,7 +157,8 @@ const publicAuthProxy = createJsonProxy(
   env.userServiceUrl,
   (path) =>
     path === "/api/auth/register" ||
-    path === "/api/auth/login"
+    path === "/api/auth/login" ||
+    path === "/api/auth/refresh"
 );
 
 const protectedAuthProxy = createJsonProxy(

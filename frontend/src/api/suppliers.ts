@@ -1,8 +1,7 @@
 import type { Supplier } from '../interfaces'
-import { clearToken, getToken, UnauthorizedError, ForbiddenError, NotFoundError } from './users'
+import { request, NotFoundError } from './client'
 
-const API_ROOT = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080/api'
-const BASE_URL = `${API_ROOT}/suppliers`
+const BASE_URL = '/suppliers'
 
 export type ApiSupplier = Omit<Supplier, 'operatingHours' | 'latitude' | 'longitude'> & {
   latitude: string
@@ -48,32 +47,8 @@ function toSupplier(s: ApiSupplier): Supplier {
     image_url: toRawImageUrl(s.image_url),
     latitude: Number(s.latitude),
     longitude: Number(s.longitude),
-    operatingHours: formatHours(s.starting_time, s.closing_time)
+    operatingHours: formatHours(s.starting_time, s.closing_time),
   }
-}
-
-async function request(url: string, init: RequestInit = {}) {
-  const token = getToken()
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      ...(token ? {Authorization: `Bearer ${token}`}: {}),
-      ...init.headers
-    },
-  })
-
-  if (response.status === 401) {
-    clearToken()
-    throw new UnauthorizedError('Not authenticated')
-  }
-  if (response.status === 403) throw new ForbiddenError('You do not have permission to do this')
-  if (response.status === 404) throw new NotFoundError('Not found')
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => '')
-    throw new Error(`Request failed: ${response.status} ${errorBody}`)
-  }
-  return response
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
@@ -86,8 +61,6 @@ export async function fetchSuppliers(): Promise<Supplier[]> {
 export async function fetchSupplierById(id: string): Promise<Supplier | null> {
   try {
     const response = await request(`${BASE_URL}/${id}`)
-    if (response.status === 404) return null
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`)
     const data: ApiSupplier | null = await response.json()
     if (!data || !data.is_active) return null
     return toSupplier(data)
@@ -97,12 +70,9 @@ export async function fetchSupplierById(id: string): Promise<Supplier | null> {
   }
 }
 
-const jsonHeaders = { 'Content-Type': 'application/json' }
-
 export async function createSupplier(input: SupplierInput) {
   await request(BASE_URL, {
     method: 'POST',
-    headers: jsonHeaders,
     body: JSON.stringify(input),
   })
 }
@@ -110,7 +80,6 @@ export async function createSupplier(input: SupplierInput) {
 export async function updateSupplier(id: string, input: SupplierInput) {
   await request(`${BASE_URL}/${id}`, {
     method: 'PATCH',
-    headers: jsonHeaders,
     body: JSON.stringify(input),
   })
 }

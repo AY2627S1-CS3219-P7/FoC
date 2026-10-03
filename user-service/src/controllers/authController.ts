@@ -52,6 +52,28 @@ export const login = async (
 };
 
 // ============================================================
+// Refresh
+// ============================================================
+
+export const refresh = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { refreshToken } = req.body;
+
+    const result = await authService.refresh({
+      refreshToken,
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
 // Logout
 // ============================================================
 
@@ -69,10 +91,13 @@ export const logout = async (
       throw new AppError(401, "Authentication required.");
     }
 
+    const { refreshToken } = req.body || {};
+
     await authService.logout({
       userId: req.user.id,
       jti: req.user.jti,
       exp: req.user.exp,
+      refreshToken,
     });
 
     res.status(204).send();

@@ -8,7 +8,7 @@ import {
     isValidEmail,
     isValidPassword,
 } from "../utils/validators.js";
-import { hashPassword } from "../utils/password.js";
+import { hashPassword, comparePassword } from "../utils/password.js";
 
 export interface UserProfileResponse {
   id: string;
@@ -287,4 +287,186 @@ export const provisionInitialAdmin = async (
             [userId, role.id]
         );
     }
+};
+
+export interface PublicUserProfileResponse {
+  id: string;
+  username: string;
+  firstName: string;
+  lastName: string;
+  roles: Role[];
+}
+
+export const getUserProfileById = async (
+  targetUserId: string,
+  requestingUserId: string,
+  requestingUserRoles: Role[] = []
+): Promise<UserProfileResponse | PublicUserProfileResponse> => {
+  const userResult = await query(
+    `SELECT 
+       u.id, 
+       u.username, 
+       u.email, 
+       u.first_name, 
+       u.last_name, 
+       u.is_active,
+       COALESCE(
+         ARRAY_AGG(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL),
+         '{}'
+       ) AS roles
+     FROM users u
+     LEFT JOIN user_roles ur ON u.id = ur.user_id
+     LEFT JOIN roles r ON ur.role_id = r.id
+     WHERE u.id = $1 AND u.is_active = true
+     GROUP BY u.id`,
+    [targetUserId]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw new AppError(404, "User not found or account is deactivated.");
+  }
+
+  const row = userResult.rows[0];
+  const isSelf = requestingUserId === row.id;
+  const isAdmin = requestingUserRoles.includes("ADMIN" as Role);
+
+  if (isSelf || isAdmin) {
+    return {
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      roles: row.roles as Role[],
+    };
+  }
+
+  return {
+    id: row.id,
+    username: row.username,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    roles: row.roles as Role[],
+  };
+};
+
+// AI Assistance Disclosure:
+// Tool: Gemini, date: 2026-10-03
+// Scope: Implemented getUsersBatch service to fetch public profile summaries
+// in bulk using PostgreSQL ANY array query for downstream service consumption.
+// Author review: Validated SQL query parameterized types and public field filtering.
+
+// ============================================================
+// Batch Get Public User Profiles
+// ============================================================
+
+export const getUsersBatch = async (
+  userIds: string[]
+): Promise<PublicUserProfileResponse[]> => {
+  if (!userIds || userIds.length === 0) {
+    return [];
+  }
+
+  // Deduplicate IDs
+  const uniqueIds = Array.from(new Set(userIds));
+
+  const result = await query(
+    `SELECT 
+       u.id, 
+       u.username, 
+       u.first_name, 
+       u.last_name, 
+       COALESCE(
+         ARRAY_AGG(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL),
+         '{}'
+       ) AS roles
+     FROM users u
+     LEFT JOIN user_roles ur ON u.id = ur.user_id
+     LEFT JOIN roles r ON ur.role_id = r.id
+     WHERE u.id = ANY($1::uuid[]) AND u.is_active = true
+     GROUP BY u.id`,
+    [uniqueIds]
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    username: row.username,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    roles: row.roles as Role[],
+  }));
+};
+
+// AI Assistance Disclosure:
+// Tool: Gemini, date: 2026-10-03
+// Scope: Implemented changePassword service with minimum 15-character password validation,
+// secure password comparison using project utils, and active refresh token invalidation using correct 'revoked' column.
+// Author review: Validated comparePassword integration and schema column alignment for refresh_tokens.
+
+// ============================================================
+// Change Current User Password
+// ============================================================
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export const changePassword = async (
+  userId: string,
+  input: ChangePasswordInput
+): Promise<void> => {
+  const { currentPassword, newPassword } = input;
+
+  if (!isNonEmptyString(currentPassword) || !isNonEmptyString(newPassword)) {
+    throw new AppError(400, "Both current password and new password are required.");
+  }
+
+  if (currentPassword === newPassword) {
+    throw new AppError(400, "New password cannot be the same as current password.");
+  }
+
+  if (!isValidPassword(newPassword)) {
+    throw new AppError(
+      400,
+      "New password must be at least 15 characters long."
+    );
+  }
+
+  // 1. Fetch current user password hash
+  const userResult = await query(
+    `SELECT id, password_hash, is_active FROM users WHERE id = $1`,
+    [userId]
+  );
+
+  if (userResult.rows.length === 0 || !userResult.rows[0].is_active) {
+    throw new AppError(404, "User not found or account is deactivated.");
+  }
+
+  const { password_hash: currentHash } = userResult.rows[0];
+
+  // 2. Verify current password
+  const isMatch = await comparePassword(currentPassword, currentHash);
+  if (!isMatch) {
+    throw new AppError(400, "Current password does not match.");
+  }
+
+  // 3. Hash new password
+  const newHash = await hashPassword(newPassword);
+
+  // 4. Update user password and revoke all existing refresh tokens
+  await query(
+    `UPDATE users 
+     SET password_hash = $1, updated_at = NOW() 
+     WHERE id = $2`,
+    [newHash, userId]
+  );
+
+  // Invalidate all active refresh tokens for this user using correct 'revoked' column
+  await query(
+    `UPDATE refresh_tokens 
+     SET revoked = true 
+     WHERE user_id = $1 AND revoked = false`,
+    [userId]
+  );
 };
