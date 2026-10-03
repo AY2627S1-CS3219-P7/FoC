@@ -1,5 +1,10 @@
+import { env } from "../config/env.js";
 import { pool, query } from "../config/db.js";
-import { generateAccessToken } from "../utils/jwt.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  hashToken,
+} from "../utils/jwt.js";
 import { AppError } from "../utils/errors.js";
 import {
   isNonEmptyString,
@@ -141,6 +146,7 @@ export interface LoginInput {
 
 export interface LoginResponse {
   accessToken: string;
+  refreshToken: string;
   user: User;
 }
 
@@ -149,7 +155,8 @@ const getUserRoles = async (userId: string): Promise<Role[]> => {
     `SELECT r.name
      FROM roles r
      INNER JOIN user_roles ur ON ur.role_id = r.id
-     WHERE ur.user_id = $1`,
+     WHERE ur.user_id = $1
+     ORDER BY r.name`,
     [userId]
   );
 
@@ -169,7 +176,7 @@ export const login = async (
   const normalizedIdentifier = identifier.trim();
 
   const userResult = await query(
-    `SELECT id, username, email, password_hash, first_name, last_name
+    `SELECT id, username, email, password_hash, first_name, last_name, is_active
      FROM users
      WHERE username = $1 OR email = LOWER($1)`,
     [normalizedIdentifier]
@@ -181,6 +188,10 @@ export const login = async (
 
   const userRow = userResult.rows[0];
 
+  if (!userRow.is_active) {
+    throw new AppError(403, "Account is deactivated.");
+  }
+
   const passwordMatches = await comparePassword(
     password,
     userRow.password_hash
@@ -191,11 +202,114 @@ export const login = async (
   }
 
   const roles = await getUserRoles(userRow.id);
+  const accessToken = generateAccessToken(userRow.id, roles);
+
+  // 生成 Refresh Token（有效期 30 天）
+  const rawRefreshToken = generateRefreshToken();
+  const tokenHash = hashToken(rawRefreshToken);
+  const expiresAt = new Date(Date.now() + env.jwt.refreshExpiresDays * 24 * 60 * 60 * 1000);
+
+  await query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [userRow.id, tokenHash, expiresAt]
+  );
+
+  return {
+    accessToken,
+    refreshToken: rawRefreshToken,
+    user: {
+      id: userRow.id,
+      username: userRow.username,
+      email: userRow.email,
+      firstName: userRow.first_name,
+      lastName: userRow.last_name,
+      roles,
+    },
+  };
+};
+
+// ============================================================
+// Refresh Token
+// ============================================================
+
+export interface RefreshInput {
+  refreshToken: string;
+}
+
+export interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
+export const refresh = async (input: RefreshInput): Promise<RefreshResponse> => {
+  const { refreshToken } = input;
+
+  if (!isNonEmptyString(refreshToken)) {
+    throw new AppError(400, "Refresh token is required.");
+  }
+
+  const tokenHash = hashToken(refreshToken.trim());
+
+  const tokenResult = await query(
+    `SELECT id, user_id, expires_at, revoked
+     FROM refresh_tokens
+     WHERE token_hash = $1`,
+    [tokenHash]
+  );
+
+  if (tokenResult.rows.length === 0) {
+    throw new AppError(401, "Invalid refresh token.");
+  }
+
+  const tokenRecord = tokenResult.rows[0];
+
+  if (tokenRecord.revoked) {
+    throw new AppError(401, "Refresh token has been revoked.");
+  }
+
+  if (new Date(tokenRecord.expires_at) <= new Date()) {
+    throw new AppError(401, "Refresh token has expired.");
+  }
+
+  const userResult = await query(
+    `SELECT id, username, email, first_name, last_name, is_active
+     FROM users
+     WHERE id = $1`,
+    [tokenRecord.user_id]
+  );
+
+  if (userResult.rows.length === 0 || !userResult.rows[0].is_active) {
+    await query(`UPDATE refresh_tokens SET revoked = true WHERE id = $1`, [tokenRecord.id]);
+    throw new AppError(401, "User account is inactive or not found.");
+  }
+
+  const userRow = userResult.rows[0];
+  const roles = await getUserRoles(userRow.id);
+
+  // Token 轮换：作废旧 Refresh Token
+  await query(
+    `UPDATE refresh_tokens SET revoked = true WHERE id = $1`,
+    [tokenRecord.id]
+  );
+
+  // 签发新 Refresh Token
+  const newRawRefreshToken = generateRefreshToken();
+  const newTokenHash = hashToken(newRawRefreshToken);
+  const newExpiresAt = new Date(Date.now() + env.jwt.refreshExpiresDays * 24 * 60 * 60 * 1000);
+
+  await query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES ($1, $2, $3)`,
+    [userRow.id, newTokenHash, newExpiresAt]
+  );
 
   const accessToken = generateAccessToken(userRow.id, roles);
 
   return {
     accessToken,
+    refreshToken: newRawRefreshToken,
     user: {
       id: userRow.id,
       username: userRow.username,
@@ -215,10 +329,11 @@ export interface LogoutInput {
   userId: string;
   jti: string;
   exp: number;
+  refreshToken?: string;
 }
 
 export const logout = async (input: LogoutInput): Promise<void> => {
-  const { userId, jti, exp } = input;
+  const { userId, jti, exp, refreshToken } = input;
 
   const expiresAt = new Date(exp * 1000);
 
@@ -228,4 +343,12 @@ export const logout = async (input: LogoutInput): Promise<void> => {
      ON CONFLICT (jti) DO NOTHING`,
     [jti, userId, expiresAt]
   );
+
+  if (refreshToken && isNonEmptyString(refreshToken)) {
+    const tokenHash = hashToken(refreshToken.trim());
+    await query(
+      `UPDATE refresh_tokens SET revoked = true WHERE token_hash = $1`,
+      [tokenHash]
+    );
+  }
 };
