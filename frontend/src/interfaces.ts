@@ -26,3 +26,17 @@ export interface User {
     lastName: string,
     roles: Role[]
 }
+
+export interface AdminUser extends User {
+    isActive: boolean
+}
+
+export interface UserListResponse {
+    users: AdminUser[],
+    pagination: {
+        page: number,
+        limit: number,
+        total: number,
+        totalPages: number
+    }
+}

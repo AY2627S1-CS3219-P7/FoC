@@ -470,3 +470,96 @@ export const changePassword = async (
     [userId]
   );
 };
+
+// ============================================================
+// List Users (Admin)
+// ============================================================
+
+export interface AdminUserSummary {
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+  roles: Role[];
+}
+
+export interface ListUsersInput {
+  page: number;
+  limit: number;
+  search?: string;
+}
+
+export interface ListUsersResponse {
+  users: AdminUserSummary[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export const listUsers = async (input: ListUsersInput): Promise<ListUsersResponse> => {
+  const { page, limit, search } = input;
+  const offset = (page - 1) * limit;
+
+  // Escape LIKE wildcards so the search is treated as plain text.
+  const searchPattern = search
+    ? `%${search.replace(/[\\%_]/g, "\\$&")}%`
+    : null;
+
+  const countResult = await query(
+    `SELECT COUNT(*)::int AS total
+     FROM users u
+     WHERE $1::text IS NULL
+        OR u.username ILIKE $1 ESCAPE '\\'
+        OR u.email ILIKE $1 ESCAPE '\\'`,
+    [searchPattern]
+  );
+
+  const total: number = countResult.rows[0].total;
+
+  const usersResult = await query(
+    `SELECT
+       u.id,
+       u.username,
+       u.email,
+       u.first_name,
+       u.last_name,
+       u.is_active,
+       COALESCE(
+         ARRAY_AGG(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL),
+         '{}'
+       ) AS roles
+     FROM users u
+     LEFT JOIN user_roles ur ON u.id = ur.user_id
+     LEFT JOIN roles r ON ur.role_id = r.id
+     WHERE $1::text IS NULL
+        OR u.username ILIKE $1 ESCAPE '\\'
+        OR u.email ILIKE $1 ESCAPE '\\'
+     GROUP BY u.id
+     ORDER BY u.username ASC
+     LIMIT $2 OFFSET $3`,
+    [searchPattern, limit, offset]
+  );
+
+  return {
+    users: usersResult.rows.map((row) => ({
+      id: row.id,
+      username: row.username,
+      email: row.email,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      isActive: row.is_active,
+      roles: row.roles as Role[],
+    })),
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};

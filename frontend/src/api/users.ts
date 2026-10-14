@@ -1,4 +1,4 @@
-import type { Role, User } from '../interfaces'
+import type { Role, User, UserListResponse } from '../interfaces'
 import {
   request,
   getToken,
@@ -96,6 +96,24 @@ export async function updateCurrentUser(input: UpdateProfileInput): Promise<User
     { method: 'PATCH', body: JSON.stringify(input) },
     true,
   )
+  return response.json()
+}
+
+// Admin: list and search users
+interface ListUsersParams {
+  page?: number,
+  limit?: number,
+  search?: string
+}
+
+export async function listUsers(params: ListUsersParams = {}): Promise<UserListResponse> {
+  const query = new URLSearchParams()
+  if (params.page) query.set('page', String(params.page))
+  if (params.limit) query.set('limit', String(params.limit))
+  if (params.search?.trim()) query.set('search', params.search.trim())
+
+  const queryString = query.toString()
+  const response = await request(`/users${queryString ? `?${queryString}` : ''}`, {}, true)
   return response.json()
 }
 

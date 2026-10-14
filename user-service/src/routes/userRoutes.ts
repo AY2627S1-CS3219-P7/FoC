@@ -6,10 +6,12 @@
 import { Router } from "express";
 
 import { authenticate } from "../../../common/middleware/authenticate.js";
+import { requireRoles } from "../../../common/middleware/rbac.js";
 import * as userController from "../controllers/userController.js";
 
 const router = Router();
 
+router.get("/", authenticate, requireRoles("ADMIN"), userController.listUsers);
 router.get("/me", authenticate, userController.getCurrentUserProfile);
 router.patch("/me", authenticate, userController.updateCurrentUserProfile);
 router.post("/me/change-password", authenticate, userController.changePassword);

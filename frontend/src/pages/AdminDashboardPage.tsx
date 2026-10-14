@@ -5,11 +5,15 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import {
+  Alert,
   Box,
   Button,
+  Chip,
+  CircularProgress,
   Container,
+  Pagination,
   Paper,
   Stack,
   Tab,
@@ -20,19 +24,30 @@ import {
   TableHead,
   TableRow,
   Tabs,
+  TextField,
   Typography,
 } from '@mui/material'
 import { Link } from 'react-router-dom'
+import { ForbiddenError, listUsers } from '../api/users'
 import {
   CampusBuildingIcon,
   ClipboardIcon,
   IconBadge,
   StudentIcon,
 } from '../components/CampusArt'
+import type { Role, UserListResponse } from '../interfaces'
 
 type AdminSection = 'users' | 'suppliers' | 'orders'
 
 const userTableColumns = ['Username', 'Email', 'Roles', 'Status', 'Actions']
+
+const USERS_PER_PAGE = 20
+
+const roleChips: Record<Role, { label: string; color: 'default' | 'primary' | 'secondary' }> = {
+  ADMIN: { label: 'Admin', color: 'default' },
+  REQUESTER: { label: 'Requester', color: 'primary' },
+  COURIER: { label: 'Courier', color: 'secondary' },
+}
 
 const sectionPaperSx = {
   p: { xs: 2, md: 3 },
@@ -73,7 +88,74 @@ function SectionHeader({
   )
 }
 
+function TableMessageRow({ children }: { children: ReactNode }) {
+  return (
+    <TableRow>
+      <TableCell
+        colSpan={userTableColumns.length}
+        align="center"
+        sx={{ py: 4, color: 'text.secondary' }}
+      >
+        {children}
+      </TableCell>
+    </TableRow>
+  )
+}
+
+type UsersRequestResult = {
+  key: string
+  data?: UserListResponse
+  error?: string
+}
+
 function UsersSection() {
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [reloadCount, setReloadCount] = useState(0)
+  const [result, setResult] = useState<UsersRequestResult | null>(null)
+
+  const requestKey = `${page}|${search}|${reloadCount}`
+  const loading = result?.key !== requestKey
+  const users = !loading ? (result?.data?.users ?? []) : []
+  const pagination = result?.data?.pagination
+  const errorMessage = !loading ? result?.error : undefined
+
+  useEffect(() => {
+    let ignore = false
+
+    listUsers({ page, limit: USERS_PER_PAGE, search })
+      .then((data) => {
+        if (!ignore) setResult({ key: requestKey, data })
+      })
+      .catch((error: unknown) => {
+        if (ignore) return
+        const message =
+          error instanceof ForbiddenError
+            ? 'You do not have permission to view users.'
+            : error instanceof Error
+              ? error.message
+              : 'Failed to load users.'
+        setResult({ key: requestKey, error: message })
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [page, search, requestKey])
+
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSearch(searchInput.trim())
+    setPage(1)
+  }
+
+  function handleClearSearch() {
+    setSearchInput('')
+    setSearch('')
+    setPage(1)
+  }
+
   return (
     <Paper variant="outlined" sx={sectionPaperSx}>
       <Stack spacing={2.5}>
@@ -82,6 +164,48 @@ function UsersSection() {
           title="Users"
           description="View accounts and manage their roles."
         />
+
+        <Stack
+          component="form"
+          onSubmit={handleSearch}
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+        >
+          <TextField
+            size="small"
+            label="Search by username or email"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+            sx={{ flex: 1 }}
+          />
+          <Stack direction="row" spacing={1}>
+            <Button type="submit" variant="contained">
+              Search
+            </Button>
+            {search && (
+              <Button variant="text" onClick={handleClearSearch}>
+                Clear
+              </Button>
+            )}
+          </Stack>
+        </Stack>
+
+        {errorMessage && (
+          <Alert
+            severity="error"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => setReloadCount((count) => count + 1)}
+              >
+                Retry
+              </Button>
+            }
+          >
+            {errorMessage}
+          </Alert>
+        )}
 
         <TableContainer
           sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}
@@ -97,18 +221,78 @@ function UsersSection() {
               </TableRow>
             </TableHead>
             <TableBody>
-              <TableRow>
-                <TableCell
-                  colSpan={userTableColumns.length}
-                  align="center"
-                  sx={{ py: 4, color: 'text.secondary' }}
-                >
-                  User management is under development. No users are loaded yet.
-                </TableCell>
-              </TableRow>
+              {loading && (
+                <TableMessageRow>
+                  <CircularProgress size={28} aria-label="Loading users" />
+                </TableMessageRow>
+              )}
+
+              {!loading && !errorMessage && users.length === 0 && (
+                <TableMessageRow>
+                  {search
+                    ? `No users match "${search}".`
+                    : 'No users found.'}
+                </TableMessageRow>
+              )}
+
+              {!loading &&
+                users.map((user) => (
+                  <TableRow key={user.id} hover>
+                    <TableCell>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {user.username}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {user.firstName} {user.lastName}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', rowGap: 0.5 }}>
+                        {user.roles.map((role) => (
+                          <Chip
+                            key={role}
+                            size="small"
+                            label={roleChips[role].label}
+                            color={roleChips[role].color}
+                          />
+                        ))}
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        label={user.isActive ? 'Active' : 'Inactive'}
+                        color={user.isActive ? 'success' : 'default'}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>—</TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </TableContainer>
+
+        {pagination && pagination.total > 0 && (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {pagination.total} {pagination.total === 1 ? 'user' : 'users'}
+            </Typography>
+            {pagination.totalPages > 1 && (
+              <Pagination
+                count={pagination.totalPages}
+                page={page}
+                onChange={(_, newPage) => setPage(newPage)}
+                color="primary"
+              />
+            )}
+          </Stack>
+        )}
       </Stack>
     </Paper>
   )
