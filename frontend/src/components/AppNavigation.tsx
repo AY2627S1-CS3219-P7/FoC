@@ -60,6 +60,12 @@ const navigationItems = [
     path: 'M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
   },
   {
+    label: 'Admin',
+    value: 'admin',
+    to: '/admin',
+    path: 'M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8Z',
+  },
+  {
     label: 'Account',
     value: 'account',
     to: '/account',
@@ -155,6 +161,10 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
 
     if (item.value === 'tasks') {
       return mode === 'courier' && canCourier
+    }
+
+    if (item.value === 'admin') {
+      return isAdmin
     }
 
     // Home and Account always show (this navbar only renders when logged in)

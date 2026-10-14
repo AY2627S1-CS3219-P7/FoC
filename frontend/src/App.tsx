@@ -17,6 +17,7 @@ import {
 } from 'react-router-dom'
 import AppNavigation, { type UserMode } from './components/AppNavigation'
 import AccountPage from './pages/AccountPage.tsx'
+import AdminDashboardPage from './pages/AdminDashboardPage.tsx'
 import CreateSupplierPage from './pages/CreateSupplierPage.tsx'
 import EditSupplierPage from './pages/EditSupplierPage.tsx'
 import HomePage from './pages/HomePage.tsx'
@@ -146,6 +147,15 @@ function AppContent() {
               ) : (
                 <Navigate to="/home" replace />
               )}
+            </RequireRole>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <AdminDashboardPage />
             </RequireRole>
           }
         />
