@@ -1,4 +1,4 @@
-import type { Role, User, UserListResponse, UserRolesResponse } from '../interfaces'
+import type { AdminUser, Role, User, UserListResponse, UserRolesResponse } from '../interfaces'
 import {
   request,
   getToken,
@@ -136,6 +136,16 @@ export async function revokeRole(userId: string, role: Role): Promise<UserRolesR
   const response = await request(
     `/users/${encodeURIComponent(userId)}/roles/${role}`,
     { method: 'DELETE' },
+    true,
+  )
+  return response.json()
+}
+
+// Admin: deactivate / reactivate
+export async function updateUserStatus(userId: string, isActive: boolean): Promise<AdminUser> {
+  const response = await request(
+    `/users/${encodeURIComponent(userId)}/status`,
+    { method: 'PATCH', body: JSON.stringify({ isActive }) },
     true,
   )
   return response.json()

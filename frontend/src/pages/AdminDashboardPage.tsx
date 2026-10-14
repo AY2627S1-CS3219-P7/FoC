@@ -13,6 +13,11 @@ import {
   Chip,
   CircularProgress,
   Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Pagination,
   Paper,
   Stack,
@@ -28,7 +33,12 @@ import {
   Typography,
 } from '@mui/material'
 import { Link } from 'react-router-dom'
-import { ForbiddenError, listUsers } from '../api/users'
+import {
+  ForbiddenError,
+  NotFoundError,
+  listUsers,
+  updateUserStatus,
+} from '../api/users'
 import { useAuth } from '../auth/AuthContext'
 import {
   CampusBuildingIcon,
@@ -119,6 +129,9 @@ function UsersSection() {
   const [result, setResult] = useState<UsersRequestResult | null>(null)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [successMessage, setSuccessMessage] = useState('')
+  const [deactivateTarget, setDeactivateTarget] = useState<AdminUser | null>(null)
+  const [pendingStatusUserId, setPendingStatusUserId] = useState<string | null>(null)
+  const [statusError, setStatusError] = useState('')
   const { user: currentUser } = useAuth()
 
   const requestKey = `${page}|${search}|${reloadCount}`
@@ -162,7 +175,7 @@ function UsersSection() {
     setPage(1)
   }
 
-  function handleRolesChanged(userId: string, roles: Role[], message: string) {
+  function updateUserRow(userId: string, changes: Partial<AdminUser>) {
     setResult((previous) => {
       if (!previous?.data) return previous
       return {
@@ -170,12 +183,44 @@ function UsersSection() {
         data: {
           ...previous.data,
           users: previous.data.users.map((user) =>
-            user.id === userId ? { ...user, roles } : user,
+            user.id === userId ? { ...user, ...changes } : user,
           ),
         },
       }
     })
+  }
+
+  function handleRolesChanged(userId: string, roles: Role[], message: string) {
+    updateUserRow(userId, { roles })
     setSuccessMessage(message)
+  }
+
+  async function changeUserStatus(user: AdminUser, isActive: boolean) {
+    setDeactivateTarget(null)
+    setPendingStatusUserId(user.id)
+    setStatusError('')
+
+    try {
+      const updatedUser = await updateUserStatus(user.id, isActive)
+      updateUserRow(user.id, updatedUser)
+      setSuccessMessage(
+        isActive
+          ? `Reactivated ${user.username}.`
+          : `Deactivated ${user.username}.`,
+      )
+    } catch (error) {
+      setStatusError(
+        error instanceof ForbiddenError
+          ? 'Only admins can change account status.'
+          : error instanceof NotFoundError
+            ? 'User not found.'
+            : error instanceof Error
+              ? error.message
+              : 'Failed to update account status.',
+      )
+    } finally {
+      setPendingStatusUserId(null)
+    }
   }
 
   return (
@@ -226,6 +271,12 @@ function UsersSection() {
             }
           >
             {errorMessage}
+          </Alert>
+        )}
+
+        {statusError && (
+          <Alert severity="error" onClose={() => setStatusError('')}>
+            {statusError}
           </Alert>
         )}
 
@@ -290,14 +341,47 @@ function UsersSection() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => setSelectedUser(user)}
-                        sx={{ whiteSpace: 'nowrap' }}
-                      >
-                        Manage Roles
-                      </Button>
+                      <Stack direction="row" spacing={1}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setSelectedUser(user)}
+                          sx={{ whiteSpace: 'nowrap' }}
+                        >
+                          Manage Roles
+                        </Button>
+                        {user.isActive ? (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            disabled={
+                              user.id === currentUser?.id ||
+                              pendingStatusUserId === user.id
+                            }
+                            title={
+                              user.id === currentUser?.id
+                                ? 'You cannot deactivate your own account.'
+                                : undefined
+                            }
+                            onClick={() => setDeactivateTarget(user)}
+                            sx={{ whiteSpace: 'nowrap' }}
+                          >
+                            {pendingStatusUserId === user.id ? 'Deactivating…' : 'Deactivate'}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="success"
+                            disabled={pendingStatusUserId === user.id}
+                            onClick={() => void changeUserStatus(user, true)}
+                            sx={{ whiteSpace: 'nowrap' }}
+                          >
+                            {pendingStatusUserId === user.id ? 'Reactivating…' : 'Reactivate'}
+                          </Button>
+                        )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -325,6 +409,31 @@ function UsersSection() {
           </Stack>
         )}
       </Stack>
+
+      <Dialog
+        open={Boolean(deactivateTarget)}
+        onClose={() => setDeactivateTarget(null)}
+      >
+        <DialogTitle>Deactivate {deactivateTarget?.username}?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {deactivateTarget?.username} will be signed out and will not be able
+            to log in until an Admin reactivates the account.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeactivateTarget(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              if (deactivateTarget) void changeUserStatus(deactivateTarget, false)
+            }}
+          >
+            Deactivate
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {selectedUser && (
         <ManageRolesDialog

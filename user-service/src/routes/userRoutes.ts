@@ -16,6 +16,7 @@ router.get("/me", authenticate, userController.getCurrentUserProfile);
 router.patch("/me", authenticate, userController.updateCurrentUserProfile);
 router.post("/me/change-password", authenticate, userController.changePassword);
 router.post("/batch", authenticate, userController.getUsersBatch);
+router.patch("/:id/status", authenticate, requireRoles("ADMIN"), userController.updateUserStatus);
 router.get("/:userId", authenticate, userController.getUserById);
 
 export default router;

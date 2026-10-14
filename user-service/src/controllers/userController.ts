@@ -233,3 +233,37 @@ export const listUsers = async (
     next(error);
   }
 };
+
+// ============================================================
+// Update User Active Status (Admin)
+// ============================================================
+
+export const updateUserStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError(401, "Authentication required.");
+    }
+
+    const { id } = req.params;
+
+    if (!id || typeof id !== "string" || !UUID_V4_REGEX.test(id)) {
+      throw new AppError(400, "Invalid user ID format. Must be a valid UUID.");
+    }
+
+    const { isActive } = req.body ?? {};
+
+    if (typeof isActive !== "boolean") {
+      throw new AppError(400, "Request body must contain a boolean 'isActive'.");
+    }
+
+    const user = await userService.updateUserStatus(req.user.id, id, isActive);
+
+    res.status(200).json(user);
+  } catch (error) {
+    next(error);
+  }
+};
