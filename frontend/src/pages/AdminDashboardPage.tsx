@@ -29,13 +29,16 @@ import {
 } from '@mui/material'
 import { Link } from 'react-router-dom'
 import { ForbiddenError, listUsers } from '../api/users'
+import { useAuth } from '../auth/AuthContext'
 import {
   CampusBuildingIcon,
   ClipboardIcon,
   IconBadge,
   StudentIcon,
 } from '../components/CampusArt'
-import type { Role, UserListResponse } from '../interfaces'
+import ManageRolesDialog from '../components/ManageRolesDialog'
+import SuccessSnackbar from '../components/SuccessSnackbar'
+import type { AdminUser, Role, UserListResponse } from '../interfaces'
 
 type AdminSection = 'users' | 'suppliers' | 'orders'
 
@@ -114,6 +117,9 @@ function UsersSection() {
   const [page, setPage] = useState(1)
   const [reloadCount, setReloadCount] = useState(0)
   const [result, setResult] = useState<UsersRequestResult | null>(null)
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
+  const [successMessage, setSuccessMessage] = useState('')
+  const { user: currentUser } = useAuth()
 
   const requestKey = `${page}|${search}|${reloadCount}`
   const loading = result?.key !== requestKey
@@ -154,6 +160,22 @@ function UsersSection() {
     setSearchInput('')
     setSearch('')
     setPage(1)
+  }
+
+  function handleRolesChanged(userId: string, roles: Role[], message: string) {
+    setResult((previous) => {
+      if (!previous?.data) return previous
+      return {
+        ...previous,
+        data: {
+          ...previous.data,
+          users: previous.data.users.map((user) =>
+            user.id === userId ? { ...user, roles } : user,
+          ),
+        },
+      }
+    })
+    setSuccessMessage(message)
   }
 
   return (
@@ -267,7 +289,16 @@ function UsersSection() {
                         color={user.isActive ? 'success' : 'default'}
                       />
                     </TableCell>
-                    <TableCell sx={{ color: 'text.secondary' }}>—</TableCell>
+                    <TableCell>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => setSelectedUser(user)}
+                        sx={{ whiteSpace: 'nowrap' }}
+                      >
+                        Manage Roles
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>
@@ -294,6 +325,22 @@ function UsersSection() {
           </Stack>
         )}
       </Stack>
+
+      {selectedUser && (
+        <ManageRolesDialog
+          key={selectedUser.id}
+          user={selectedUser}
+          currentUserId={currentUser?.id}
+          onClose={() => setSelectedUser(null)}
+          onRolesChanged={handleRolesChanged}
+        />
+      )}
+
+      <SuccessSnackbar
+        open={Boolean(successMessage)}
+        message={successMessage}
+        onClose={() => setSuccessMessage('')}
+      />
     </Paper>
   )
 }

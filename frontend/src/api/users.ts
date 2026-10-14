@@ -1,4 +1,4 @@
-import type { Role, User, UserListResponse } from '../interfaces'
+import type { Role, User, UserListResponse, UserRolesResponse } from '../interfaces'
 import {
   request,
   getToken,
@@ -114,6 +114,30 @@ export async function listUsers(params: ListUsersParams = {}): Promise<UserListR
 
   const queryString = query.toString()
   const response = await request(`/users${queryString ? `?${queryString}` : ''}`, {}, true)
+  return response.json()
+}
+
+// Admin: role management
+export async function getUserRoles(userId: string): Promise<UserRolesResponse> {
+  const response = await request(`/users/${encodeURIComponent(userId)}/roles`, {}, true)
+  return response.json()
+}
+
+export async function grantRole(userId: string, role: Role): Promise<UserRolesResponse> {
+  const response = await request(
+    `/users/${encodeURIComponent(userId)}/roles`,
+    { method: 'POST', body: JSON.stringify({ role }) },
+    true,
+  )
+  return response.json()
+}
+
+export async function revokeRole(userId: string, role: Role): Promise<UserRolesResponse> {
+  const response = await request(
+    `/users/${encodeURIComponent(userId)}/roles/${role}`,
+    { method: 'DELETE' },
+    true,
+  )
   return response.json()
 }
 

@@ -31,6 +31,11 @@ export interface AdminUser extends User {
     isActive: boolean
 }
 
+export interface UserRolesResponse {
+    userId: string,
+    roles: Role[]
+}
+
 export interface UserListResponse {
     users: AdminUser[],
     pagination: {
