@@ -99,6 +99,21 @@ export async function updateCurrentUser(input: UpdateProfileInput): Promise<User
   return response.json()
 }
 
+interface ChangePasswordInput {
+  currentPassword: string,
+  newPassword: string
+}
+
+// The backend revokes all refresh tokens on success, so callers should log out afterwards.
+export async function changePassword(input: ChangePasswordInput): Promise<{ message: string }> {
+  const response = await request(
+    '/users/me/change-password',
+    { method: 'POST', body: JSON.stringify(input) },
+    true,
+  )
+  return response.json()
+}
+
 // Admin: list and search users
 interface ListUsersParams {
   page?: number,

@@ -18,10 +18,26 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import { useNavigate } from 'react-router-dom'
 import { IconBadge, StudentIcon } from '../components/CampusArt'
 import { useAuth } from '../auth/AuthContext'
-import { updateCurrentUser } from '../api/users'
+import {
+  ApiError,
+  UnauthorizedError,
+  changePassword,
+  updateCurrentUser,
+} from '../api/users'
 import type { Role } from '../interfaces'
+
+const MIN_PASSWORD_LENGTH = 15
+
+const emptyPasswordForm = {
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+}
+
+type PasswordFormErrors = Partial<Record<keyof typeof emptyPasswordForm, string>>
 
 const roleChips: Record<Role, { label: string; color: 'default' | 'primary' | 'secondary' }> = {
   ADMIN: { label: 'Admin', color: 'default' },
@@ -43,6 +59,169 @@ function ProfileField({ label, value }: { label: string; value: string }) {
         {value}
       </Typography>
     </Stack>
+  )
+}
+
+function validatePasswordForm(values: typeof emptyPasswordForm): PasswordFormErrors {
+  const errors: PasswordFormErrors = {}
+
+  if (!values.currentPassword) {
+    errors.currentPassword = 'Enter your current password.'
+  }
+
+  if (!values.newPassword) {
+    errors.newPassword = 'Enter a new password.'
+  } else if (values.newPassword.length < MIN_PASSWORD_LENGTH) {
+    errors.newPassword = `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+  } else if (values.newPassword === values.currentPassword) {
+    errors.newPassword = 'New password must be different from your current password.'
+  }
+
+  if (!values.confirmPassword) {
+    errors.confirmPassword = 'Confirm your new password.'
+  } else if (values.confirmPassword !== values.newPassword) {
+    errors.confirmPassword = 'Passwords do not match.'
+  }
+
+  return errors
+}
+
+function ChangePasswordSection() {
+  const navigate = useNavigate()
+  const { logout } = useAuth()
+  const [values, setValues] = useState(emptyPasswordForm)
+  const [errors, setErrors] = useState<PasswordFormErrors>({})
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  function updateField(field: keyof typeof emptyPasswordForm, value: string) {
+    setValues((previous) => ({ ...previous, [field]: value }))
+    setErrors((previous) => ({ ...previous, [field]: undefined }))
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setErrorMsg(null)
+
+    const validationErrors = validatePasswordForm(values)
+    setErrors(validationErrors)
+    if (Object.keys(validationErrors).length > 0) {
+      return
+    }
+
+    setSubmitting(true)
+
+    try {
+      await changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+      })
+    } catch (error) {
+      setErrorMsg(
+        error instanceof UnauthorizedError
+          ? 'Your session has expired. Please log in again.'
+          : error instanceof ApiError
+            ? error.message
+            : 'Could not change your password. Please try again.',
+      )
+      setSubmitting(false)
+      return
+    }
+
+    // The backend has revoked every refresh token, so end this session too.
+    await logout()
+    navigate('/login', {
+      replace: true,
+      state: {
+        successMessage: 'Password changed successfully. Please log in with your new password.',
+      },
+    })
+  }
+
+  function handleClear() {
+    setValues(emptyPasswordForm)
+    setErrors({})
+    setErrorMsg(null)
+  }
+
+  return (
+    <Paper
+      variant="outlined"
+      component="section"
+      sx={{
+        p: { xs: 2, md: 3 },
+        borderColor: 'divider',
+        boxShadow: '0 8px 24px rgba(23, 35, 45, 0.05)',
+      }}
+    >
+      <form onSubmit={handleSubmit} noValidate>
+        <Stack spacing={2}>
+          <Box>
+            <Typography component="h2" variant="h6" sx={{ fontWeight: 600 }}>
+              Change Password
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+              You will be logged out on all devices after changing your password.
+            </Typography>
+          </Box>
+
+          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+
+          <TextField
+            required
+            type="password"
+            label="Current Password"
+            autoComplete="current-password"
+            value={values.currentPassword}
+            onChange={(event) => updateField('currentPassword', event.target.value)}
+            error={Boolean(errors.currentPassword)}
+            helperText={errors.currentPassword}
+            disabled={submitting}
+          />
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+              gap: 2,
+            }}
+          >
+            <TextField
+              required
+              type="password"
+              label="New Password"
+              autoComplete="new-password"
+              value={values.newPassword}
+              onChange={(event) => updateField('newPassword', event.target.value)}
+              error={Boolean(errors.newPassword)}
+              helperText={
+                errors.newPassword || `Use at least ${MIN_PASSWORD_LENGTH} characters.`
+              }
+              disabled={submitting}
+            />
+            <TextField
+              required
+              type="password"
+              label="Confirm New Password"
+              autoComplete="new-password"
+              value={values.confirmPassword}
+              onChange={(event) => updateField('confirmPassword', event.target.value)}
+              error={Boolean(errors.confirmPassword)}
+              helperText={errors.confirmPassword}
+              disabled={submitting}
+            />
+          </Box>
+
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Button type="submit" variant="contained" disabled={submitting}>
+              {submitting ? 'Changing...' : 'Change Password'}
+            </Button>
+            <Button variant="outlined" onClick={handleClear} disabled={submitting}>
+              Clear
+            </Button>
+          </Stack>
+        </Stack>
+      </form>
+    </Paper>
   )
 }
 
@@ -266,6 +445,8 @@ function AccountPage() {
             </Typography>
           </Stack>
         </Paper>
+
+        <ChangePasswordSection />
       </Stack>
     </Container>
   )
