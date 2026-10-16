@@ -24,6 +24,7 @@ import HomePage from './pages/HomePage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
 import MyRequestsPage from './pages/MyRequestsPage.tsx'
 import MyTasksPage from './pages/MyTasksPage.tsx'
+import OrderDetailsPage from './pages/OrderDetailsPage.tsx'
 import RegisterPage from './pages/RegisterPage.tsx'
 import RequestCreationPage from './pages/RequestCreationPage.tsx'
 import SupplierDetailPage from './pages/SupplierDetailPage.tsx'
@@ -134,6 +135,15 @@ function AppContent() {
           element={
             <RequireRole roles={['REQUESTER']}>
               <RequestCreationPage mode={mode} />
+            </RequireRole>
+          }
+        />
+
+        <Route
+          path="/requests/:orderId"
+          element={
+            <RequireRole roles={['REQUESTER']}>
+              <OrderDetailsPage />
             </RequireRole>
           }
         />

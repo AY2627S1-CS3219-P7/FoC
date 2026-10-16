@@ -176,6 +176,10 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
         return location.pathname.startsWith('/suppliers')
       }
 
+      if (item.value === 'requests') {
+        return location.pathname.startsWith('/requests')
+      }
+
       return location.pathname === item.to
     })?.value ?? false
 
