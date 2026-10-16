@@ -1,4 +1,4 @@
-// Client-side pagination helper for requester order lists.
+// Client-side pagination helper for order list views.
 // Temporary until Order Service supports page/limit query params.
 // During integration, replace callers of `paginateItems` with API responses
 // that already include `{ items, page, totalPages }` (or equivalent).

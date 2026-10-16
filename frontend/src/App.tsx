@@ -160,6 +160,18 @@ function AppContent() {
             </RequireRole>
           }
         />
+        <Route
+          path="/my-tasks/:orderId"
+          element={
+            <RequireRole roles={['COURIER']}>
+              {mode === 'courier' ? (
+                <OrderDetailsPage />
+              ) : (
+                <Navigate to="/home" replace />
+              )}
+            </RequireRole>
+          }
+        />
 
         <Route
           path="/admin"

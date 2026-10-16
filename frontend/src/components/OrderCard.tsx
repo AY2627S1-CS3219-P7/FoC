@@ -11,6 +11,8 @@ import {
   formatOrderId,
   formatParticipantName,
   formatPickupLocation,
+  getCourierAction,
+  type CourierAction,
   type Order,
 } from '../orders/orderTypes'
 import OrderStatusChip from './OrderStatusChip'
@@ -28,7 +30,30 @@ function OrderField({ label, value }: { label: string; value: string }) {
   )
 }
 
-function OrderCard({ order }: { order: Order }) {
+const courierActionLabel: Record<CourierAction, string> = {
+  accept: 'Accept',
+  'pick-up': 'Mark picked up',
+  deliver: 'Mark delivered',
+}
+
+type OrderCardProps = {
+  order: Order
+  /** Requester cards link to /requests/:id; courier cards to /my-tasks/:id. */
+  variant?: 'requester' | 'courier'
+  actionPending?: boolean
+  onCourierAction?: (order: Order, action: CourierAction) => void
+}
+
+function OrderCard({
+  order,
+  variant = 'requester',
+  actionPending = false,
+  onCourierAction,
+}: OrderCardProps) {
+  const isCourier = variant === 'courier'
+  const detailsTo = isCourier ? `/my-tasks/${order.id}` : `/requests/${order.id}`
+  const courierAction = isCourier ? getCourierAction(order.status) : null
+
   return (
     <Paper
       variant="outlined"
@@ -67,23 +92,40 @@ function OrderCard({ order }: { order: Order }) {
       >
         <OrderField label="Pickup" value={formatPickupLocation(order.pickup)} />
         <OrderField label="Deliver to" value={order.deliveryLocation} />
-        <OrderField label="Credits" value={`${order.creditAmount} credits`} />
         <OrderField
-          label="Courier"
-          value={order.courier ? formatParticipantName(order.courier) : 'Not assigned yet'}
+          label={isCourier ? 'Reward' : 'Credits'}
+          value={`${order.creditAmount} credits`}
         />
+        {isCourier ? (
+          <OrderField label="Requester" value={formatParticipantName(order.requester)} />
+        ) : (
+          <OrderField
+            label="Courier"
+            value={order.courier ? formatParticipantName(order.courier) : 'Not assigned yet'}
+          />
+        )}
       </Box>
 
-      <Box sx={{ mt: 'auto' }}>
-        <Button
-          component={Link}
-          to={`/requests/${order.id}`}
-          variant="outlined"
-          size="small"
-        >
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={1}
+        sx={{ mt: 'auto', alignItems: { sm: 'center' } }}
+      >
+        <Button component={Link} to={detailsTo} variant="outlined" size="small">
           View details
         </Button>
-      </Box>
+        {courierAction && onCourierAction && (
+          <Button
+            variant="contained"
+            size="small"
+            color="secondary"
+            disabled={actionPending}
+            onClick={() => onCourierAction(order, courierAction)}
+          >
+            {courierActionLabel[courierAction]}
+          </Button>
+        )}
+      </Stack>
     </Paper>
   )
 }

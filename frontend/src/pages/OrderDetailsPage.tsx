@@ -27,16 +27,22 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { NotFoundError } from '../api/client'
 import {
+  acceptOrder,
   cancelOrder,
   confirmDelivery,
   fetchOrderById,
   isOrderApiConnected,
+  markOrderDelivered,
+  markOrderPickedUp,
 } from '../api/orders'
 import OrderStatusChip from '../components/OrderStatusChip'
 import {
+  canCourierAccept,
+  canCourierMarkDelivered,
+  canCourierMarkPickedUp,
   canRequesterCancel,
   canRequesterConfirmDelivery,
   formatOrderId,
@@ -53,11 +59,16 @@ type OrderRequestResult = {
   error?: 'not-found' | 'failed'
 }
 
-type PendingAction = 'cancel' | 'confirm'
+type PendingAction =
+  | 'cancel'
+  | 'confirm'
+  | 'accept'
+  | 'pick-up'
+  | 'deliver'
 
 const actionCopy: Record<
   PendingAction,
-  { title: string; body: string; confirmLabel: string; color: 'error' | 'primary' }
+  { title: string; body: string; confirmLabel: string; color: 'error' | 'primary' | 'secondary' }
 > = {
   cancel: {
     title: 'Cancel this request?',
@@ -70,6 +81,24 @@ const actionCopy: Record<
     body: 'Confirm only after you have received the item. This completes the request.',
     confirmLabel: 'Confirm delivery',
     color: 'primary',
+  },
+  accept: {
+    title: 'Accept this request?',
+    body: 'You will become the assigned courier for this campus errand.',
+    confirmLabel: 'Accept',
+    color: 'secondary',
+  },
+  'pick-up': {
+    title: 'Mark as picked up?',
+    body: 'Confirm only after you have collected the item from the supplier.',
+    confirmLabel: 'Mark picked up',
+    color: 'secondary',
+  },
+  deliver: {
+    title: 'Mark as delivered?',
+    body: 'Confirm only after you have handed the item to the requester.',
+    confirmLabel: 'Mark delivered',
+    color: 'secondary',
   },
 }
 
@@ -92,10 +121,10 @@ function DetailField({ label, value }: { label: string; value: string }) {
   )
 }
 
-function BackToRequestsButton() {
+function BackLink({ to, label }: { to: string; label: string }) {
   return (
-    <Button component={Link} to="/requests" variant="text" sx={{ alignSelf: 'flex-start' }}>
-      ← Back to My Requests
+    <Button component={Link} to={to} variant="text" sx={{ alignSelf: 'flex-start' }}>
+      {label}
     </Button>
   )
 }
@@ -147,6 +176,8 @@ function OrderDetailsSkeleton() {
 
 function OrderDetailsPage() {
   const { orderId = '' } = useParams()
+  const location = useLocation()
+  const isCourierView = location.pathname.startsWith('/my-tasks/')
   const [reloadCount, setReloadCount] = useState(0)
   const [result, setResult] = useState<OrderRequestResult | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
@@ -186,10 +217,18 @@ function OrderDetailsPage() {
     setActionError('')
 
     try {
-      const updatedOrder =
-        pendingAction === 'cancel'
-          ? await cancelOrder(order.id)
-          : await confirmDelivery(order.id)
+      let updatedOrder: Order
+      if (pendingAction === 'cancel') {
+        updatedOrder = await cancelOrder(order.id)
+      } else if (pendingAction === 'confirm') {
+        updatedOrder = await confirmDelivery(order.id)
+      } else if (pendingAction === 'accept') {
+        updatedOrder = await acceptOrder(order.id)
+      } else if (pendingAction === 'pick-up') {
+        updatedOrder = await markOrderPickedUp(order.id)
+      } else {
+        updatedOrder = await markOrderDelivered(order.id)
+      }
       setResult({ key: requestKey, order: updatedOrder })
       setPendingAction(null)
     } catch (error) {
@@ -231,8 +270,13 @@ function OrderDetailsPage() {
       </Alert>
     )
   } else {
-    const showCancel = canRequesterCancel(order.status)
-    const showConfirm = canRequesterConfirmDelivery(order.status)
+    const showCancel = !isCourierView && canRequesterCancel(order.status)
+    const showConfirm = !isCourierView && canRequesterConfirmDelivery(order.status)
+    const showAccept = isCourierView && canCourierAccept(order.status)
+    const showPickUp = isCourierView && canCourierMarkPickedUp(order.status)
+    const showDeliver = isCourierView && canCourierMarkDelivered(order.status)
+    const hasActions =
+      showCancel || showConfirm || showAccept || showPickUp || showDeliver
 
     content = (
       <Stack spacing={3}>
@@ -319,7 +363,7 @@ function OrderDetailsPage() {
           </Stack>
         </Paper>
 
-        {(showCancel || showConfirm) && (
+        {hasActions && (
           <Paper
             variant="outlined"
             sx={{ p: { xs: 2, md: 3 }, boxShadow: '0 12px 32px rgba(23, 35, 45, 0.06)' }}
@@ -330,6 +374,36 @@ function OrderDetailsPage() {
               </Typography>
               {actionError && <Alert severity="error">{actionError}</Alert>}
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+                {showAccept && (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    disabled={submitting}
+                    onClick={() => setPendingAction('accept')}
+                  >
+                    Accept
+                  </Button>
+                )}
+                {showPickUp && (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    disabled={submitting}
+                    onClick={() => setPendingAction('pick-up')}
+                  >
+                    Mark picked up
+                  </Button>
+                )}
+                {showDeliver && (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    disabled={submitting}
+                    onClick={() => setPendingAction('deliver')}
+                  >
+                    Mark delivered
+                  </Button>
+                )}
                 {showConfirm && (
                   <Button
                     variant="contained"
@@ -384,7 +458,10 @@ function OrderDetailsPage() {
   return (
     <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
       <Stack spacing={2}>
-        <BackToRequestsButton />
+        <BackLink
+          to={isCourierView ? '/my-tasks' : '/requests'}
+          label={isCourierView ? '← Back to My Tasks' : '← Back to My Requests'}
+        />
         {content}
       </Stack>
     </Container>

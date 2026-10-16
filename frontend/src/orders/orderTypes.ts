@@ -91,8 +91,34 @@ export function canRequesterConfirmDelivery(status: OrderStatus): boolean {
   return status === 'PICKED_UP'
 }
 
+// UI-only courier actions. Order Service must enforce the real transitions.
+export function canCourierAccept(status: OrderStatus): boolean {
+  return status === 'OPEN'
+}
+
+export function canCourierMarkPickedUp(status: OrderStatus): boolean {
+  return status === 'ACCEPTED'
+}
+
+export function canCourierMarkDelivered(status: OrderStatus): boolean {
+  return status === 'PICKED_UP'
+}
+
+export type CourierAction = 'accept' | 'pick-up' | 'deliver'
+
+export function getCourierAction(status: OrderStatus): CourierAction | null {
+  if (canCourierAccept(status)) return 'accept'
+  if (canCourierMarkPickedUp(status)) return 'pick-up'
+  if (canCourierMarkDelivered(status)) return 'deliver'
+  return null
+}
+
 export function isOrderActive(status: OrderStatus): boolean {
   return status === 'OPEN' || status === 'ACCEPTED' || status === 'PICKED_UP'
+}
+
+export function isCourierTaskActive(status: OrderStatus): boolean {
+  return status === 'ACCEPTED' || status === 'PICKED_UP'
 }
 
 export function formatParticipantName(participant: OrderParticipant): string {

@@ -152,6 +152,7 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
       return isAdmin || (mode === 'requester' && canRequest)
     }
 
+    // Requester: My Requests. Courier: Fulfil Requests (available OPEN orders).
     if (item.value === 'requests') {
       return (
         (mode === 'requester' && canRequest) ||
@@ -159,6 +160,7 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
       )
     }
 
+    // Courier only: Active + Past assigned tasks.
     if (item.value === 'tasks') {
       return mode === 'courier' && canCourier
     }
@@ -178,6 +180,10 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
 
       if (item.value === 'requests') {
         return location.pathname.startsWith('/requests')
+      }
+
+      if (item.value === 'tasks') {
+        return location.pathname.startsWith('/my-tasks')
       }
 
       return location.pathname === item.to
