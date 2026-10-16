@@ -5,7 +5,7 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode, type SyntheticEvent } from 'react'
 import {
   Alert,
   Box,
@@ -24,6 +24,7 @@ import {
   Tabs,
   Typography,
 } from '@mui/material'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   fetchMyCourierTasks,
   isOrderApiConnected,
@@ -50,6 +51,15 @@ type ListRequestResult = {
 }
 
 type TaskTab = 'active' | 'past'
+
+const TASK_TABS: TaskTab[] = ['active', 'past']
+
+function parseTaskTab(value: string | null): TaskTab {
+  if (value && TASK_TABS.includes(value as TaskTab)) {
+    return value as TaskTab
+  }
+  return 'active'
+}
 
 const orderGridSx = {
   display: 'grid',
@@ -94,10 +104,12 @@ function EmptySection({
   icon,
   title,
   description,
+  action,
 }: {
   icon: ReactNode
   title: string
   description: string
+  action?: ReactNode
 }) {
   return (
     <Paper
@@ -108,6 +120,7 @@ function EmptySection({
         {icon}
         <Typography variant="h6">{title}</Typography>
         <Typography color="text.secondary">{description}</Typography>
+        {action}
       </Stack>
     </Paper>
   )
@@ -120,6 +133,7 @@ function CourierTaskList({
   emptyTitle,
   emptyDescription,
   emptyIcon,
+  emptyAction,
   actionOrderId,
   onCourierAction,
 }: {
@@ -129,10 +143,10 @@ function CourierTaskList({
   emptyTitle: string
   emptyDescription: string
   emptyIcon: ReactNode
+  emptyAction?: ReactNode
   actionOrderId: string | null
   onCourierAction: (order: Order, action: CourierAction) => void
 }) {
-  // Client-side slice for now. Replace with API page/limit during integration.
   const { items, page: safePage, totalPages, total } = paginateItems(
     orders,
     page,
@@ -141,7 +155,12 @@ function CourierTaskList({
 
   if (total === 0) {
     return (
-      <EmptySection icon={emptyIcon} title={emptyTitle} description={emptyDescription} />
+      <EmptySection
+        icon={emptyIcon}
+        title={emptyTitle}
+        description={emptyDescription}
+        action={emptyAction}
+      />
     )
   }
 
@@ -172,9 +191,11 @@ function CourierTaskList({
 }
 
 function MyTasksPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = parseTaskTab(searchParams.get('tab'))
+
   const [reloadCount, setReloadCount] = useState(0)
   const [tasksResult, setTasksResult] = useState<ListRequestResult | null>(null)
-  const [tab, setTab] = useState<TaskTab>('active')
   const [activePage, setActivePage] = useState(1)
   const [pastPage, setPastPage] = useState(1)
   const [pending, setPending] = useState<{
@@ -208,9 +229,7 @@ function MyTasksPage() {
   }, [reloadCount])
 
   const allTasks = tasksResult?.orders ?? []
-  // ACCEPTED / PICKED_UP = still in progress for this courier.
   const activeTasks = allTasks.filter((order) => isCourierTaskActive(order.status))
-  // COMPLETED / CANCELLED / EXPIRED (and any other non-active assigned status).
   const pastTasks = allTasks.filter((order) => !isCourierTaskActive(order.status))
 
   const safeActivePage = clampPage(
@@ -218,6 +237,11 @@ function MyTasksPage() {
     Math.ceil(activeTasks.length / REQUESTS_PER_PAGE),
   )
   const safePastPage = clampPage(pastPage, Math.ceil(pastTasks.length / REQUESTS_PER_PAGE))
+
+  function handleTabChange(_event: SyntheticEvent, newTab: TaskTab) {
+    setActionError('')
+    setSearchParams(newTab === 'active' ? {} : { tab: newTab }, { replace: true })
+  }
 
   async function handleConfirmAction() {
     if (!pending) return
@@ -302,7 +326,7 @@ function MyTasksPage() {
           <Stack spacing={2.5}>
             <Tabs
               value={tab}
-              onChange={(_event, newTab: TaskTab) => setTab(newTab)}
+              onChange={handleTabChange}
               variant="scrollable"
               allowScrollButtonsMobile
               aria-label="Courier task sections"
@@ -312,7 +336,7 @@ function MyTasksPage() {
               <Tab label={`Past Tasks (${pastTasks.length})`} value="past" />
             </Tabs>
 
-            {tab === 'active' && (
+            {tab === 'active' ? (
               <CourierTaskList
                 orders={activeTasks}
                 page={safeActivePage}
@@ -320,12 +344,15 @@ function MyTasksPage() {
                 emptyTitle="No active tasks"
                 emptyDescription="Accept a request from Fulfil Requests to start your first task."
                 emptyIcon={<CheckTaskIcon sx={{ fontSize: 40, color: 'secondary.main' }} />}
+                emptyAction={
+                  <Button component={Link} to="/fulfil" variant="contained" color="secondary">
+                    Fulfil Requests
+                  </Button>
+                }
                 actionOrderId={actionOrderId}
                 onCourierAction={handleCourierAction}
               />
-            )}
-
-            {tab === 'past' && (
+            ) : (
               <CourierTaskList
                 orders={pastTasks}
                 page={safePastPage}

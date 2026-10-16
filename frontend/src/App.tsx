@@ -18,10 +18,12 @@ import {
 import AppNavigation, { type UserMode } from './components/AppNavigation'
 import AccountPage from './pages/AccountPage.tsx'
 import AdminDashboardPage from './pages/AdminDashboardPage.tsx'
+import CreditsPage from './pages/CreditsPage.tsx'
 import CreateSupplierPage from './pages/CreateSupplierPage.tsx'
 import EditSupplierPage from './pages/EditSupplierPage.tsx'
 import HomePage from './pages/HomePage.tsx'
 import LoginPage from './pages/LoginPage.tsx'
+import FulfilRequestsPage from './pages/FulfilRequestsPage.tsx'
 import MyRequestsPage from './pages/MyRequestsPage.tsx'
 import MyTasksPage from './pages/MyTasksPage.tsx'
 import OrderDetailsPage from './pages/OrderDetailsPage.tsx'
@@ -45,6 +47,13 @@ const courierPageBackground = {
     'radial-gradient(circle at 0% 0%, rgba(31, 98, 94, 0.08) 0%, rgba(242, 246, 245, 0) 34%)',
 }
 
+// Neutral page with a soft warm wash — not a bright yellow fill.
+const adminPageBackground = {
+  bgcolor: '#F5F3F0',
+  backgroundImage:
+    'radial-gradient(circle at 0% 0%, rgba(194, 65, 12, 0.07) 0%, rgba(245, 243, 240, 0) 40%)',
+}
+
 function AppContent() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -59,7 +68,11 @@ function AppContent() {
     : (availableModes[0] ?? preferredMode)
 
   const pageBackground =
-    mode === 'courier' ? courierPageBackground : requesterPageBackground
+    mode === 'courier'
+      ? courierPageBackground
+      : mode === 'admin'
+        ? adminPageBackground
+        : requesterPageBackground
 
   function handleModeChange(newMode: UserMode) {
     if (newMode === mode) {
@@ -67,7 +80,7 @@ function AppContent() {
     }
 
     setPreferredMode(newMode)
-    navigate('/home')
+    navigate(newMode === 'admin' ? '/admin' : '/home')
   }
 
   if (loading) {
@@ -108,7 +121,7 @@ function AppContent() {
           path="/home"
           element={
             <RequireAuth>
-              <HomePage mode={mode} />
+              <HomePage />
             </RequireAuth>
           }
         />
@@ -120,12 +133,20 @@ function AppContent() {
             </RequireAuth>
           }
         />
+        <Route
+          path="/credits"
+          element={
+            <RequireAuth>
+              <CreditsPage />
+            </RequireAuth>
+          }
+        />
 
         <Route
           path="/requests"
           element={
-            <RequireRole roles={[mode === 'courier' ? 'COURIER' : 'REQUESTER']}>
-              <MyRequestsPage mode={mode} />
+            <RequireRole roles={['REQUESTER']}>
+              <MyRequestsPage />
             </RequireRole>
           }
         />
@@ -144,6 +165,19 @@ function AppContent() {
           element={
             <RequireRole roles={['REQUESTER']}>
               <OrderDetailsPage />
+            </RequireRole>
+          }
+        />
+
+        <Route
+          path="/fulfil"
+          element={
+            <RequireRole roles={['COURIER']}>
+              {mode === 'courier' ? (
+                <FulfilRequestsPage />
+              ) : (
+                <Navigate to="/home" replace />
+              )}
             </RequireRole>
           }
         />

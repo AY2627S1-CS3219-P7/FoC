@@ -43,7 +43,6 @@ import { useAuth } from '../auth/AuthContext'
 import {
   CampusBuildingIcon,
   ClipboardIcon,
-  IconBadge,
   StudentIcon,
 } from '../components/CampusArt'
 import ManageRolesDialog from '../components/ManageRolesDialog'
@@ -87,8 +86,8 @@ function SectionHeader({
           flexShrink: 0,
           placeItems: 'center',
           borderRadius: '50%',
-          color: 'primary.dark',
-          bgcolor: 'primary.light',
+          color: '#9A3412',
+          bgcolor: '#FFEDD5',
         }}
       >
         {icon}
@@ -485,25 +484,73 @@ function OrdersSection() {
   )
 }
 
+const adminAccent = '#C2410C'
+const adminAccentSoft = '#FFEDD5'
+const adminAccentDeep = '#9A3412'
+
 function AdminDashboardPage() {
   const [section, setSection] = useState<AdminSection>('users')
 
   return (
     <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
       <Stack spacing={3}>
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-          <IconBadge tone="blue">
-            <StudentIcon />
-          </IconBadge>
-          <Stack spacing={0.25}>
-            <Typography component="h1" variant="h4">
-              Admin Dashboard
-            </Typography>
-            <Typography color="text.secondary">
-              Manage users, suppliers, and orders across FoC.
-            </Typography>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 2, md: 2.5 },
+            borderColor: '#FDBA74',
+            bgcolor: '#FFFBF7',
+            borderLeft: `4px solid ${adminAccent}`,
+            boxShadow: '0 10px 28px rgba(154, 52, 18, 0.06)',
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+              <Box
+                sx={{
+                  display: 'grid',
+                  width: 56,
+                  height: 56,
+                  flexShrink: 0,
+                  placeItems: 'center',
+                  borderRadius: '50%',
+                  color: '#FFF7ED',
+                  bgcolor: adminAccentDeep,
+                }}
+              >
+                <StudentIcon />
+              </Box>
+              <Stack spacing={0.25}>
+                <Typography
+                  variant="overline"
+                  sx={{ fontWeight: 700, letterSpacing: '0.1em', color: adminAccentDeep }}
+                >
+                  Administrative workspace
+                </Typography>
+                <Typography component="h1" variant="h4">
+                  Admin Dashboard
+                </Typography>
+                <Typography color="text.secondary">
+                  Manage users, suppliers, and orders across FoC.
+                </Typography>
+              </Stack>
+            </Stack>
+            <Chip
+              label="Admin"
+              size="small"
+              sx={{
+                alignSelf: { xs: 'flex-start', sm: 'center' },
+                bgcolor: adminAccentSoft,
+                color: adminAccentDeep,
+                fontWeight: 700,
+              }}
+            />
           </Stack>
-        </Stack>
+        </Paper>
 
         <Tabs
           value={section}
@@ -511,7 +558,12 @@ function AdminDashboardPage() {
           variant="scrollable"
           allowScrollButtonsMobile
           aria-label="Admin sections"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root.Mui-selected': { color: adminAccentDeep },
+            '& .MuiTabs-indicator': { bgcolor: adminAccent },
+          }}
         >
           <Tab label="Users" value="users" />
           <Tab label="Suppliers" value="suppliers" />

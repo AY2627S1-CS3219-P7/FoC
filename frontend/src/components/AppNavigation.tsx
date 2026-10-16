@@ -12,7 +12,7 @@ import {
   BottomNavigation,
   BottomNavigationAction,
   Button,
-  IconButton,
+  Divider,
   Menu,
   MenuItem,
   Paper,
@@ -27,7 +27,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CampusBuildingIcon } from './CampusArt'
 import { useAuth } from '../auth/AuthContext'
 
-export type UserMode = 'requester' | 'courier'
+/** Frontend workspace switcher only — not a backend role. */
+export type UserMode = 'requester' | 'courier' | 'admin'
 
 type AppNavigationProps = {
   mode: UserMode
@@ -54,22 +55,22 @@ const navigationItems = [
     path: 'M19 3h-4.18A3 3 0 0 0 9.18 3H5a2 2 0 0 0-2 2v16h18V5a2 2 0 0 0-2-2Zm-7-1a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm3 15H7v-2h8v2Zm2-4H7v-2h10v2Zm0-4H7V7h10v2Z',
   },
   {
+    label: 'Fulfil Requests',
+    value: 'fulfil',
+    to: '/fulfil',
+    path: 'M19 3h-4.18A3 3 0 0 0 9.18 3H5a2 2 0 0 0-2 2v16h18V5a2 2 0 0 0-2-2Zm-7-1a1 1 0 1 1 0 2 1 1 0 0 1 0-2Zm3 15H7v-2h8v2Zm2-4H7v-2h10v2Zm0-4H7V7h10v2Z',
+  },
+  {
     label: 'My Tasks',
     value: 'tasks',
     to: '/my-tasks',
     path: 'M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm-2 14-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
   },
   {
-    label: 'Admin',
+    label: 'Dashboard',
     value: 'admin',
     to: '/admin',
     path: 'M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4Zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8Z',
-  },
-  {
-    label: 'Account',
-    value: 'account',
-    to: '/account',
-    path: 'M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5.52 0-10 2.24-10 5v3h20v-3c0-2.76-4.48-5-10-5Z',
   },
 ]
 
@@ -81,6 +82,12 @@ function NavigationIcon({ path }: { path: string }) {
   )
 }
 
+function workspaceBarColor(mode: UserMode): string {
+  if (mode === 'courier') return '#145E59'
+  // Warm amber admin header — distinct from Requester blue / Courier teal.
+  if (mode === 'admin') return '#9A3412'
+  return '#12324C'
+}
 
 function ModeToggle({
   mode,
@@ -89,14 +96,14 @@ function ModeToggle({
 }: {
   mode: UserMode
   onChange: (newMode: UserMode) => void
-  availableModes: UserMode[] // NEW
+  availableModes: UserMode[]
 }) {
   if (availableModes.length === 0) {
     return null
   }
 
   const activeStyle = {
-    color: mode === 'courier' ? '#145E59' : '#12324C',
+    color: workspaceBarColor(mode),
     backgroundColor: '#FFFFFF',
   }
 
@@ -105,7 +112,7 @@ function ModeToggle({
       exclusive
       size="small"
       value={mode}
-      aria-label="User mode"
+      aria-label="Workspace"
       sx={{
         width: { xs: '100%', md: 'auto' },
         bgcolor: 'rgba(255, 255, 255, 0.14)',
@@ -137,41 +144,169 @@ function ModeToggle({
           Courier
         </ToggleButton>
       )}
+      {availableModes.includes('admin') && (
+        <ToggleButton
+          value="admin"
+          onClick={() => onChange('admin')}
+          style={mode === 'admin' ? activeStyle : undefined}
+          sx={{ flex: { xs: 1, md: 'initial' } }}
+        >
+          Admin
+        </ToggleButton>
+      )}
     </ToggleButtonGroup>
+  )
+}
+
+function AccountMenuButton({
+  compact = false,
+}: {
+  compact?: boolean
+}) {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+  const menuOpen = Boolean(anchorEl)
+  const displayName = user
+    ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username
+    : ''
+
+  function closeMenu() {
+    setAnchorEl(null)
+  }
+
+  function goToAccount(tab?: 'profile' | 'security' | 'credits') {
+    closeMenu()
+    if (!tab || tab === 'profile') {
+      navigate('/account')
+      return
+    }
+    navigate(`/account?tab=${tab}`)
+  }
+
+  async function handleLogout() {
+    closeMenu()
+    try {
+      await logout()
+      navigate('/login')
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  return (
+    <>
+      <Button
+        aria-label="Account menu"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen ? 'true' : undefined}
+        aria-controls={menuOpen ? 'account-menu' : undefined}
+        onClick={(event) => setAnchorEl(event.currentTarget)}
+        endIcon={
+          <SvgIcon aria-hidden="true" sx={{ fontSize: 18 }}>
+            <path d="M7 10l5 5 5-5H7z" />
+          </SvgIcon>
+        }
+        sx={{
+          justifySelf: compact ? undefined : 'end',
+          color: '#FFFFFF',
+          border: compact ? 0 : '1px solid rgba(255, 255, 255, 0.55)',
+          px: compact ? 0.5 : 1.25,
+          minWidth: compact ? 0 : undefined,
+          textTransform: 'none',
+          '&:hover': {
+            borderColor: '#FFFFFF',
+            bgcolor: 'rgba(255, 255, 255, 0.1)',
+          },
+        }}
+      >
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+          <Box
+            sx={{
+              display: 'grid',
+              width: 28,
+              height: 28,
+              placeItems: 'center',
+              borderRadius: '50%',
+              bgcolor: 'rgba(255, 255, 255, 0.18)',
+            }}
+          >
+            <SvgIcon aria-hidden="true" sx={{ fontSize: 18 }}>
+              <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5.52 0-10 2.24-10 5v3h20v-3c0-2.76-4.48-5-10-5Z" />
+            </SvgIcon>
+          </Box>
+          {!compact && (
+            <Typography
+              component="span"
+              sx={{
+                display: { xs: 'none', lg: 'block' },
+                maxWidth: 140,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+              }}
+            >
+              {displayName}
+            </Typography>
+          )}
+        </Stack>
+      </Button>
+
+      <Menu
+        id="account-menu"
+        anchorEl={anchorEl}
+        open={menuOpen}
+        onClose={closeMenu}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem onClick={() => goToAccount('profile')}>Profile</MenuItem>
+        <MenuItem onClick={() => goToAccount('security')}>Change Password</MenuItem>
+        <MenuItem onClick={() => goToAccount('credits')}>Credits</MenuItem>
+        <Divider />
+        <MenuItem onClick={() => void handleLogout()}>Logout</MenuItem>
+      </Menu>
+    </>
   )
 }
 
 function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
   const location = useLocation()
-  const navigate = useNavigate()
-  const { isAdmin, canRequest, canCourier, availableModes, logout } = useAuth()
-  const requestLabel = mode === 'courier' ? 'Fulfil Requests' : 'My Requests'
+  const { isAdmin, canRequest, canCourier, availableModes } = useAuth()
+
   const visibleNavigationItems = navigationItems.filter((item) => {
-    
+    if (item.value === 'home') {
+      // Shared landing page for every workspace.
+      return true
+    }
+
     if (item.value === 'suppliers') {
-      return isAdmin || (mode === 'requester' && canRequest)
+      if (mode === 'requester') return canRequest
+      if (mode === 'admin') return isAdmin
+      return false
     }
 
-    // Requester: My Requests. Courier: Fulfil Requests (available OPEN orders).
     if (item.value === 'requests') {
-      return (
-        (mode === 'requester' && canRequest) ||
-        (mode === 'courier' && canCourier)
-      )
+      return mode === 'requester' && canRequest
     }
 
-    // Courier only: Active + Past assigned tasks.
+    if (item.value === 'fulfil') {
+      return mode === 'courier' && canCourier
+    }
+
     if (item.value === 'tasks') {
       return mode === 'courier' && canCourier
     }
 
     if (item.value === 'admin') {
-      return isAdmin
+      return mode === 'admin' && isAdmin
     }
 
-    // Home and Account always show (this navbar only renders when logged in)
-    return true
+    return false
   })
+
   const activeNavigationItem =
     visibleNavigationItems.find((item) => {
       if (item.value === 'suppliers') {
@@ -182,17 +317,22 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
         return location.pathname.startsWith('/requests')
       }
 
+      if (item.value === 'fulfil') {
+        return location.pathname.startsWith('/fulfil')
+      }
+
       if (item.value === 'tasks') {
         return location.pathname.startsWith('/my-tasks')
+      }
+
+      if (item.value === 'admin') {
+        return location.pathname.startsWith('/admin')
       }
 
       return location.pathname === item.to
     })?.value ?? false
 
-  const [mobileMenuAnchor, setMobileMenuAnchor] =
-    useState<HTMLElement | null>(null)
-  const isCourier = mode === 'courier'
-  const barColor = isCourier ? '#145E59' : '#12324C'
+  const barColor = workspaceBarColor(mode)
   const navButtonSx = (isActive: boolean) => ({
     color: isActive ? barColor : 'rgba(255, 255, 255, 0.82)',
     bgcolor: isActive ? '#FFFFFF' : 'transparent',
@@ -204,17 +344,6 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
       outlineOffset: 2,
     },
   })
-
-  async function handleLogout() {
-    setMobileMenuAnchor(null)
-    
-    try {
-      await logout()
-      navigate('/login')
-    } catch (error) {
-      console.log(error)
-    }
-  }
 
   return (
     <>
@@ -299,26 +428,15 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
                   variant="text"
                   sx={navButtonSx(isActive)}
                 >
-                  {item.value === 'requests' ? requestLabel : item.label}
+                  {item.label}
                 </Button>
               )
             })}
           </Stack>
-          <Button
-            variant="outlined"
-            onClick={handleLogout}
-            sx={{
-              justifySelf: 'end',
-              color: '#FFFFFF',
-              borderColor: 'rgba(255, 255, 255, 0.55)',
-              '&:hover': {
-                borderColor: '#FFFFFF',
-                bgcolor: 'rgba(255, 255, 255, 0.1)',
-              },
-            }}
-          >
-            Logout
-          </Button>
+
+          <Box sx={{ justifySelf: 'end' }}>
+            <AccountMenuButton />
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -367,29 +485,11 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
                 FoC
               </Typography>
             </Stack>
-            <IconButton
-              aria-label="Open account actions"
-              aria-haspopup="menu"
-              aria-expanded={mobileMenuAnchor ? 'true' : undefined}
-              onClick={(event) => setMobileMenuAnchor(event.currentTarget)}
-              sx={{ color: '#FFFFFF' }}
-            >
-              <SvgIcon aria-hidden="true">
-                <path d="M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm0 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z" />
-              </SvgIcon>
-            </IconButton>
+            <AccountMenuButton compact />
           </Stack>
           <ModeToggle mode={mode} onChange={onModeChange} availableModes={availableModes} />
         </Stack>
       </Paper>
-
-      <Menu
-        anchorEl={mobileMenuAnchor}
-        open={Boolean(mobileMenuAnchor)}
-        onClose={() => setMobileMenuAnchor(null)}
-      >
-        <MenuItem onClick={handleLogout}>Logout</MenuItem>
-      </Menu>
 
       <Paper
         component="nav"
@@ -426,7 +526,7 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
               key={item.value}
               component={Link}
               to={item.to}
-              label={item.value === 'requests' ? requestLabel : item.label}
+              label={item.label}
               value={item.value}
               icon={<NavigationIcon path={item.path} />}
             />

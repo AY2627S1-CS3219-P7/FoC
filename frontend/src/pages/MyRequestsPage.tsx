@@ -11,11 +11,6 @@ import {
   Box,
   Button,
   Container,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Pagination,
   Paper,
   Skeleton,
@@ -25,14 +20,8 @@ import {
   Typography,
 } from '@mui/material'
 import { Link } from 'react-router-dom'
-import {
-  acceptOrder,
-  fetchAvailableRequests,
-  fetchMyRequests,
-  isOrderApiConnected,
-} from '../api/orders'
-import type { UserMode } from '../components/AppNavigation'
-import { ClipboardIcon, DeliveryBagIcon, IconBadge } from '../components/CampusArt'
+import { fetchMyRequests, isOrderApiConnected } from '../api/orders'
+import { ClipboardIcon, IconBadge } from '../components/CampusArt'
 import OrderCard from '../components/OrderCard'
 import {
   clampPage,
@@ -40,10 +29,6 @@ import {
   REQUESTS_PER_PAGE,
 } from '../orders/clientPagination'
 import { isOrderActive, type Order } from '../orders/orderTypes'
-
-type MyRequestsPageProps = {
-  mode: UserMode
-}
 
 type OrdersRequestResult = {
   key: number
@@ -121,7 +106,6 @@ function RequestList({
   emptyDescription: string
   showBrowse?: boolean
 }) {
-  // Client-side slice for now. Replace with API page/limit during integration.
   const { items, page: safePage, totalPages, total } = paginateItems(
     orders,
     page,
@@ -158,7 +142,7 @@ function RequestList({
   )
 }
 
-function RequesterOrders() {
+function MyRequestsPage() {
   const [reloadCount, setReloadCount] = useState(0)
   const [result, setResult] = useState<OrdersRequestResult | null>(null)
   const [tab, setTab] = useState<RequestTab>('active')
@@ -199,227 +183,6 @@ function RequesterOrders() {
   )
   const safePastPage = clampPage(pastPage, Math.ceil(pastOrders.length / REQUESTS_PER_PAGE))
 
-  if (loading) {
-    return (
-      <Box role="status" aria-label="Loading requests" sx={orderGridSx}>
-        <OrderCardSkeleton />
-        <OrderCardSkeleton />
-      </Box>
-    )
-  }
-
-  if (errorMessage) {
-    return (
-      <Alert
-        severity="error"
-        action={
-          <Button color="inherit" size="small" onClick={() => setReloadCount((count) => count + 1)}>
-            Retry
-          </Button>
-        }
-      >
-        {errorMessage}
-      </Alert>
-    )
-  }
-
-  if (!orders || orders.length === 0) {
-    return (
-      <EmptyRequests
-        title="No requests yet"
-        description="Choose a supplier to create your first campus errand request."
-        showBrowse
-      />
-    )
-  }
-
-  return (
-    <Stack spacing={2.5}>
-      <Tabs
-        value={tab}
-        onChange={(_event, newTab: RequestTab) => setTab(newTab)}
-        variant="scrollable"
-        allowScrollButtonsMobile
-        aria-label="Request sections"
-        sx={{ borderBottom: 1, borderColor: 'divider' }}
-      >
-        <Tab label={`Active Requests (${activeOrders.length})`} value="active" />
-        <Tab label={`Past Requests (${pastOrders.length})`} value="past" />
-      </Tabs>
-
-      {tab === 'active' ? (
-        <RequestList
-          orders={activeOrders}
-          page={safeActivePage}
-          onPageChange={setActivePage}
-          emptyTitle="No active requests"
-          emptyDescription="You have no open, accepted, or in-progress requests right now."
-          showBrowse
-        />
-      ) : (
-        <RequestList
-          orders={pastOrders}
-          page={safePastPage}
-          onPageChange={setPastPage}
-          emptyTitle="No past requests"
-          emptyDescription="Completed, cancelled, and expired requests will appear here."
-        />
-      )}
-    </Stack>
-  )
-}
-
-/** Courier "Fulfil Requests" page: OPEN orders waiting to be accepted. */
-function CourierAvailableRequests() {
-  const [reloadCount, setReloadCount] = useState(0)
-  const [result, setResult] = useState<OrdersRequestResult | null>(null)
-  const [page, setPage] = useState(1)
-  const [pendingOrder, setPendingOrder] = useState<Order | null>(null)
-  const [actionOrderId, setActionOrderId] = useState<string | null>(null)
-  const [actionError, setActionError] = useState('')
-
-  const loading = result?.key !== reloadCount
-  const orders = !loading ? (result?.orders ?? []) : []
-  const errorMessage = !loading ? result?.error : undefined
-  const safePage = clampPage(page, Math.ceil(orders.length / REQUESTS_PER_PAGE))
-  const { items, page: listPage, totalPages, total } = paginateItems(
-    orders,
-    safePage,
-    REQUESTS_PER_PAGE,
-  )
-
-  useEffect(() => {
-    let ignore = false
-
-    fetchAvailableRequests()
-      .then((data) => {
-        if (!ignore) {
-          setResult({ key: reloadCount, orders: data })
-          setPage(1)
-        }
-      })
-      .catch((error: unknown) => {
-        if (ignore) return
-        console.error(error)
-        setResult({ key: reloadCount, error: 'Available requests could not be loaded.' })
-      })
-
-    return () => {
-      ignore = true
-    }
-  }, [reloadCount])
-
-  async function handleAccept() {
-    if (!pendingOrder) return
-
-    const order = pendingOrder
-    setPendingOrder(null)
-    setActionOrderId(order.id)
-    setActionError('')
-
-    try {
-      await acceptOrder(order.id)
-      setReloadCount((count) => count + 1)
-    } catch (error) {
-      setActionError(
-        error instanceof Error ? error.message : 'Action failed. Please try again.',
-      )
-    } finally {
-      setActionOrderId(null)
-    }
-  }
-
-  return (
-    <>
-      {!isOrderApiConnected() && (
-        <Alert severity="info">
-          Showing preview data. Accept will report an error until the Order Service is connected.
-        </Alert>
-      )}
-
-      {actionError && (
-        <Alert severity="error" onClose={() => setActionError('')}>
-          {actionError}
-        </Alert>
-      )}
-
-      {loading ? (
-        <Box role="status" aria-label="Loading available requests" sx={orderGridSx}>
-          <OrderCardSkeleton />
-          <OrderCardSkeleton />
-        </Box>
-      ) : errorMessage ? (
-        <Alert
-          severity="error"
-          action={
-            <Button
-              color="inherit"
-              size="small"
-              onClick={() => setReloadCount((count) => count + 1)}
-            >
-              Retry
-            </Button>
-          }
-        >
-          {errorMessage}
-        </Alert>
-      ) : total === 0 ? (
-        <EmptyRequests
-          title="No available requests"
-          description="Check back later for new campus errands you can accept."
-          icon={<DeliveryBagIcon sx={{ fontSize: 40, color: 'secondary.main' }} />}
-        />
-      ) : (
-        <Stack spacing={2}>
-          <Typography variant="body2" color="text.secondary">
-            {total} open {total === 1 ? 'request' : 'requests'} waiting for a courier.
-          </Typography>
-          <Box sx={orderGridSx}>
-            {items.map((order) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                variant="courier"
-                actionPending={actionOrderId === order.id}
-                onCourierAction={(selected) => {
-                  setPendingOrder(selected)
-                }}
-              />
-            ))}
-          </Box>
-          {totalPages > 1 && (
-            <Pagination
-              count={totalPages}
-              page={listPage}
-              onChange={(_, newPage) => setPage(newPage)}
-              color="secondary"
-              sx={{ alignSelf: { xs: 'center', sm: 'flex-start' } }}
-            />
-          )}
-        </Stack>
-      )}
-
-      <Dialog open={pendingOrder !== null} onClose={() => setPendingOrder(null)}>
-        <DialogTitle>Accept this request?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            You will become the assigned courier for this campus errand.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPendingOrder(null)}>Back</Button>
-          <Button variant="contained" color="secondary" onClick={() => void handleAccept()}>
-            Accept
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
-  )
-}
-
-function MyRequestsPage({ mode }: MyRequestsPageProps) {
-  const isCourier = mode === 'courier'
-
   return (
     <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
       <Stack spacing={3}>
@@ -429,45 +192,88 @@ function MyRequestsPage({ mode }: MyRequestsPageProps) {
           sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
         >
           <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-            <IconBadge tone={isCourier ? 'teal' : 'blue'}>
-              {isCourier ? <DeliveryBagIcon /> : <ClipboardIcon />}
+            <IconBadge tone="blue">
+              <ClipboardIcon />
             </IconBadge>
             <Stack spacing={0.25}>
               <Typography component="h1" variant="h4">
-                {isCourier ? 'Fulfil Requests' : 'My Requests'}
+                My Requests
               </Typography>
               <Typography color="text.secondary">
-                {isCourier
-                  ? 'See campus errand requests that are waiting to be fulfilled.'
-                  : 'Track your campus errand requests in one place.'}
+                Track your campus errand requests in one place.
               </Typography>
             </Stack>
           </Stack>
 
-          {!isCourier && (
-            <Button
-              component={Link}
-              to="/suppliers"
-              variant="contained"
-              sx={{ alignSelf: { xs: 'flex-start', sm: 'auto' } }}
-            >
-              New request
-            </Button>
-          )}
+          <Button
+            component={Link}
+            to="/suppliers"
+            variant="contained"
+            sx={{ alignSelf: { xs: 'flex-start', sm: 'auto' } }}
+          >
+            New request
+          </Button>
         </Stack>
 
-        {isCourier ? (
-          <CourierAvailableRequests />
+        {!isOrderApiConnected() && (
+          <Alert severity="info">
+            Showing preview data. Requests will load from the Order Service once it is connected.
+          </Alert>
+        )}
+
+        {loading ? (
+          <Box role="status" aria-label="Loading requests" sx={orderGridSx}>
+            <OrderCardSkeleton />
+            <OrderCardSkeleton />
+          </Box>
+        ) : errorMessage ? (
+          <Alert
+            severity="error"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => setReloadCount((count) => count + 1)}
+              >
+                Retry
+              </Button>
+            }
+          >
+            {errorMessage}
+          </Alert>
         ) : (
-          <>
-            {!isOrderApiConnected() && (
-              <Alert severity="info">
-                Showing preview data. Requests will load from the Order Service once it is
-                connected.
-              </Alert>
+          <Stack spacing={2.5}>
+            <Tabs
+              value={tab}
+              onChange={(_event, newTab: RequestTab) => setTab(newTab)}
+              variant="scrollable"
+              allowScrollButtonsMobile
+              aria-label="Request sections"
+              sx={{ borderBottom: 1, borderColor: 'divider' }}
+            >
+              <Tab label={`Active Requests (${activeOrders.length})`} value="active" />
+              <Tab label={`Past Requests (${pastOrders.length})`} value="past" />
+            </Tabs>
+
+            {tab === 'active' ? (
+              <RequestList
+                orders={activeOrders}
+                page={safeActivePage}
+                onPageChange={setActivePage}
+                emptyTitle="No active requests"
+                emptyDescription="Browse suppliers to create your first campus errand request."
+                showBrowse
+              />
+            ) : (
+              <RequestList
+                orders={pastOrders}
+                page={safePastPage}
+                onPageChange={setPastPage}
+                emptyTitle="No past requests"
+                emptyDescription="Completed, cancelled, and expired requests will appear here."
+              />
             )}
-            <RequesterOrders />
-          </>
+          </Stack>
         )}
       </Stack>
     </Container>

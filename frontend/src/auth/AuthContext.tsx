@@ -12,7 +12,7 @@ type AuthState = {
   isAdmin: boolean
   canRequest: boolean // has the REQUESTER role
   canCourier: boolean // has the COURIER role
-  availableModes: UserMode[] // the modes this user may switch between
+  availableModes: UserMode[] // frontend workspaces this user may switch between
   login: (identifier: string, password: string) => Promise<void>
   logout: () => Promise<void>
   setUser: (user: User | null) => void
@@ -48,16 +48,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const canRequest = hasRole(user, 'REQUESTER')
   const canCourier = hasRole(user, 'COURIER')
+  const isAdmin = hasRole(user, 'ADMIN')
+  // Frontend workspaces only. ADMIN remains an RBAC privilege; 'admin' here is a UI view.
   const availableModes: UserMode[] = []
   if (canRequest) availableModes.push('requester')
   if (canCourier) availableModes.push('courier')
+  if (isAdmin) availableModes.push('admin')
 
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
-        isAdmin: hasRole(user, 'ADMIN'),
+        isAdmin,
         canRequest,
         canCourier,
         availableModes,
