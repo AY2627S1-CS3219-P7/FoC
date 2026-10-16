@@ -454,3 +454,16 @@ Prompt: Implementation was done incrementally with the following prompts
 - supplier-service/src/routes/supplierRoutes.ts
 - supplier-service/src/types/auth.ts
 - supplier-service/src/types/express.d.ts
+
+## Credit Service 
+Author: Maegan Tan
+Tool: Gemini (model: 3.1 Pro)
+Model: GPT-5.6 Sol Medium
+Date: 2026-10-15
+
+### SQL Query Implementation
+Prompt: Provided function names and the SQL Schema, AI was used to implement the SQL queries
+Author review: Code manually reviewed and tested with Postman
+Files affected:
+- order-service/src/service/walletService.ts
+- order-service/src/service/transactionService.ts
