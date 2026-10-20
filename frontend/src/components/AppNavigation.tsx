@@ -12,9 +12,10 @@ import {
   BottomNavigation,
   BottomNavigationAction,
   Button,
+  ClickAwayListener,
   Divider,
-  Menu,
   MenuItem,
+  MenuList,
   Paper,
   Stack,
   SvgIcon,
@@ -165,14 +166,13 @@ function AccountMenuButton({
 }) {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
-  const menuOpen = Boolean(anchorEl)
+  const [menuOpen, setMenuOpen] = useState(false)
   const displayName = user
     ? [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username
     : ''
 
   function closeMenu() {
-    setAnchorEl(null)
+    setMenuOpen(false)
   }
 
   function goToAccount(tab?: 'profile' | 'security' | 'credits') {
@@ -195,80 +195,97 @@ function AccountMenuButton({
   }
 
   return (
-    <>
-      <Button
-        aria-label="Account menu"
-        aria-haspopup="menu"
-        aria-expanded={menuOpen ? 'true' : undefined}
-        aria-controls={menuOpen ? 'account-menu' : undefined}
-        onClick={(event) => setAnchorEl(event.currentTarget)}
-        endIcon={
-          <SvgIcon aria-hidden="true" sx={{ fontSize: 18 }}>
-            <path d="M7 10l5 5 5-5H7z" />
-          </SvgIcon>
-        }
-        sx={{
-          justifySelf: compact ? undefined : 'end',
-          color: '#FFFFFF',
-          border: compact ? 0 : '1px solid rgba(255, 255, 255, 0.55)',
-          px: compact ? 0.5 : 1.25,
-          minWidth: compact ? 0 : undefined,
-          textTransform: 'none',
-          '&:hover': {
-            borderColor: '#FFFFFF',
-            bgcolor: 'rgba(255, 255, 255, 0.1)',
-          },
-        }}
-      >
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-          <Box
-            sx={{
-              display: 'grid',
-              width: 28,
-              height: 28,
-              placeItems: 'center',
-              borderRadius: '50%',
-              bgcolor: 'rgba(255, 255, 255, 0.18)',
-            }}
-          >
+    <ClickAwayListener onClickAway={closeMenu}>
+      <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+        <Button
+          aria-label="Account menu"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen ? 'true' : undefined}
+          aria-controls={menuOpen ? (compact ? 'account-menu-mobile' : 'account-menu') : undefined}
+          onClick={() => setMenuOpen((open) => !open)}
+          endIcon={
             <SvgIcon aria-hidden="true" sx={{ fontSize: 18 }}>
-              <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5.52 0-10 2.24-10 5v3h20v-3c0-2.76-4.48-5-10-5Z" />
+              <path d="M7 10l5 5 5-5H7z" />
             </SvgIcon>
-          </Box>
-          {!compact && (
-            <Typography
-              component="span"
+          }
+          sx={{
+            color: '#FFFFFF',
+            border: compact ? 0 : '1px solid rgba(255, 255, 255, 0.55)',
+            px: compact ? 0.5 : 1.25,
+            minWidth: compact ? 0 : undefined,
+            textTransform: 'none',
+            '&:hover': {
+              borderColor: '#FFFFFF',
+              bgcolor: 'rgba(255, 255, 255, 0.1)',
+            },
+          }}
+        >
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <Box
               sx={{
-                display: { xs: 'none', lg: 'block' },
-                maxWidth: 140,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                fontWeight: 600,
-                fontSize: '0.9rem',
+                display: 'grid',
+                width: 28,
+                height: 28,
+                placeItems: 'center',
+                borderRadius: '50%',
+                bgcolor: 'rgba(255, 255, 255, 0.18)',
               }}
             >
-              {displayName}
-            </Typography>
-          )}
-        </Stack>
-      </Button>
+              <SvgIcon aria-hidden="true" sx={{ fontSize: 18 }}>
+                <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5.52 0-10 2.24-10 5v3h20v-3c0-2.76-4.48-5-10-5Z" />
+              </SvgIcon>
+            </Box>
+            {!compact && (
+              <Typography
+                component="span"
+                sx={{
+                  display: { xs: 'none', lg: 'block' },
+                  maxWidth: 140,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                }}
+              >
+                {displayName}
+              </Typography>
+            )}
+          </Stack>
+        </Button>
 
-      <Menu
-        id="account-menu"
-        anchorEl={anchorEl}
-        open={menuOpen}
-        onClose={closeMenu}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <MenuItem onClick={() => goToAccount('profile')}>Profile</MenuItem>
-        <MenuItem onClick={() => goToAccount('security')}>Change Password</MenuItem>
-        <MenuItem onClick={() => goToAccount('credits')}>Credits</MenuItem>
-        <Divider />
-        <MenuItem onClick={() => void handleLogout()}>Logout</MenuItem>
-      </Menu>
-    </>
+        {menuOpen && (
+          <Paper
+            elevation={8}
+            sx={{
+              position: 'absolute',
+              top: '100%',
+              right: 0,
+              zIndex: 1400,
+              mt: 1,
+              minWidth: 180,
+            }}
+          >
+            <MenuList
+              id={compact ? 'account-menu-mobile' : 'account-menu'}
+              autoFocusItem
+              aria-label="Account"
+              onKeyDown={(event) => {
+                if (event.key === 'Escape' || event.key === 'Tab') {
+                  closeMenu()
+                }
+              }}
+            >
+              <MenuItem onClick={() => goToAccount('profile')}>Profile</MenuItem>
+              <MenuItem onClick={() => goToAccount('security')}>Change Password</MenuItem>
+              <MenuItem onClick={() => goToAccount('credits')}>Credits</MenuItem>
+              <Divider component="li" />
+              <MenuItem onClick={() => void handleLogout()}>Logout</MenuItem>
+            </MenuList>
+          </Paper>
+        )}
+      </Box>
+    </ClickAwayListener>
   )
 }
 
@@ -434,7 +451,7 @@ function AppNavigation({ mode, onModeChange }: AppNavigationProps) {
             })}
           </Stack>
 
-          <Box sx={{ justifySelf: 'end' }}>
+          <Box sx={{ justifySelf: 'end', display: 'flex', justifyContent: 'flex-end' }}>
             <AccountMenuButton />
           </Box>
         </Toolbar>
