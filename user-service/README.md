@@ -213,6 +213,8 @@ Default roles assigned on registration:
 - `REQUESTER`
 - `COURIER`
 
+Registration also initializes a Credit Service wallet with the configured initial credit balance. Set `CREDIT_SERVICE_URL` to the Credit Service base URL (for example, `http://localhost:3004` when running locally). If wallet initialization fails, registration returns `503` and the user registration is rolled back.
+
 Success response: `201`
 
 ```json
