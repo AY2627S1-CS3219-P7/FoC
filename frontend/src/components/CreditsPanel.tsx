@@ -25,10 +25,10 @@ import {
   useTheme,
 } from '@mui/material'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import {
   fetchMyCreditActivity,
   fetchMyWallet,
-  isCreditApiConnected,
 } from '../api/credits'
 import {
   creditOperationDisplay,
@@ -160,6 +160,8 @@ function ActivityRowMobile({ item }: { item: CreditActivityItem }) {
 function CreditsPanel() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const { user } = useAuth()
+  const userId = user?.id
   const [reloadCount, setReloadCount] = useState(0)
   const [result, setResult] = useState<CreditsRequestResult | null>(null)
 
@@ -170,8 +172,9 @@ function CreditsPanel() {
 
   useEffect(() => {
     let ignore = false
+    if (!userId) return
 
-    Promise.all([fetchMyWallet(), fetchMyCreditActivity()])
+    Promise.all([fetchMyWallet(userId), fetchMyCreditActivity(userId)])
       .then(([walletData, activityData]) => {
         if (ignore) return
         setResult({ key: reloadCount, wallet: walletData, activity: activityData })
@@ -188,17 +191,10 @@ function CreditsPanel() {
     return () => {
       ignore = true
     }
-  }, [reloadCount])
+  }, [reloadCount, userId])
 
   return (
     <Stack spacing={2.5}>
-      {!isCreditApiConnected() && (
-        <Alert severity="info">
-          Showing preview data. Balances and history will load from the Credit Service once it is
-          connected.
-        </Alert>
-      )}
-
       {loading ? (
         <BalanceSkeleton />
       ) : errorMessage ? (

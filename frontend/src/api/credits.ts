@@ -1,121 +1,71 @@
-// TEMPORARY: Credit Service API is not connected yet.
-// Replace function bodies with `request('/credit/...')` during integration.
-// Teammate skeleton (unmerged) outlines wallet + tx routes; do not invent
-// production endpoint contracts here beyond these view helpers.
+import type { CreditActivityItem, CreditOperationType, CreditWallet } from '../credits/creditTypes'
+import { request } from './client'
 
-import type { CreditActivityItem, CreditWallet } from '../credits/creditTypes'
-
-const NOT_CONNECTED_MESSAGE = 'Credit Service is not connected yet.'
-
-// ---- Preview data (remove during integration) ----------------------------
-
-const previewWallet: CreditWallet = {
-  userId: 'preview-user',
-  totalCredits: 42,
-  availableCredits: 30,
-  reservedCredits: 12,
-  updatedAt: '2026-10-15T16:00:00+08:00',
+interface WalletDto {
+  user_id: string
+  available_credits: number
+  reserved_credits: number
+  updated_at?: string
 }
 
-const previewActivity: CreditActivityItem[] = [
-  {
-    id: 'tx-0006',
-    operationType: 'TRANSFER',
-    amount: 4,
-    signedAmount: 4,
-    orderId: '3f1c9a20-0003-4a00-8000-000000000003',
-    description: 'Earned credits after successful delivery.',
-    status: 'completed',
-    createdAt: '2026-10-14T10:05:00+08:00',
-  },
-  {
-    id: 'tx-0005',
-    operationType: 'RELEASE',
-    amount: 3,
-    signedAmount: 3,
-    orderId: '3f1c9a20-0005-4a00-8000-000000000005',
-    description: 'Reserved credits returned after cancellation.',
-    status: 'completed',
-    createdAt: '2026-10-09T14:06:00+08:00',
-  },
-  {
-    id: 'tx-0004',
-    operationType: 'RESERVE',
-    amount: 5,
-    signedAmount: -5,
-    orderId: '3f1c9a20-0001-4a00-8000-000000000001',
-    description: 'Credits reserved for an open order.',
-    status: 'completed',
-    createdAt: '2026-10-15T10:00:00+08:00',
-  },
-  {
-    id: 'tx-0003',
-    operationType: 'RESERVE',
-    amount: 4,
-    signedAmount: -4,
-    orderId: '3f1c9a20-0003-4a00-8000-000000000003',
-    description: 'Credits reserved for pickup and delivery.',
-    status: 'completed',
-    createdAt: '2026-10-14T09:00:00+08:00',
-  },
-  {
-    id: 'tx-0002',
-    operationType: 'RELEASE',
-    amount: 5,
-    signedAmount: 5,
-    orderId: '3f1c9a20-0006-4a00-8000-000000000006',
-    description: 'Reserved credits returned after the order expired.',
-    status: 'completed',
-    createdAt: '2026-10-08T12:01:00+08:00',
-  },
-  {
-    id: 'tx-0001',
-    operationType: 'INITIAL_ALLOCATION',
-    amount: 50,
-    signedAmount: 50,
-    orderId: null,
-    description: 'Starting credits allocated when the account was created.',
-    status: 'completed',
-    createdAt: '2026-10-01T09:00:00+08:00',
-  },
-]
-
-function getPreviewMode(): string | null {
-  if (!import.meta.env.DEV) return null
-  return new URLSearchParams(window.location.search).get('preview')
+interface TransactionDto {
+  id: string
+  user_id: string
+  order_id: string | null
+  type: string
+  amount: number
+  created_at: string
 }
 
-function simulateLatency<T>(value: T): Promise<T> {
-  const mode = getPreviewMode()
-  if (mode === 'loading') return new Promise<T>(() => {})
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (mode === 'error') {
-        reject(new Error('Preview error: credits could not be loaded.'))
-      } else {
-        resolve(value)
-      }
-    }, 400)
-  })
+const operationTypes: CreditOperationType[] = ['RESERVE', 'RELEASE', 'DEDUCT', 'CREDIT']
+
+const descriptions: Record<CreditOperationType, string> = {
+  RESERVE: 'Credits reserved for an order.',
+  RELEASE: 'Reserved credits returned.',
+  DEDUCT: 'Reserved credits paid out for a completed delivery.',
+  CREDIT: 'Credits earned from a completed delivery.',
 }
 
-// ---- API helpers (replace bodies during integration) ---------------------
-
-// Integration: GET wallet for the logged-in user (e.g. /credit/wallet/:userId)
-export async function fetchMyWallet(): Promise<CreditWallet> {
-  return simulateLatency(previewWallet)
+// Reserve moves credits out of available; release moves them back; deduct only
+// reduces the reserved balance; credit adds to the courier's available balance.
+const signedMultiplier: Record<CreditOperationType, number> = {
+  RESERVE: -1,
+  RELEASE: 1,
+  DEDUCT: -1,
+  CREDIT: 1,
 }
 
-// Integration: GET recent transactions (e.g. /credit/tx/:userId)
-export async function fetchMyCreditActivity(): Promise<CreditActivityItem[]> {
-  const items = getPreviewMode() === 'empty' ? [] : previewActivity
-  return simulateLatency(items)
+function toWallet(dto: WalletDto): CreditWallet {
+  return {
+    userId: dto.user_id,
+    totalCredits: dto.available_credits + dto.reserved_credits,
+    availableCredits: dto.available_credits,
+    reservedCredits: dto.reserved_credits,
+    updatedAt: dto.updated_at ?? '',
+  }
 }
 
-export function isCreditApiConnected(): boolean {
-  return false
+function toActivity(dto: TransactionDto): CreditActivityItem {
+  const type = dto.type as CreditOperationType
+  const known = operationTypes.includes(type)
+  return {
+    id: dto.id,
+    operationType: type,
+    amount: dto.amount,
+    signedAmount: dto.amount * (known ? signedMultiplier[type] : 1),
+    orderId: dto.order_id,
+    description: known ? descriptions[type] : 'Credit activity.',
+    status: 'completed',
+    createdAt: dto.created_at,
+  }
 }
 
-export function getCreditNotConnectedMessage(): string {
-  return NOT_CONNECTED_MESSAGE
+export async function fetchMyWallet(userId: string): Promise<CreditWallet> {
+  const response = await request(`/credit/wallet/${encodeURIComponent(userId)}`)
+  return toWallet((await response.json()) as WalletDto)
+}
+
+export async function fetchMyCreditActivity(userId: string): Promise<CreditActivityItem[]> {
+  const response = await request(`/credit/tx/${encodeURIComponent(userId)}`)
+  return ((await response.json()) as TransactionDto[]).map(toActivity)
 }

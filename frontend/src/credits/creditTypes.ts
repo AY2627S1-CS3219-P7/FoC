@@ -1,13 +1,10 @@
-// TEMPORARY credit model for frontend views until the Credit Service API
-// contract is finalized. Align field names with Credit Service during
-// integration (teammate branch currently uses available_credits /
-// reserved_credits). Do not treat any frontend-derived figures as truth.
+// Credit view models, mapped from Credit Service responses in api/credits.ts.
 
 export type CreditOperationType =
-  | 'INITIAL_ALLOCATION'
   | 'RESERVE'
   | 'RELEASE'
-  | 'TRANSFER'
+  | 'DEDUCT'
+  | 'CREDIT'
 
 export interface CreditWallet {
   userId: string
@@ -36,10 +33,10 @@ export const creditOperationDisplay: Record<
   CreditOperationType,
   { label: string; color: 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'info' }
 > = {
-  INITIAL_ALLOCATION: { label: 'Initial allocation', color: 'success' },
   RESERVE: { label: 'Reserved for order', color: 'warning' },
   RELEASE: { label: 'Released', color: 'info' },
-  TRANSFER: { label: 'Transfer / earning', color: 'primary' },
+  DEDUCT: { label: 'Paid for delivery', color: 'secondary' },
+  CREDIT: { label: 'Earned from delivery', color: 'success' },
 }
 
 export function formatCreditAmount(amount: number): string {
