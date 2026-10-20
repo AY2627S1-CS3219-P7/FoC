@@ -6,6 +6,13 @@
  * Author review: Review before deployment.
  */
 
+/**
+ * AI Assistance Disclosure
+ * Tool: GitHub Copilot, date: 2026-10-20
+ * Scope: Verify Credit Service JWTs and enforce self-only access for user-scoped reads.
+ * Author review: Review pending.
+ */
+
 import jwt from "jsonwebtoken";
 import type { NextFunction, Request, Response } from "express";
 import type { AuthenticatedUser, JwtClaims, Role } from "../types/auth.js";
@@ -73,5 +80,24 @@ export const authorizeRoles = (...allowedRoles: Role[]) =>
 
 		next();
 	};
+
+export const authorizeSelf = (
+	req: Request,
+	res: Response,
+	next: NextFunction
+): void => {
+	if (!req.user) {
+		unauthorized(res);
+		return;
+	}
+
+	const requestedUserId = req.params.user_id;
+	if (req.user.id !== requestedUserId) {
+		res.status(403).json({ status: 403, message: "Forbidden." });
+		return;
+	}
+
+	next();
+};
 
 export default authMiddleware;

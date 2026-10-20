@@ -4,7 +4,7 @@
 # Author review: Review pending.
 
 services:
-  postgres:
+  supplier-service-postgres:
     image: postgres:16
     restart: always
     environment:
@@ -16,7 +16,7 @@ services:
     volumes:
       - ./migrations/up:/docker-entrypoint-initdb.d
       - ./data/postgres:/var/lib/postgresql/data
-  api:
+  supplier-service-api:
     build:
       context: ..
       dockerfile: supplier-service/Dockerfile
@@ -25,10 +25,10 @@ services:
       - ${PORT:-3001}:3001
     environment:
       - DB_USER=${DB_USER}
-      - DB_HOST=postgres
+      - DB_HOST=supplier-service-postgres
       - DB_DATABASE=${DB_DATABASE}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_PORT=5432
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
-      - postgres
+      - supplier-service-postgres

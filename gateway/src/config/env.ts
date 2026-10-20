@@ -17,4 +17,5 @@ export const env = {
   frontendOrigin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173",
   userServiceUrl: process.env.USER_SERVICE_URL ?? "http://localhost:3002",
   supplierServiceUrl: process.env.SUPPLIER_SERVICE_URL ?? "http://localhost:3001",
+  creditServiceUrl: process.env.CREDIT_SERVICE_URL ?? "http://localhost:3004",
 };

@@ -11,6 +11,7 @@
 include:
   - ./user-service/docker-compose.yml
   - ./supplier-service/docker-compose.yml
+  - ./credit-service/docker-compose.yml
 
 services:
   gateway:
@@ -25,10 +26,12 @@ services:
       PORT: 8080
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       USER_SERVICE_URL: http://user-service-api:3002
-      SUPPLIER_SERVICE_URL: http://api:3001
+      SUPPLIER_SERVICE_URL: http://supplier-service-api:3001
+      CREDIT_SERVICE_URL: http://credit-service-api:3004
     depends_on:
       - user-service-api
-      - api
+      - supplier-service-api
+      - credit-service-api
     networks:
       - default
 

@@ -1,7 +1,7 @@
 services:
-  user-service-db:
+  user-service-postgres:
     image: postgres:15-alpine
-    container_name: user_service_postgres
+    container_name: user-service-postgres
     restart: always
     environment:
       POSTGRES_DB: ${DB_DATABASE:?DB_DATABASE is required}
@@ -22,10 +22,10 @@ services:
     build:
       context: ..
       dockerfile: ./user-service/Dockerfile
-    container_name: user_service_app
+    container_name: user-service-api
     restart: unless-stopped
     depends_on:
-      user-service-db:
+      user-service-postgres:
         condition: service_healthy
     ports:
       - "${PORT:?PORT is required}:3002"
@@ -33,7 +33,7 @@ services:
       NODE_PATH: /app/user-service/node_modules
       PORT: ${PORT:?PORT is required}
       NODE_ENV: ${NODE_ENV:-development}
-      DB_HOST: user-service-db
+      DB_HOST: user-service-postgres
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
       DB_USER: ${DB_USER:?DB_USER is required}

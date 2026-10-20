@@ -1,28 +1,35 @@
+# AI Assistance Disclosure:
+# Tool: GitHub Copilot, date: 2026-10-20
+# Scope: Give Credit Service distinct Compose names and configure JWT verification for Gateway integration.
+# Author review: Review pending.
+
 services:
-  postgres:
+  credit-service-postgres:
     image: postgres:16
     restart: always
     environment:
-      - POSTGRES_DB=${DB_DATABASE}
+      - POSTGRES_DB=${CREDIT_DB_DATABASE:-credit_service}
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${CREDIT_DB_EXTERNAL_PORT:-5436}:5432"
     volumes:
       - ./migrations/up:/docker-entrypoint-initdb.d
       - ./data/postgres:/var/lib/postgresql/data
-  api:
+  credit-service-api:
     build:
       context: ..
       dockerfile: credit-service/Dockerfile
     restart: always
     ports:
-      - ${PORT:-3004}:3004
+      - "${CREDIT_PORT:-3004}:3004"
     environment:
+      - PORT=3004
       - DB_USER=${DB_USER}
-      - DB_HOST=postgres
-      - DB_DATABASE=${DB_DATABASE}
+      - DB_HOST=credit-service-postgres
+      - DB_DATABASE=${CREDIT_DB_DATABASE:-credit_service}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_PORT=5432
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
-      - postgres
+      - credit-service-postgres

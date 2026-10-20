@@ -154,10 +154,19 @@ const supplierServiceProxy = createJsonProxy(
   (path) => path.startsWith("/api/suppliers")
 );
 
+const creditServiceProxy = createJsonProxy(
+  env.creditServiceUrl,
+  (path) =>
+    path.startsWith("/api/credit/wallet/") ||
+    path.startsWith("/api/credit/tx/")
+);
+
 app.use(publicAuthProxy);
 app.use(protectedAuthProxy);
 app.use(userProxy);
 app.use(supplierServiceProxy);
+app.get("/api/credit/wallet/:user_id", creditServiceProxy);
+app.get("/api/credit/tx/:user_id", creditServiceProxy);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({

@@ -37,6 +37,8 @@ The gateway forwards these routes without validating credentials. Authentication
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
+- `GET /api/credit/wallet/:user_id`
+- `GET /api/credit/tx/:user_id`
 
 - `POST /api/auth/logout`
 - `GET /api/users/*`
@@ -53,6 +55,7 @@ The gateway forwards these routes without validating credentials. Authentication
 - The gateway forwards the `Authorization` header to downstream services.
 - It adds or forwards `x-request-id` for request tracing.
 - If a downstream service is unavailable, the gateway returns `502 Bad Gateway`.
+- Credit wallet and transaction reads require a Bearer token whose user ID matches `:user_id`.
 
 ## 3. Quick start
 
