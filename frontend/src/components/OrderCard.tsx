@@ -38,8 +38,10 @@ const courierActionLabel: Record<CourierAction, string> = {
 
 type OrderCardProps = {
   order: Order
-  /** Requester cards link to /requests/:id; courier cards to /my-tasks/:id. */
+  /** Requester cards link to /requests/:id; courier task cards to /my-tasks/:id. */
   variant?: 'requester' | 'courier'
+  /** Override the details link, e.g. available requests open under /fulfil/:id. */
+  detailsTo?: string
   actionPending?: boolean
   onCourierAction?: (order: Order, action: CourierAction) => void
 }
@@ -47,11 +49,13 @@ type OrderCardProps = {
 function OrderCard({
   order,
   variant = 'requester',
+  detailsTo,
   actionPending = false,
   onCourierAction,
 }: OrderCardProps) {
   const isCourier = variant === 'courier'
-  const detailsTo = isCourier ? `/my-tasks/${order.id}` : `/requests/${order.id}`
+  const detailsHref =
+    detailsTo ?? (isCourier ? `/my-tasks/${order.id}` : `/requests/${order.id}`)
   const courierAction = isCourier ? getCourierAction(order.status) : null
 
   return (
@@ -111,7 +115,7 @@ function OrderCard({
         spacing={1}
         sx={{ mt: 'auto', alignItems: { sm: 'center' } }}
       >
-        <Button component={Link} to={detailsTo} variant="outlined" size="small">
+        <Button component={Link} to={detailsHref} variant="outlined" size="small">
           View details
         </Button>
         {courierAction && onCourierAction && (
