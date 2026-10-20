@@ -166,3 +166,104 @@ export const changePassword = async (
     next(error);
   }
 };
+
+// ============================================================
+// List Users (Admin)
+// ============================================================
+
+const DEFAULT_PAGE_LIMIT = 20;
+const MAX_PAGE_LIMIT = 100;
+const MAX_SEARCH_LENGTH = 100;
+
+const parsePositiveInt = (
+  value: unknown,
+  fallback: number,
+  fieldName: string
+): number => {
+  if (value === undefined || value === "") {
+    return fallback;
+  }
+
+  const parsed = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : NaN;
+
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new AppError(400, `'${fieldName}' must be a positive integer.`);
+  }
+
+  return parsed;
+};
+
+export const listUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError(401, "Authentication required.");
+    }
+
+    const page = parsePositiveInt(req.query.page, 1, "page");
+    const limit = parsePositiveInt(req.query.limit, DEFAULT_PAGE_LIMIT, "limit");
+
+    if (limit > MAX_PAGE_LIMIT) {
+      throw new AppError(400, `'limit' cannot exceed ${MAX_PAGE_LIMIT}.`);
+    }
+
+    const { search } = req.query;
+
+    if (search !== undefined && typeof search !== "string") {
+      throw new AppError(400, "'search' must be a single string.");
+    }
+
+    const trimmedSearch = search?.trim();
+
+    if (trimmedSearch && trimmedSearch.length > MAX_SEARCH_LENGTH) {
+      throw new AppError(400, `'search' cannot exceed ${MAX_SEARCH_LENGTH} characters.`);
+    }
+
+    const result = await userService.listUsers({
+      page,
+      limit,
+      search: trimmedSearch || undefined,
+    });
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============================================================
+// Update User Active Status (Admin)
+// ============================================================
+
+export const updateUserStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    if (!req.user) {
+      throw new AppError(401, "Authentication required.");
+    }
+
+    const { id } = req.params;
+
+    if (!id || typeof id !== "string" || !UUID_V4_REGEX.test(id)) {
+      throw new AppError(400, "Invalid user ID format. Must be a valid UUID.");
+    }
+
+    const { isActive } = req.body ?? {};
+
+    if (typeof isActive !== "boolean") {
+      throw new AppError(400, "Request body must contain a boolean 'isActive'.");
+    }
+
+    const user = await userService.updateUserStatus(req.user.id, id, isActive);
+
+    res.status(200).json(user);
+  } catch (error) {
+    next(error);
+  }
+};

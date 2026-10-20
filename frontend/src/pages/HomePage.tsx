@@ -5,6 +5,7 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
+import type { ReactNode } from 'react'
 import {
   Alert,
   Box,
@@ -17,69 +18,96 @@ import {
   Typography,
 } from '@mui/material'
 import { Link } from 'react-router-dom'
-import type { UserMode } from '../components/AppNavigation'
+import { useAuth } from '../auth/AuthContext'
 import {
   CheckTaskIcon,
   ClipboardIcon,
   DeliveryBagIcon,
   IconBadge,
-  StudentIcon,
 } from '../components/CampusArt'
 import CampusMap from '../components/CampusMap'
 
-const requesterQuickActions = [
-  {
-    title: 'Browse Suppliers',
-    description: 'Find food, printing, and other useful campus services.',
-    to: '/suppliers',
-    icon: <DeliveryBagIcon />,
-  },
-  {
-    title: 'My Requests',
-    description: 'Order-related request tracking is under development.',
-    to: '/requests',
-    underDevelopment: true,
-    icon: <ClipboardIcon />,
-  },
-  {
-    title: 'Account',
-    description: 'Review your profile and available FoC roles.',
-    to: '/account',
-    icon: <StudentIcon />,
-  },
-]
-
-const courierQuickActions = [
-  {
-    title: 'Fulfil Requests',
-    description: 'Open campus errand requests available for you to accept.',
-    to: '/requests',
-    underDevelopment: true,
-    icon: <ClipboardIcon />,
-  },
-  {
-    title: 'My Tasks',
-    description: 'Track accepted courier requests you are currently handling.',
-    to: '/my-tasks',
-    underDevelopment: true,
-    icon: <CheckTaskIcon />,
-  },
-  {
-    title: 'Account',
-    description: 'Review your profile and available FoC roles.',
-    to: '/account',
-    icon: <StudentIcon />,
-  },
-]
-
-type HomePageProps = {
-  mode: UserMode
+type QuickAction = {
+  title: string
+  description: string
+  to: string
+  icon: ReactNode
+  tone: 'blue' | 'teal' | 'amber'
+  underDevelopment?: boolean
 }
 
-function HomePage({ mode }: HomePageProps) {
-  const isCourier = mode === 'courier'
-  const tone = isCourier ? 'teal' : 'blue'
-  const quickActions = isCourier ? courierQuickActions : requesterQuickActions
+function HomePage() {
+  const { user, canRequest, canCourier, isAdmin } = useAuth()
+  const displayName = user
+    ? user.firstName?.trim() || user.username
+    : 'there'
+
+  const quickActions: QuickAction[] = []
+
+  if (canRequest) {
+    quickActions.push(
+      {
+        title: 'Create Request',
+        description: 'Start a campus errand by choosing a supplier.',
+        to: '/suppliers',
+        icon: <ClipboardIcon />,
+        tone: 'blue',
+        underDevelopment: true,
+      },
+      {
+        title: 'Browse Suppliers',
+        description: 'Find food, printing, and other useful campus services.',
+        to: '/suppliers',
+        icon: <DeliveryBagIcon />,
+        tone: 'blue',
+      },
+      {
+        title: 'My Requests',
+        description: 'Track active and past requests you placed.',
+        to: '/requests',
+        icon: <ClipboardIcon />,
+        tone: 'blue',
+        underDevelopment: true,
+      },
+    )
+  }
+
+  if (canCourier) {
+    quickActions.push(
+      {
+        title: 'Available Requests',
+        description: 'Discover open campus errands you can accept.',
+        to: '/fulfil',
+        icon: <DeliveryBagIcon />,
+        tone: 'teal',
+        underDevelopment: true,
+      },
+      {
+        title: 'My Tasks',
+        description: 'Track active courier tasks and past history.',
+        to: '/my-tasks',
+        icon: <CheckTaskIcon />,
+        tone: 'teal',
+        underDevelopment: true,
+      },
+    )
+  }
+
+  if (isAdmin) {
+    quickActions.push({
+      title: 'Admin Dashboard',
+      description: 'Manage users, roles, and campus suppliers.',
+      to: '/admin',
+      icon: <CheckTaskIcon />,
+      tone: 'amber',
+    })
+  }
+
+  const roleLabels = [
+    canRequest ? 'Requester' : null,
+    canCourier ? 'Courier' : null,
+    isAdmin ? 'Admin' : null,
+  ].filter(Boolean)
 
   return (
     <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
@@ -87,122 +115,140 @@ function HomePage({ mode }: HomePageProps) {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: '1fr',
+            gridTemplateColumns: { xs: '1fr', lg: '1.05fr 0.95fr' },
             gap: { xs: 2, md: 3 },
             overflow: 'hidden',
             p: { xs: 2.5, md: 4 },
             borderRadius: 4,
             color: '#FFFFFF',
-            background: isCourier
-              ? 'linear-gradient(135deg, #0F4743 0%, #145E59 48%, #1F8A80 100%)'
-              : 'linear-gradient(135deg, #0C2436 0%, #12324C 48%, #1E5680 100%)',
+            background:
+              'linear-gradient(135deg, #0C2436 0%, #12324C 48%, #1E5680 100%)',
             boxShadow: '0 18px 40px rgba(18, 35, 48, 0.22)',
           }}
         >
-          <Stack spacing={1.5}>
+          <Stack spacing={1.5} sx={{ justifyContent: 'center' }}>
             <Typography
               variant="overline"
-              sx={{ fontWeight: 800, letterSpacing: '0.12em', color: isCourier ? '#B7E6DF' : '#C5DDF0' }}
+              sx={{ fontWeight: 800, letterSpacing: '0.12em', color: '#C5DDF0' }}
             >
               Friend of Campus
             </Typography>
-            <Typography component="h1" variant="h3" sx={{ fontWeight: 750, letterSpacing: '-0.03em', color: '#FFFFFF' }}>
-              {isCourier ? (
-                <>
-                  Accept and{' '}
-                  <Box component="span" sx={{ color: '#B7E6DF' }}>complete</Box>{' '}
-                  campus errands
-                </>
-              ) : (
-                <>
-                  Create and{' '}
-                  <Box component="span" sx={{ color: '#C5DDF0' }}>track</Box>{' '}
-                  campus errands
-                </>
-              )}
+            <Typography
+              component="h1"
+              variant="h3"
+              sx={{ fontWeight: 750, letterSpacing: '-0.03em', color: '#FFFFFF' }}
+            >
+              Manage your{' '}
+              <Box component="span" sx={{ color: '#C5DDF0' }}>
+                campus errands
+              </Box>
             </Typography>
             <Typography sx={{ maxWidth: 520, fontSize: '1.05rem', color: 'rgba(255,255,255,0.86)' }}>
-              {isCourier
-                ? 'Pick up open requests and finish the ones you are already handling.'
-                : 'Send a campus errand, then follow it from pickup to confirmed delivery.'}
+              Welcome back, {displayName}. Use the shortcuts below to request help, fulfil
+              tasks, or open admin tools — depending on your roles.
             </Typography>
-            <Chip
-              label={isCourier ? 'Courier mode' : 'Requester mode'}
-              sx={{
-                alignSelf: 'flex-start',
-                mt: 0.5,
-                color: '#FFFFFF',
-                bgcolor: 'rgba(255,255,255,0.16)',
-                border: '1px solid rgba(255,255,255,0.28)',
-              }}
-            />
+            {roleLabels.length > 0 && (
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', pt: 0.5 }}>
+                {roleLabels.map((label) => (
+                  <Chip
+                    key={label}
+                    label={label}
+                    size="small"
+                    sx={{
+                      color: '#FFFFFF',
+                      bgcolor: 'rgba(255,255,255,0.16)',
+                      border: '1px solid rgba(255,255,255,0.28)',
+                    }}
+                  />
+                ))}
+              </Stack>
+            )}
           </Stack>
           <CampusMap />
         </Box>
 
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
-            gap: { xs: 2, md: 2.5 },
-          }}
-        >
-          {quickActions.map((action) => (
-            <Card
-              key={action.title}
-              variant="outlined"
-              sx={{
-                height: '100%',
-                borderColor: 'divider',
-                bgcolor: 'background.paper',
-                boxShadow: '0 12px 28px rgba(18, 35, 48, 0.1)',
-                transition: 'transform 160ms ease, box-shadow 160ms ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 18px 36px rgba(18, 35, 48, 0.16)',
-                },
-              }}
-            >
-              <CardActionArea
-                component={Link}
-                to={action.to}
-                sx={{ height: '100%' }}
+        {quickActions.length > 0 ? (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, minmax(0, 1fr))',
+                lg: 'repeat(3, minmax(0, 1fr))',
+              },
+              gap: { xs: 2, md: 2.5 },
+            }}
+          >
+            {quickActions.map((action) => (
+              <Card
+                key={`${action.title}-${action.to}`}
+                variant="outlined"
+                sx={{
+                  height: '100%',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper',
+                  boxShadow: '0 12px 28px rgba(18, 35, 48, 0.1)',
+                  transition: 'transform 160ms ease, box-shadow 160ms ease',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: '0 18px 36px rgba(18, 35, 48, 0.16)',
+                  },
+                }}
               >
-                <Box
-                  sx={{
-                    height: 6,
-                    bgcolor: isCourier ? 'secondary.main' : 'primary.main',
-                  }}
-                />
-                <CardContent sx={{ p: 2.5 }}>
-                  <Stack spacing={2}>
-                    <IconBadge tone={tone}>{action.icon}</IconBadge>
-                    <Stack spacing={0.75}>
-                      <Typography component="h2" variant="h6">
-                        {action.title}
-                      </Typography>
-                      <Typography color="text.secondary">
-                        {action.description}
-                      </Typography>
+                <CardActionArea
+                  component={Link}
+                  to={action.to}
+                  sx={{ height: '100%' }}
+                >
+                  <Box
+                    sx={{
+                      height: 6,
+                      bgcolor:
+                        action.tone === 'teal'
+                          ? 'secondary.main'
+                          : action.tone === 'amber'
+                            ? '#C2410C'
+                            : 'primary.main',
+                    }}
+                  />
+                  <CardContent sx={{ p: 2.5 }}>
+                    <Stack spacing={2}>
+                      <IconBadge tone={action.tone === 'amber' ? 'blue' : action.tone}>
+                        {action.icon}
+                      </IconBadge>
+                      <Stack spacing={0.75}>
+                        <Typography component="h2" variant="h6">
+                          {action.title}
+                        </Typography>
+                        <Typography color="text.secondary">
+                          {action.description}
+                        </Typography>
+                      </Stack>
+                      {action.underDevelopment && (
+                        <Chip
+                          label="Under development"
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                          sx={{ alignSelf: 'flex-start' }}
+                        />
+                      )}
                     </Stack>
-                    {action.underDevelopment && (
-                      <Chip
-                        label="Under development"
-                        size="small"
-                        color="secondary"
-                        variant="outlined"
-                        sx={{ alignSelf: 'flex-start' }}
-                      />
-                    )}
-                  </Stack>
-                </CardContent>
-              </CardActionArea>
-            </Card>
-          ))}
-        </Box>
+                  </CardContent>
+                </CardActionArea>
+              </Card>
+            ))}
+          </Box>
+        ) : (
+          <Alert severity="info" variant="outlined" sx={{ bgcolor: 'background.paper' }}>
+            Your account has no workflow roles yet. Ask an admin to assign Requester, Courier,
+            or Admin access.
+          </Alert>
+        )}
 
         <Alert severity="info" variant="outlined" sx={{ bgcolor: 'background.paper' }}>
-          Order-related workflows are still under development.
+          Recent activity will appear here once the Order Service is connected. For now, use the
+          shortcuts above and the campus map to get started.
         </Alert>
       </Stack>
     </Container>
