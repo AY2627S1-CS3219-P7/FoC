@@ -216,6 +216,7 @@ function FulfilRequestsPage() {
                   key={order.id}
                   order={order}
                   variant="courier"
+                  detailsTo={`/fulfil/${order.id}`}
                   actionPending={actionOrderId === order.id}
                   onCourierAction={(selected) => {
                     setPendingOrder(selected)

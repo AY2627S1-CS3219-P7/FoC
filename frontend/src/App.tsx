@@ -181,6 +181,18 @@ function AppContent() {
             </RequireRole>
           }
         />
+        <Route
+          path="/fulfil/:orderId"
+          element={
+            <RequireRole roles={['COURIER']}>
+              {mode === 'courier' ? (
+                <OrderDetailsPage />
+              ) : (
+                <Navigate to="/home" replace />
+              )}
+            </RequireRole>
+          }
+        />
 
         <Route
           path="/my-tasks"

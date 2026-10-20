@@ -27,7 +27,8 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useAuth } from '../auth/AuthContext'
 import { NotFoundError } from '../api/client'
 import {
   acceptOrder,
@@ -174,10 +175,30 @@ function OrderDetailsSkeleton() {
   )
 }
 
+type DetailContext = 'requester' | 'fulfil' | 'tasks'
+
+function resolveDetailContext(
+  pathname: string,
+  order: Order | undefined,
+  userId: string | undefined,
+): DetailContext {
+  const onFulfil = pathname.startsWith('/fulfil/')
+  const onTasks = pathname.startsWith('/my-tasks/')
+  if (!onFulfil && !onTasks) return 'requester'
+  if (!order) return onFulfil ? 'fulfil' : 'tasks'
+
+  const assignedToMe = Boolean(userId && order.courier?.id === userId)
+  if (assignedToMe) return 'tasks'
+  // OPEN and not this courier: still in the available-requests workflow.
+  if (order.status === 'OPEN') return 'fulfil'
+  return onFulfil ? 'fulfil' : 'tasks'
+}
+
 function OrderDetailsPage() {
   const { orderId = '' } = useParams()
   const location = useLocation()
-  const isCourierView = location.pathname.startsWith('/my-tasks/')
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [reloadCount, setReloadCount] = useState(0)
   const [result, setResult] = useState<OrderRequestResult | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
@@ -188,6 +209,13 @@ function OrderDetailsPage() {
   const loading = result?.key !== requestKey
   const order = !loading ? result?.order : undefined
   const loadError = !loading ? result?.error : undefined
+  const detailContext = resolveDetailContext(location.pathname, order, user?.id)
+  const backLink =
+    detailContext === 'tasks'
+      ? { to: '/my-tasks', label: '← Back to My Tasks' }
+      : detailContext === 'fulfil'
+        ? { to: '/fulfil', label: '← Back to Fulfil Requests' }
+        : { to: '/requests', label: '← Back to My Requests' }
 
   useEffect(() => {
     let ignore = false
@@ -224,6 +252,9 @@ function OrderDetailsPage() {
         updatedOrder = await confirmDelivery(order.id)
       } else if (pendingAction === 'accept') {
         updatedOrder = await acceptOrder(order.id)
+        setPendingAction(null)
+        navigate(`/my-tasks/${updatedOrder.id}`, { replace: true })
+        return
       } else if (pendingAction === 'pick-up') {
         updatedOrder = await markOrderPickedUp(order.id)
       } else {
@@ -270,11 +301,13 @@ function OrderDetailsPage() {
       </Alert>
     )
   } else {
-    const showCancel = !isCourierView && canRequesterCancel(order.status)
-    const showConfirm = !isCourierView && canRequesterConfirmDelivery(order.status)
-    const showAccept = isCourierView && canCourierAccept(order.status)
-    const showPickUp = isCourierView && canCourierMarkPickedUp(order.status)
-    const showDeliver = isCourierView && canCourierMarkDelivered(order.status)
+    const showCancel = detailContext === 'requester' && canRequesterCancel(order.status)
+    const showConfirm =
+      detailContext === 'requester' && canRequesterConfirmDelivery(order.status)
+    const showAccept =
+      detailContext === 'fulfil' && canCourierAccept(order.status) && !order.courier
+    const showPickUp = detailContext === 'tasks' && canCourierMarkPickedUp(order.status)
+    const showDeliver = detailContext === 'tasks' && canCourierMarkDelivered(order.status)
     const hasActions =
       showCancel || showConfirm || showAccept || showPickUp || showDeliver
 
@@ -458,10 +491,7 @@ function OrderDetailsPage() {
   return (
     <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
       <Stack spacing={2}>
-        <BackLink
-          to={isCourierView ? '/my-tasks' : '/requests'}
-          label={isCourierView ? '← Back to My Tasks' : '← Back to My Requests'}
-        />
+        <BackLink to={backLink.to} label={backLink.label} />
         {content}
       </Stack>
     </Container>
