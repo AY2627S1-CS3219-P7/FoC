@@ -9,6 +9,7 @@ import {
     isValidPassword,
 } from "../utils/validators.js";
 import { hashPassword, comparePassword } from "../utils/password.js";
+import { initializeWallet } from "./creditService.js";
 
 export interface UserProfileResponse {
   id: string;
@@ -287,6 +288,8 @@ export const provisionInitialAdmin = async (
             [userId, role.id]
         );
     }
+
+    await initializeWallet(userId);
 };
 
 export interface PublicUserProfileResponse {
