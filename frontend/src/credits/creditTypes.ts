@@ -5,7 +5,7 @@ export type CreditOperationType =
   | 'RELEASE'
   | 'DEDUCT'
   | 'CREDIT'
-
+  | 'INITIAL'
 export interface CreditWallet {
   userId: string
   /** Total credits on the account, as reported by Credit Service. */
@@ -37,6 +37,7 @@ export const creditOperationDisplay: Record<
   RELEASE: { label: 'Released', color: 'info' },
   DEDUCT: { label: 'Paid for delivery', color: 'secondary' },
   CREDIT: { label: 'Earned from delivery', color: 'success' },
+  INITIAL: { label: 'Welcome credits', color: 'primary' },
 }
 
 export function formatCreditAmount(amount: number): string {

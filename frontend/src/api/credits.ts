@@ -17,13 +17,14 @@ interface TransactionDto {
   created_at: string
 }
 
-const operationTypes: CreditOperationType[] = ['RESERVE', 'RELEASE', 'DEDUCT', 'CREDIT']
+const operationTypes: CreditOperationType[] = ['RESERVE', 'RELEASE', 'DEDUCT', 'CREDIT', 'INITIAL']
 
 const descriptions: Record<CreditOperationType, string> = {
   RESERVE: 'Credits reserved for an order.',
   RELEASE: 'Reserved credits returned.',
   DEDUCT: 'Reserved credits paid out for a completed delivery.',
   CREDIT: 'Credits earned from a completed delivery.',
+  INITIAL: 'Initial credits granted when the account was created.',
 }
 
 // Reserve moves credits out of available; release moves them back; deduct only
@@ -33,6 +34,7 @@ const signedMultiplier: Record<CreditOperationType, number> = {
   RELEASE: 1,
   DEDUCT: -1,
   CREDIT: 1,
+  INITIAL: 1,
 }
 
 function toWallet(dto: WalletDto): CreditWallet {
