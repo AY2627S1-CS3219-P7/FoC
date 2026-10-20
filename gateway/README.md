@@ -78,7 +78,17 @@ Expected response:
 }
 ```
 
-## 4. Required environment variables
+## 4. Run the Gateway container independently
+
+Start the User and Supplier Services separately and make sure they publish host ports `3002` and `3001`. Then, from this directory, run:
+
+```bash
+docker compose up --build
+```
+
+The standalone Compose file routes from the Gateway container to those host-published ports through `host.docker.internal`. Do not run it at the same time as the root Compose stack, which also binds port `8080`.
+
+## 5. Required environment variables
 
 Typical `.env` values:
 
@@ -94,11 +104,11 @@ Important:
 
 - `FRONTEND_ORIGIN` must match the frontend origin allowed by CORS
 
-## 5. Auth flow
+## 6. Auth flow
 
 The gateway does not validate JWTs or attach user identity headers. It forwards requests, including `Authorization`, and the receiving service decides whether the route requires authentication and which roles are allowed.
 
-## 6. Example requests
+## 7. Example requests
 
 ### Login via gateway
 
@@ -129,13 +139,13 @@ curl -X POST http://localhost:8080/api/auth/logout \
   }'
 ```
 
-## 7. Production notes
+## 8. Production notes
 
 - Run the gateway in the same network environment as the backend services.
 - Ensure `USER_SERVICE_URL` and `SUPPLIER_SERVICE_URL` match the actual service addresses.
 - Keep the gateway as the only externally exposed backend entry point for the frontend.
 
-## 8. Collaboration notes
+## 9. Collaboration notes
 
 Use this checklist when you want to register a new backend service into the gateway. The goal is to make the service reachable via the gateway without changing the frontend to call the service directly.
 
