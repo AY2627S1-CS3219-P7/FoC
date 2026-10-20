@@ -134,7 +134,7 @@ export async function request(
   }
 
   if (!response.ok) {
-    if (response.status === 401) {
+    if (response.status === 401 && authenticated) {
       clearToken();
       throw new UnauthorizedError("Unauthorized");
     }
