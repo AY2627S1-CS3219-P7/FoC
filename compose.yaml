@@ -3,6 +3,11 @@
 # Scope: Root Docker Compose orchestration using Compose V2 include syntax
 # Author review: Reviewed and validated against modular multi-service architecture.
 
+# AI Assistance Disclosure:
+# Tool: GitHub Copilot, date: 2026-10-20
+# Scope: Route requests through Gateway without Gateway JWT configuration and pass JWT_SECRET to supplier service.
+# Author review: Review pending.
+
 include:
   - ./user-service/docker-compose.yml
   - ./supplier-service/docker-compose.yml
@@ -21,7 +26,6 @@ services:
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:5173}
       USER_SERVICE_URL: http://user-service-api:3002
       SUPPLIER_SERVICE_URL: http://api:3001
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
       - user-service-api
       - api

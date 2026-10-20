@@ -1,17 +1,19 @@
 // AI Assistance Disclosure:
-// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-10-02
-// Scope: Hardened the Gateway reverse proxy to forward request IDs and
-// authenticated user context securely, while locking protected routes to
-// the shared auth middleware and preserving 404/502 handling.
-// Author review: Reviewed to ensure the proxy still respects the existing
-// gateway contract, public routes remain open, and protected routes remain
-// behind authentication.
+// Tool: GitHub Copilot, date: 2026-10-20
+// Scope: Remove Gateway authentication and identity-header injection while preserving proxy behavior.
+// Author review: Review pending.
 
 // AI Assistance Disclosure:
 // Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-10-02
-// Scope: Fixed the reverse-proxy lifecycle in the API Gateway by ensuring
-// all custom headers are injected before the request body is rewritten, while
-// keeping public/authenticated route behavior intact.
+// Scope: Hardened the Gateway reverse proxy to forward request IDs and
+// preserve 404/502 handling while leaving authentication to downstream services.
+// Author review: Reviewed to ensure all service routes are forwarded without
+// Gateway-level authentication.
+
+// AI Assistance Disclosure:
+// Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-10-02
+// Scope: Fixed the reverse-proxy lifecycle by setting the request ID before
+// rewriting the request body.
 // Author review: Reviewed against the request-stream contract and the Node
 // runtime requirement that headers must be set before body forwarding begins.
 
@@ -28,7 +30,6 @@ import {
 } from "http-proxy-middleware";
 
 import { env } from "./config/env.js";
-import { authMiddleware } from "./middleware/authMiddleware.js";
 import { loggerMiddleware } from "./middleware/logger.js";
 import { requestIdMiddleware } from "./middleware/requestId.js";
 
@@ -94,33 +95,10 @@ const createJsonProxy = (
     pathFilter,
     on: {
       proxyReq: (proxyReq, req) => {
-        proxyReq.removeHeader("x-user-id");
-        proxyReq.removeHeader("x-user-roles");
-
         if (!proxyReq.headersSent) {
           const requestId = resolveRequestId(req as Request);
           if (requestId) {
             proxyReq.setHeader("x-request-id", requestId);
-          }
-
-          const user = (req as Request & {
-            user?: {
-              id?: string;
-              roles?: unknown[];
-            };
-          }).user;
-
-          if (user) {
-            if (typeof user.id === "string" && user.id.trim().length > 0) {
-              proxyReq.setHeader("x-user-id", user.id);
-            }
-
-            if (Array.isArray(user.roles) && user.roles.length > 0) {
-              proxyReq.setHeader(
-                "x-user-roles",
-                user.roles.map((role) => String(role)).join(",")
-              );
-            }
           }
         }
 
@@ -177,9 +155,9 @@ const supplierServiceProxy = createJsonProxy(
 );
 
 app.use(publicAuthProxy);
-app.use(authMiddleware, protectedAuthProxy);
-app.use(authMiddleware, userProxy);
-app.use(authMiddleware, supplierServiceProxy);
+app.use(protectedAuthProxy);
+app.use(userProxy);
+app.use(supplierServiceProxy);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({

@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: GitHub Copilot, date: 2026-10-20
+# Scope: Pass JWT_SECRET into the Supplier Service API container for local token verification.
+# Author review: Review pending.
+
 services:
   postgres:
     image: postgres:16
@@ -24,5 +29,6 @@ services:
       - DB_DATABASE=${DB_DATABASE}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_PORT=5432
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
       - postgres

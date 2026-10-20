@@ -1,13 +1,19 @@
+/**
+ * AI Assistance Disclosure
+ * Tool: GitHub Copilot, date: 2026-10-20
+ * Scope: Use User Service-local authentication and role authorization on role routes.
+ * Author review: Review pending.
+ */
+
 import { Router } from "express";
 
-import { authenticate } from "../../../common/middleware/authenticate.js";
-import { requireRoles } from "../../../common/middleware/rbac.js";
+import { authMiddleware, requireRoles } from "../middleware/authMiddleware.js";
 import * as roleController from "../controllers/roleController.js";
 
 const router = Router();
 
-router.get("/users/:id/roles", authenticate, roleController.getUserRoles);
-router.post("/users/:id/roles", authenticate, requireRoles("ADMIN"), roleController.addRole);
-router.delete("/users/:id/roles/:role", authenticate, requireRoles("ADMIN"), roleController.removeRole);
+router.get("/users/:id/roles", authMiddleware, roleController.getUserRoles);
+router.post("/users/:id/roles", authMiddleware, requireRoles("ADMIN"), roleController.addRole);
+router.delete("/users/:id/roles/:role", authMiddleware, requireRoles("ADMIN"), roleController.removeRole);
 
 export default router;
