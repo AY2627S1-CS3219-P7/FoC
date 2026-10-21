@@ -40,4 +40,4 @@ docker compose down -v       # stop and DELETE the database volume
 
 - Schema is created by `sequelize.sync()` on startup. Replace with
   migrations before this holds real data.
-- Config is read from environment variables only (`app/config/db.config.js`).
+- Config is read from environment variables only (`app/config/db.config.ts`).

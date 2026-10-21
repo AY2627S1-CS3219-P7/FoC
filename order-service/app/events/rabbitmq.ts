@@ -14,39 +14,45 @@
  * - Reconnects lazily: if the connection drops, the next publish reconnects.
  */
 
-const amqp = require("amqplib");
-const { RABBITMQ_URL, RABBITMQ_EXCHANGE } = require("../config/env");
+import amqp from "amqplib";
+import { env } from "../config/env.ts";
+import type { OrderEvent } from "../models/types.ts";
+
+type Connection = Awaited<ReturnType<typeof amqp.connect>>;
+type ConfirmChannel = Awaited<ReturnType<Connection["createConfirmChannel"]>>;
 
 const PUBLISH_TIMEOUT_MS = 10000;
 
-let connection = null;
-let channel = null;
-let connecting = null;
-const returned = new Set(); // messageIds the broker could not route
+let connection: Connection | null = null;
+let channel: ConfirmChannel | null = null;
+let connecting: Promise<ConfirmChannel> | null = null;
+const returned = new Set<string>(); // messageIds the broker could not route
 
-async function connect() {
-  const conn = await amqp.connect(RABBITMQ_URL);
-  conn.on("error", (err) => console.error(`RabbitMQ connection error: ${err.message}`));
+async function connect(): Promise<ConfirmChannel> {
+  const conn = await amqp.connect(env.RABBITMQ_URL);
+  conn.on("error", (err: Error) => console.error(`RabbitMQ connection error: ${err.message}`));
   conn.on("close", () => {
     connection = null;
     channel = null;
   });
 
   const ch = await conn.createConfirmChannel();
-  ch.on("error", (err) => console.error(`RabbitMQ channel error: ${err.message}`));
+  ch.on("error", (err: Error) => console.error(`RabbitMQ channel error: ${err.message}`));
   ch.on("close", () => {
     channel = null;
   });
-  ch.on("return", (msg) => returned.add(msg.properties.messageId));
+  ch.on("return", (msg: { properties: { messageId: string } }) => {
+    returned.add(msg.properties.messageId);
+  });
 
-  await ch.assertExchange(RABBITMQ_EXCHANGE, "topic", { durable: true });
+  await ch.assertExchange(env.RABBITMQ_EXCHANGE, "topic", { durable: true });
 
   connection = conn;
   channel = ch;
   return ch;
 }
 
-function getChannel() {
+function getChannel(): Promise<ConfirmChannel> {
   if (channel) return Promise.resolve(channel);
   if (!connecting) {
     connecting = connect().finally(() => {
@@ -56,16 +62,17 @@ function getChannel() {
   return connecting;
 }
 
-const routingKeyFor = (eventType) => eventType.toLowerCase().replace(/_/g, ".");
+export const routingKeyFor = (eventType: string): string =>
+  eventType.toLowerCase().replace(/_/g, ".");
 
 // Resolves once the broker confirms; rejects if it nacks, can't route, or times out.
-async function publishEvent(event) {
+export async function publishEvent(event: OrderEvent): Promise<void> {
   const ch = await getChannel();
   const routingKey = routingKeyFor(event.event_type);
 
-  const confirmed = new Promise((resolve, reject) => {
+  const confirmed = new Promise<void>((resolve, reject) => {
     ch.publish(
-      RABBITMQ_EXCHANGE,
+      env.RABBITMQ_EXCHANGE,
       routingKey,
       Buffer.from(JSON.stringify(event)),
       {
@@ -74,14 +81,14 @@ async function publishEvent(event) {
         contentType: "application/json",
         messageId: event.event_id, // consumers de-duplicate on this
         type: event.event_type,
-        timestamp: Math.floor(Date.now() / 1000)
+        timestamp: Math.floor(Date.now() / 1000),
       },
-      (err) => (err ? reject(err) : resolve())
+      (err: unknown) => (err ? reject(err) : resolve())
     );
   });
 
-  let timer;
-  const timeout = new Promise((_, reject) => {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(
       () => reject(new Error("Timed out waiting for broker confirmation")),
       PUBLISH_TIMEOUT_MS
@@ -97,21 +104,19 @@ async function publishEvent(event) {
   // The 'return' event arrives before the confirm for unroutable messages
   if (returned.delete(event.event_id)) {
     throw new Error(
-      `No queue is bound to "${routingKey}" on exchange "${RABBITMQ_EXCHANGE}" (is the credit service consuming yet?)`
+      `No queue is bound to "${routingKey}" on exchange "${env.RABBITMQ_EXCHANGE}" (is the credit service consuming yet?)`
     );
   }
 }
 
-async function close() {
+export async function close(): Promise<void> {
   try {
     if (channel) await channel.close();
     if (connection) await connection.close();
-  } catch (err) {
-    // Already closed; nothing to do on shutdown
+  } catch {
+    // Closed, nothing to do on shutdown
   } finally {
     channel = null;
     connection = null;
   }
 }
-
-module.exports = { publishEvent, close, routingKeyFor };

@@ -17,9 +17,9 @@
  *   node scripts/dev-token.js --expires 2h             # default 1h; accepts s, m, h, d
  */
 
-const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
+import crypto from "node:crypto";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 
 function readEnvFile() {
   try {

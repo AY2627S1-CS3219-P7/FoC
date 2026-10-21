@@ -5,15 +5,12 @@
  *
  */
 
-const { randomUUID } = require("crypto");
-const { OutboxEvent } = require("../models");
+import { randomUUID } from "node:crypto";
+import type { Transaction } from "sequelize";
+import { OutboxEvent } from "../models/index.ts";
+import type { EventOrderFields, OrderEvent, OrderEventType } from "../models/types.ts";
 
-const EVENT_TYPES = Object.freeze({
-  ORDER_CANCELLED: "ORDER_CANCELLED", // credit service: release the reservation
-  ORDER_COMPLETED: "ORDER_COMPLETED" // credit service: transfer requester -> courier
-});
-
-function buildOrderEvent(eventType, order) {
+export function buildOrderEvent(eventType: OrderEventType, order: EventOrderFields): OrderEvent {
   return {
     event_id: randomUUID(),
     event_type: eventType,
@@ -22,20 +19,22 @@ function buildOrderEvent(eventType, order) {
       order_id: order.order_id,
       requester_id: order.requester_id,
       courier_id: order.courier_id ?? null,
-      credit_amount: order.credit_amount
-    }
+      credit_amount: order.credit_amount,
+    },
   };
 }
 
 // Writes the event to the outbox. Pass the SAME transaction as the order
 // status change so both commit or roll back together.
-async function recordOrderEvent(eventType, order, transaction) {
+export async function recordOrderEvent(
+  eventType: OrderEventType,
+  order: EventOrderFields,
+  transaction?: Transaction
+): Promise<OrderEvent> {
   const event = buildOrderEvent(eventType, order);
   await OutboxEvent.create(
     { event_id: event.event_id, event_type: eventType, payload: event },
-    { transaction }
+    transaction ? { transaction } : {}
   );
   return event;
 }
-
-module.exports = { EVENT_TYPES, buildOrderEvent, recordOrderEvent };

@@ -40,7 +40,10 @@ services:
       retries: 10
 
   api:
-    build: .
+    build:
+      # Repo root, so the image can include the shared common/ folder
+      context: ..
+      dockerfile: order-service/Dockerfile
     init: true
     restart: unless-stopped
     ports:
@@ -51,6 +54,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DATABASE: ${DB_DATABASE}
+
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
       CREDIT_SERVICE_URL: ${CREDIT_SERVICE_URL:?CREDIT_SERVICE_URL must be set in .env}

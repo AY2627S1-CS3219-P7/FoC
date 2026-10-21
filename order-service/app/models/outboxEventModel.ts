@@ -9,32 +9,34 @@
  * unpublished rows to RabbitMQ and marks them done, retrying until it works.
  */
 
-module.exports = (sequelize, Sequelize) => {
-    return sequelize.define(
+import { DataTypes, type Model, type Sequelize } from "sequelize";
+import type {
+  OutboxEventAttributes,
+  OutboxEventCreationAttributes,
+} from "./types.ts";
+
+export interface OutboxEventInstance
+  extends Model<OutboxEventAttributes, OutboxEventCreationAttributes>,
+    OutboxEventAttributes {}
+
+export default (sequelize: Sequelize) =>
+  sequelize.define<OutboxEventInstance>(
     "outbox_event",
     {
       event_id: {
-        type: Sequelize.UUID,
+        type: DataTypes.UUID,
         primaryKey: true,
-        defaultValue: Sequelize.UUIDV4
+        defaultValue: DataTypes.UUIDV4,
       },
-      event_type: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
+      event_type: { type: DataTypes.STRING, allowNull: false },
       // The full event envelope, exactly as it will be published
-      payload: {
-        type: Sequelize.JSONB,
-        allowNull: false
-      },
+      payload: { type: DataTypes.JSONB, allowNull: false },
       created_at: {
-        type: Sequelize.DATE,
+        type: DataTypes.DATE,
         allowNull: false,
-        defaultValue: Sequelize.NOW
+        defaultValue: DataTypes.NOW,
       },
-      published_at: {
-        type: Sequelize.DATE
-      }
+      published_at: { type: DataTypes.DATE },
     },
     {
       tableName: "outbox_events",
@@ -44,9 +46,8 @@ module.exports = (sequelize, Sequelize) => {
           // Partial index: only the (usually tiny) set still waiting to be sent
           name: "outbox_unpublished_idx",
           fields: ["created_at"],
-          where: { published_at: null }
-        }
-      ]
+          where: { published_at: null },
+        },
+      ],
     }
   );
-};

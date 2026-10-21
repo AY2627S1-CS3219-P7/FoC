@@ -13,33 +13,35 @@
  * Revisit once the credit service documents its status codes.
  */
 
-const {
-  CREDIT_SERVICE_URL,
-  CREDIT_TIMEOUT_MS,
-  INTERNAL_API_KEY
-} = require("../config/env");
-const { conflict, serviceUnavailable } = require("../utils/httpError");
+import { env } from "../config/env.ts";
+import { conflict, serviceUnavailable } from "../utils/httpError.ts";
 
-async function reserve({ orderId, userId, amount }) {
-  const headers = { "Content-Type": "application/json" };
-  if (INTERNAL_API_KEY) headers["X-Internal-Api-Key"] = INTERNAL_API_KEY;
+export interface ReserveInput {
+  orderId: string;
+  userId: string;
+  amount: number;
+}
 
-  let res;
+export async function reserve({ orderId, userId, amount }: ReserveInput): Promise<void> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (env.INTERNAL_API_KEY) headers["X-Internal-Api-Key"] = env.INTERNAL_API_KEY;
+
+  let res: Response;
   try {
-    res = await fetch(`${CREDIT_SERVICE_URL}/api/credit/tx/reserve`, {
+    res = await fetch(`${env.CREDIT_SERVICE_URL}/api/credit/tx/reserve`, {
       method: "POST",
       headers,
       body: JSON.stringify({ order_id: orderId, user_id: userId, amount: amount }),
-      signal: AbortSignal.timeout(CREDIT_TIMEOUT_MS)
+      signal: AbortSignal.timeout(env.CREDIT_TIMEOUT_MS),
     });
   } catch (err) {
-    console.error(`Credit service unreachable: ${err.message}`);
+    console.error(`Credit service unreachable: ${(err as Error).message}`);
     throw serviceUnavailable("Credit service is unavailable, please try again");
   }
 
   if (res.ok) return;
 
-  const body = await res.json().catch(() => ({}));
+  const body = (await res.json().catch(() => ({}))) as { message?: string };
   const detail = body.message || `HTTP ${res.status}`;
 
   if (res.status >= 500 || res.status === 401 || res.status === 403) {
@@ -49,5 +51,3 @@ async function reserve({ orderId, userId, amount }) {
 
   throw conflict(`Could not reserve credits: ${detail}`, "CREDIT_RESERVATION_REJECTED");
 }
-
-module.exports = { reserve };

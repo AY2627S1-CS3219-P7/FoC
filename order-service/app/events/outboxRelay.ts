@@ -13,25 +13,30 @@
  *   outbox and are sent when the broker returns.
  */
 
-const { sequelize, OutboxEvent } = require("../models");
-const { publishEvent, close: closeBroker } = require("./rabbitmq");
-const { OUTBOX_POLL_MS, OUTBOX_BATCH_SIZE } = require("../config/env");
+import { OutboxEvent, sequelize } from "../models/index.ts";
+import { close as closeBroker, publishEvent } from "./rabbitmq.ts";
+import { env } from "../config/env.ts";
 
-let timer = null;
-let running = null; // promise of the in-flight run
+let timer: NodeJS.Timeout | null = null;
+let running: Promise<void> | null = null;
 let rerun = false;
 let stopped = false;
-let failing = false; // used to log only on state changes, not every poll
+let failing = false; // log only on state changes
 
-async function flushBatch() {
+interface BatchResult {
+  sent: number;
+  hadFailure: boolean;
+}
+
+async function flushBatch(): Promise<BatchResult> {
   return sequelize.transaction(async (t) => {
     const rows = await OutboxEvent.findAll({
       where: { published_at: null },
       order: [["created_at", "ASC"]],
-      limit: OUTBOX_BATCH_SIZE,
+      limit: env.OUTBOX_BATCH_SIZE,
       lock: t.LOCK.UPDATE,
       skipLocked: true,
-      transaction: t
+      transaction: t,
     });
 
     let sent = 0;
@@ -39,9 +44,9 @@ async function flushBatch() {
       try {
         await publishEvent(row.payload);
       } catch (err) {
-        // Stop here to preserve ordering; commit what was already sent.
+
         if (!failing) {
-          console.error(`Outbox publish failing, will retry: ${err.message}`);
+          console.error(`Outbox publish failing, will retry: ${(err as Error).message}`);
           failing = true;
         }
         return { sent, hadFailure: true };
@@ -59,22 +64,22 @@ async function flushBatch() {
   });
 }
 
-async function runLoop() {
+async function runLoop(): Promise<void> {
   do {
     rerun = false;
     const { sent, hadFailure } = await flushBatch();
     // A full batch means there may be more waiting
-    if (!hadFailure && sent === OUTBOX_BATCH_SIZE) rerun = true;
+    if (!hadFailure && sent === env.OUTBOX_BATCH_SIZE) rerun = true;
   } while (rerun && !stopped);
 }
 
-function run() {
+function run(): Promise<void> {
   if (running) {
     rerun = true; // pick up anything recorded while we were busy
     return running;
   }
   running = runLoop()
-    .catch((err) => {
+    .catch((err: Error) => {
       console.error(`Outbox relay error: ${err.message}`);
     })
     .finally(() => {
@@ -83,23 +88,21 @@ function run() {
   return running;
 }
 
-function start() {
+export function start(): void {
   stopped = false;
-  timer = setInterval(run, OUTBOX_POLL_MS);
+  timer = setInterval(() => void run(), env.OUTBOX_POLL_MS);
   timer.unref();
-  run();
+  void run();
 }
 
 // Call after committing a transaction that recorded an event
-function kick() {
-  if (!stopped) run();
+export function kick(): void {
+  if (!stopped) void run();
 }
 
-async function stop() {
+export async function stop(): Promise<void> {
   stopped = true;
   if (timer) clearInterval(timer);
   if (running) await running;
   await closeBroker();
 }
-
-module.exports = { start, kick, stop };
