@@ -25,8 +25,11 @@ function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
-  const from =
-    (location.state as { from?: { pathname: string } } | null)?.from?.pathname ?? '/home'
+  const locationState = location.state as
+    | { from?: { pathname: string }; successMessage?: string }
+    | null
+  const from = locationState?.from?.pathname ?? '/home'
+  const successMessage = locationState?.successMessage
   const [usernameOrEmail, setUsernameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -135,6 +138,9 @@ function LoginPage() {
                 </Typography>
               </Box>
 
+              {successMessage && !errorMessage && (
+                <Alert severity="success">{successMessage}</Alert>
+              )}
               {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
               <TextField

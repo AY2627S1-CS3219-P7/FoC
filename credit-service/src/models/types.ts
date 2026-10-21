@@ -6,7 +6,7 @@ export interface Wallet {
 
 export interface TransactionRecord {
   user_id: string;
-  order_id: string;
+  order_id: string | null;
   type: string;
   amount: number;
 }

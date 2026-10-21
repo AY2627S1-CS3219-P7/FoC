@@ -1,4 +1,4 @@
-import type { Role, User } from '../interfaces'
+import type { AdminUser, Role, User, UserListResponse, UserRolesResponse } from '../interfaces'
 import {
   request,
   getToken,
@@ -94,6 +94,73 @@ export async function updateCurrentUser(input: UpdateProfileInput): Promise<User
   const response = await request(
     '/users/me',
     { method: 'PATCH', body: JSON.stringify(input) },
+    true,
+  )
+  return response.json()
+}
+
+interface ChangePasswordInput {
+  currentPassword: string,
+  newPassword: string
+}
+
+// The backend revokes all refresh tokens on success, so callers should log out afterwards.
+export async function changePassword(input: ChangePasswordInput): Promise<{ message: string }> {
+  const response = await request(
+    '/users/me/change-password',
+    { method: 'POST', body: JSON.stringify(input) },
+    true,
+  )
+  return response.json()
+}
+
+// Admin: list and search users
+interface ListUsersParams {
+  page?: number,
+  limit?: number,
+  search?: string
+}
+
+export async function listUsers(params: ListUsersParams = {}): Promise<UserListResponse> {
+  const query = new URLSearchParams()
+  if (params.page) query.set('page', String(params.page))
+  if (params.limit) query.set('limit', String(params.limit))
+  if (params.search?.trim()) query.set('search', params.search.trim())
+
+  const queryString = query.toString()
+  const response = await request(`/users${queryString ? `?${queryString}` : ''}`, {}, true)
+  return response.json()
+}
+
+// Admin: role management
+export async function getUserRoles(userId: string): Promise<UserRolesResponse> {
+  const response = await request(`/users/${encodeURIComponent(userId)}/roles`, {}, true)
+  return response.json()
+}
+
+export async function grantRole(userId: string, role: Role): Promise<UserRolesResponse> {
+  const response = await request(
+    `/users/${encodeURIComponent(userId)}/roles`,
+    { method: 'POST', body: JSON.stringify({ role }) },
+    true,
+  )
+  return response.json()
+}
+
+export async function revokeRole(userId: string, role: Role): Promise<UserRolesResponse> {
+  const response = await request(
+    `/users/${encodeURIComponent(userId)}/roles/${role}`,
+    { method: 'DELETE' },
+    true,
+  )
+  return response.json()
+}
+
+// Admin: deactivate / reactivate
+export async function updateUserStatus(userId: string, isActive: boolean): Promise<AdminUser> {
+  const response = await request(
+    `/users/${encodeURIComponent(userId)}/status`,
+    { method: 'PATCH', body: JSON.stringify({ isActive }) },
     true,
   )
   return response.json()

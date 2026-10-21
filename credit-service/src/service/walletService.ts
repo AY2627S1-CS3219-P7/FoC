@@ -10,9 +10,16 @@ import { type Wallet } from "../models/types.ts";
 export const initializeWalletService = async (userId: string): Promise<Wallet> => {
     const initialCredits = parseInt(process.env.INITIAL_CREDITS || '50', 10);
     const query = `
-        INSERT INTO wallets (user_id, available_credits, reserved_credits)
-        VALUES ($1, $2, 0)
-        RETURNING *;
+        WITH new_wallet AS (
+            INSERT INTO wallets (user_id, available_credits, reserved_credits)
+            VALUES ($1, $2, 0)
+            RETURNING *
+        ), initial_tx AS (
+            INSERT INTO transaction_records (user_id, order_id, type, amount)
+            SELECT user_id, NULL, 'INITIAL', available_credits FROM new_wallet
+            WHERE available_credits > 0
+        )
+        SELECT * FROM new_wallet;
     `;
     const result = await pool.query<Wallet>(query, [userId, initialCredits]);
     return result.rows[0];

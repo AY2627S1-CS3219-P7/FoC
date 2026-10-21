@@ -12,6 +12,7 @@ import {
   isValidPassword,
 } from "../utils/validators.js";
 import { hashPassword, comparePassword } from "../utils/password.js";
+import { initializeWallet } from "./creditService.js";
 import type { Role, User } from "../models/types.js";
 
 // ============================================================
@@ -115,6 +116,8 @@ export const register = async (input: RegisterInput): Promise<User> => {
         [userRow.id, role.id]
       );
     }
+
+    await initializeWallet(userRow.id);
 
     await client.query("COMMIT");
 

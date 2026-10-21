@@ -1,14 +1,13 @@
 services:
-  user-service-db:
+  user-service-postgres:
     image: postgres:15-alpine
-    container_name: user_service_postgres
     restart: always
     environment:
       POSTGRES_DB: ${DB_DATABASE:?DB_DATABASE is required}
       POSTGRES_USER: ${DB_USER:?DB_USER is required}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     ports:
-      - "${DB_EXTERNAL_PORT:?DB_EXTERNAL_PORT is required}:5432"
+      - "${DB_EXTERNAL_PORT:-5434}:5432"
     volumes:
       - ./migrations/up:/docker-entrypoint-initdb.d
       - user_db_data:/var/lib/postgresql/data
@@ -22,29 +21,23 @@ services:
     build:
       context: ..
       dockerfile: ./user-service/Dockerfile
-    container_name: user_service_app
     restart: unless-stopped
     depends_on:
-      user-service-db:
+      user-service-postgres:
         condition: service_healthy
     ports:
-      - "${PORT:?PORT is required}:3002"
+      - "${PORT:-3002}:3002"
     environment:
-      NODE_PATH: /app/user-service/node_modules
-      PORT: ${PORT:?PORT is required}
+      PORT: ${PORT:-3002}
       NODE_ENV: ${NODE_ENV:-development}
-      DB_HOST: user-service-db
+      CREDIT_SERVICE_URL: ${CREDIT_SERVICE_URL:-http://credit-service-api:3004}
+      DB_HOST: user-service-postgres
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}
       DB_USER: ${DB_USER:?DB_USER is required}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:?INITIAL_ADMIN_EMAIL is required}
-      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:?INITIAL_ADMIN_PASSWORD is required}
-      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-admin}
-      INITIAL_ADMIN_FIRST_NAME: ${INITIAL_ADMIN_FIRST_NAME:-System}
-      INITIAL_ADMIN_LAST_NAME: ${INITIAL_ADMIN_LAST_NAME:-Admin}
 
 volumes:
   user_db_data:

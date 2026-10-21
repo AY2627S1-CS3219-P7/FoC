@@ -1,8 +1,15 @@
+<!--
+AI Assistance Disclosure
+Tool: GitHub Copilot, date: 2026-10-20
+Scope: Document Gateway as a routing-only proxy that forwards auth to owning services.
+Author review: Review pending.
+-->
+
 # API Gateway
 
 ## At a glance
 
-This gateway is the single entry point for frontend traffic in FoC. It validates JWTs, forwards authenticated requests to downstream services, and keeps public auth flows open.
+This gateway is the entry point for frontend traffic in FoC. It routes requests to downstream services; each service validates authentication and authorization for its own endpoints.
 
 It currently proxies requests to:
 
@@ -15,7 +22,6 @@ This service is built with:
 - Node.js
 - Express
 - http-proxy-middleware
-- JWT
 - CORS
 
 ## 1. Base URL
@@ -24,17 +30,15 @@ This service is built with:
 
 ## 2. Routing behavior
 
-### Public routes
+### Forwarded routes
 
-These routes are forwarded without requiring auth:
+The gateway forwards these routes without validating credentials. Authentication and authorization are enforced by the owning service:
 
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
-
-### Auth-required routes
-
-These routes require the Gateway auth middleware before forwarding:
+- `GET /api/credit/wallet/:user_id`
+- `GET /api/credit/tx/:user_id`
 
 - `POST /api/auth/logout`
 - `GET /api/users/*`
@@ -48,9 +52,10 @@ These routes require the Gateway auth middleware before forwarding:
 
 ### Notes
 
-- The gateway injects `x-request-id`, `x-user-id`, and `x-user-roles` into proxied requests when available.
-- It strips any previously set user-role headers before re-injecting the validated values.
+- The gateway forwards the `Authorization` header to downstream services.
+- It adds or forwards `x-request-id` for request tracing.
 - If a downstream service is unavailable, the gateway returns `502 Bad Gateway`.
+- Credit wallet and transaction reads require a Bearer token whose user ID matches `:user_id`.
 
 ## 3. Quick start
 
@@ -76,7 +81,17 @@ Expected response:
 }
 ```
 
-## 4. Required environment variables
+## 4. Run the Gateway container independently
+
+Start the User and Supplier Services separately and make sure they publish host ports `3002` and `3001`. Then, from this directory, run:
+
+```bash
+docker compose up --build
+```
+
+The standalone Compose file routes from the Gateway container to those host-published ports through `host.docker.internal`. Do not run it at the same time as the root Compose stack, which also binds port `8080`.
+
+## 5. Required environment variables
 
 Typical `.env` values:
 
@@ -86,21 +101,17 @@ NODE_ENV=development
 FRONTEND_ORIGIN=http://localhost:5173
 USER_SERVICE_URL=http://localhost:3002
 SUPPLIER_SERVICE_URL=http://localhost:3001
-JWT_SECRET=your-super-secret-jwt-key
 ```
 
 Important:
 
-- `JWT_SECRET` is required
 - `FRONTEND_ORIGIN` must match the frontend origin allowed by CORS
 
-## 5. Auth flow
+## 6. Auth flow
 
-The gateway validates the incoming JWT before forwarding protected requests. It relies on the shared auth middleware and then passes through the authenticated user context to downstream services via headers.
+The gateway does not validate JWTs or attach user identity headers. It forwards requests, including `Authorization`, and the receiving service decides whether the route requires authentication and which roles are allowed.
 
-If the token is missing or invalid, protected routes return an auth error before proxying.
-
-## 6. Example requests
+## 7. Example requests
 
 ### Login via gateway
 
@@ -131,13 +142,13 @@ curl -X POST http://localhost:8080/api/auth/logout \
   }'
 ```
 
-## 7. Production notes
+## 8. Production notes
 
 - Run the gateway in the same network environment as the backend services.
 - Ensure `USER_SERVICE_URL` and `SUPPLIER_SERVICE_URL` match the actual service addresses.
 - Keep the gateway as the only externally exposed backend entry point for the frontend.
 
-## 8. Collaboration notes
+## 9. Collaboration notes
 
 Use this checklist when you want to register a new backend service into the gateway. The goal is to make the service reachable via the gateway without changing the frontend to call the service directly.
 
@@ -181,25 +192,12 @@ const orderServiceProxy = createJsonProxy(
 Then mount it in the gateway:
 
 ```ts
-app.use(authMiddleware, orderServiceProxy);
+app.use(orderServiceProxy);
 ```
 
-If the route is public, mount it without `authMiddleware`.
+### Step 5: Protect routes in the owning service
 
-### Step 5: Decide whether the route is public or protected
-
-- Public route example: `POST /api/auth/login`
-- Protected route example: `POST /api/orders`
-
-Use this rule:
-
-- If it should be accessed without a JWT, mount it directly.
-- If it should require a user session, attach `authMiddleware` before the proxy.
-
-Examples:
-
-- Public: `POST /api/auth/login` -> no auth middleware, because anyone can log in.
-- Protected: `POST /api/orders` -> `app.use(authMiddleware, orderServiceProxy)`, because only logged-in users should create orders.
+Add the service's own authentication and authorization middleware to protected routes. Keep public routes unprotected in that service.
 
 ### Step 6: Keep the route path consistent
 
@@ -255,7 +253,7 @@ const orderServiceProxy = createJsonProxy(
   (path) => path.startsWith("/api/orders")
 );
 
-app.use(authMiddleware, orderServiceProxy);
+app.use(orderServiceProxy);
 ```
 
 5. Test with `http://localhost:8080/api/orders`

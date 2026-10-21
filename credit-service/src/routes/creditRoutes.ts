@@ -5,8 +5,15 @@
  * Author review: Reviewed and manually edited to allow the correct roles for each route (file was copied from supplier service)
  */
 
+/**
+ * AI Assistance Disclosure
+ * Tool: GitHub Copilot, date: 2026-10-20
+ * Scope: Protect user-scoped wallet and transaction reads; keep write routes internal to service callers.
+ * Author review: Review pending.
+ */
+
 import express from "express";
-// import { authMiddleware, authorizeRoles  } from '../middleware/authMiddleware.ts';
+import { authMiddleware, authorizeSelf  } from '../middleware/authMiddleware.ts';
 import { initializeWallet, getWallet} from "../controllers/walletController.ts";
 import { getTransactionsByUser, reserveCredits, transferCredits, releaseCredits } from "../controllers/transactionController.ts";
 
@@ -23,10 +30,10 @@ router.get("/health", (req, res) => {
 router.post("/wallet/:user_id", initializeWallet);
 
 // GET api/credit/wallet/:user_id
-router.get("/wallet/:user_id", getWallet);
+router.get("/wallet/:user_id", authMiddleware, authorizeSelf, getWallet);
 
 // GET api/credit/tx/:user_id
-router.get("/tx/:user_id", getTransactionsByUser);
+router.get("/tx/:user_id", authMiddleware, authorizeSelf, getTransactionsByUser);
 
 // POST api/credit/tx/reserve
 router.post("/tx/reserve", reserveCredits);

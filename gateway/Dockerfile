@@ -5,12 +5,9 @@
 # Author review: Reviewed and validated against the finalized project design.
 
 # AI Assistance Disclosure:
-# Tool: ChatGPT (model: GPT-5.6 Luna), date: 2026-10-02
-# Scope: Adjusted the Gateway Docker build context to include the shared
-# monorepo common module so TypeScript can resolve the unified auth contract
-# during containerized build steps.
-# Author review: Reviewed and validated against the monorepo layout and the
-# Gateway Docker build dependency on the shared common package.
+# Tool: GitHub Copilot, date: 2026-10-20
+# Scope: Remove Gateway's build dependency on the shared common module.
+# Author review: Review pending.
 
 # Stage 1: Build
 FROM node:20-alpine AS builder
@@ -21,7 +18,6 @@ COPY package*.json ./
 RUN npm install
 
 COPY gateway/package*.json gateway/tsconfig*.json ./gateway/
-COPY common ./common
 RUN cd gateway && npm ci
 
 COPY gateway ./gateway

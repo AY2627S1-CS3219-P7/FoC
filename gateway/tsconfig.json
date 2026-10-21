@@ -1,11 +1,12 @@
+// AI Assistance Disclosure:
+// Tool: GitHub Copilot, date: 2026-10-20
+// Scope: Remove Gateway's TypeScript dependency on common auth files.
+// Author review: Review pending.
 {
   "compilerOptions": {
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "paths": {
-      "@common/*": ["../common/*"]
-    },
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -15,5 +16,5 @@
     "outDir": "dist",
     "rootDir": ".."
   },
-  "include": ["src/**/*.ts", "../common/**/*.ts"]
+  "include": ["src/**/*.ts"]
 }

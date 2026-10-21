@@ -4,6 +4,8 @@ import type { StringValue } from "ms";
 export const env = {
   port: Number(process.env.PORT) || 3002,
   nodeEnv: process.env.NODE_ENV || "development",
+  creditServiceUrl:
+    process.env.CREDIT_SERVICE_URL || "http://localhost:3004",
 
   db: {
     host: process.env.DB_HOST || "localhost",
