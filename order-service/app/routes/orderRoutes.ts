@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate, requireRoles } from "@common/index.js";
+import { authenticate, requireRoles } from "../middleware/auth.ts";
 import {
   acceptOrder,
   cancelOrder,

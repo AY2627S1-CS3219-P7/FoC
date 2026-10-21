@@ -1,5 +1,5 @@
 import type { Request, RequestHandler } from "express";
-import type { AuthenticatedUser } from "@common/index.js";
+import type { AuthenticatedUser } from "../middleware/auth.ts";
 import * as orderService from "../service/orderService.ts";
 import { unauthorized } from "../utils/httpError.ts";
 

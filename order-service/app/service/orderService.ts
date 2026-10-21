@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Op, type Transaction, type WhereOptions } from "sequelize";
-import type { AuthenticatedUser } from "@common/index.js";
+import type { AuthenticatedUser } from "../middleware/auth.ts";
 import { Order, sequelize } from "../models/index.ts";
 import type { OrderInstance } from "../models/orderModel.ts";
 import {
