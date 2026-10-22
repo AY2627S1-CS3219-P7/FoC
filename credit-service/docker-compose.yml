@@ -15,7 +15,7 @@ services:
       - "${CREDIT_DB_EXTERNAL_PORT:-5436}:5432"
     volumes:
       - ./migrations/up:/docker-entrypoint-initdb.d
-      - ./data/postgres:/var/lib/postgresql/data
+      - credit-postgres-data:/var/lib/postgresql/data
   credit-service-api:
     build:
       context: ..
@@ -33,3 +33,5 @@ services:
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
     depends_on:
       - credit-service-postgres
+volumes:
+  credit-postgres-data:
