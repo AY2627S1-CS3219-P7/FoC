@@ -13,34 +13,37 @@
  */
 
 import express from "express";
-import { authMiddleware, authorizeSelf  } from '../middleware/authMiddleware.ts';
+import { authMiddleware, authorizeRoles, verifyUserIdentityOrAdmin } from '../middleware/authMiddleware.ts';
 import { initializeWallet, getWallet} from "../controllers/walletController.ts";
 import { getTransactionsByUser, reserveCredits, transferCredits, releaseCredits } from "../controllers/transactionController.ts";
 
 const router = express.Router();
-// const requireAnyRole = authorizeRoles("ADMIN", "REQUESTER", "COURIER");
-// const requireAdminRole = authorizeRoles("ADMIN")
+const requireAnyRole = authorizeRoles("ADMIN", "REQUESTER", "COURIER");
+const requireAdminRole = authorizeRoles("ADMIN")
 
 router.get("/health", (req, res) => {
   console.log("credit service running")
   res.status(200).json({ status: "ok" });
 });
 
-// POST api/credit/wallet/:user_id
+
+// CLIENT FACING ROUTES
+// GET api/credit/wallet/:user_id
+router.get("/wallet/:user_id", authMiddleware, requireAnyRole, verifyUserIdentityOrAdmin, getWallet);
+
+// GET api/credit/tx/:user_id 
+router.get("/tx/:user_id", authMiddleware, requireAnyRole, verifyUserIdentityOrAdmin, getTransactionsByUser);
+
+// INTERNAL ROUTES (admins can also call these api)
+// POST api/credit/wallet/:user_id - to be called by user service for initialisation of new user
 router.post("/wallet/:user_id", initializeWallet);
 
-// GET api/credit/wallet/:user_id
-router.get("/wallet/:user_id", authMiddleware, authorizeSelf, getWallet);
-
-// GET api/credit/tx/:user_id
-router.get("/tx/:user_id", authMiddleware, authorizeSelf, getTransactionsByUser);
-
-// POST api/credit/tx/reserve
+// POST api/credit/tx/reserve - to be called by order service for creation of order
 router.post("/tx/reserve", reserveCredits);
 
-// POST api/credit/tx/transfer
+// POST api/credit/tx/transfer - to be triggered by event
 router.post("/tx/transfer", transferCredits);
 
-// POST api/credit/tx/release
+// POST api/credit/tx/release - to be triggered by event
 router.post("/tx/release", releaseCredits);
 export default router;

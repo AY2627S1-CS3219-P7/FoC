@@ -81,23 +81,24 @@ export const authorizeRoles = (...allowedRoles: Role[]) =>
 		next();
 	};
 
-export const authorizeSelf = (
-	req: Request,
-	res: Response,
-	next: NextFunction
+export const verifyUserIdentityOrAdmin = (
+    req: Request,
+    res: Response,
+    next: NextFunction
 ): void => {
-	if (!req.user) {
-		unauthorized(res);
-		return;
-	}
+    if (!req.user) {
+        unauthorized(res);
+        return;
+    }
+    const loggedInUserId = req.user.id;
+    const requestedUserId = req.params.user_id;
+    
+    const isAdmin = req.user.roles.includes("ADMIN");
 
-	const requestedUserId = req.params.user_id;
-	if (req.user.id !== requestedUserId) {
-		res.status(403).json({ status: 403, message: "Forbidden." });
-		return;
-	}
-
-	next();
+    if (isAdmin || loggedInUserId === requestedUserId) {
+        return next();
+    }
+    res.status(403).json({ status: 403, message: "Forbidden" });
 };
 
 export default authMiddleware;

@@ -8,7 +8,7 @@ import { type Wallet } from "../models/types.ts";
 
 
 export const initializeWalletService = async (userId: string): Promise<Wallet> => {
-    const initialCredits = parseInt(process.env.INITIAL_CREDITS || '50', 10);
+    const initialCredits = parseInt(process.env.INITIAL_CREDITS || '10', 10);
     const query = `
         WITH new_wallet AS (
             INSERT INTO wallets (user_id, available_credits, reserved_credits)

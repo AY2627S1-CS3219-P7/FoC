@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS wallets (
   user_id UUID PRIMARY KEY, 
-  available_credits INTEGER NOT NULL DEFAULT 0 CHECK (available_credits >= 0),
+  available_credits INTEGER NOT NULL DEFAULT 10 CHECK (available_credits >= 0),
   reserved_credits INTEGER NOT NULL DEFAULT 0 CHECK (reserved_credits >= 0),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
