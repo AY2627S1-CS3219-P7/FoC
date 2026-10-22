@@ -36,14 +36,14 @@ router.get("/tx/:user_id", authMiddleware, requireAnyRole, verifyUserIdentityOrA
 
 // INTERNAL ROUTES (admins can also call these api)
 // POST api/credit/wallet/:user_id - to be called by user service for initialisation of new user
-router.post("/wallet/:user_id", authMiddleware, requireAdminRole, initializeWallet);
+router.post("/wallet/:user_id", initializeWallet);
 
 // POST api/credit/tx/reserve - to be called by order service for creation of order
-router.post("/tx/reserve", authMiddleware, requireAdminRole, reserveCredits);
+router.post("/tx/reserve", reserveCredits);
 
 // POST api/credit/tx/transfer - to be triggered by event
-router.post("/tx/transfer", authMiddleware, requireAdminRole, transferCredits);
+router.post("/tx/transfer", transferCredits);
 
 // POST api/credit/tx/release - to be triggered by event
-router.post("/tx/release", authMiddleware, requireAdminRole, releaseCredits);
+router.post("/tx/release", releaseCredits);
 export default router;
