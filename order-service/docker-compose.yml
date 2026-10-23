@@ -1,0 +1,78 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:?DB_DATABASE must be set in .env}
+      POSTGRES_USER: ${DB_USER:?DB_USER must be set in .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
+    ports:
+      # Host port only, for connecting with a DB client. Containers talk to
+      # each other on 5432.
+      - "${DB_PORT:-5435}:5432"
+    volumes:
+      # Named volume: managed by Docker, nothing ends up in your repo
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Message broker. Management UI: http://localhost:15672
+  # NOTE: only ONE broker should exist when the whole team's services run
+  # together (see README, "Sharing RabbitMQ across services").
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?RABBITMQ_USER must be set in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set in .env}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_UI_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  api:
+    build:
+      # Repo root, so the image can include the shared common/ folder
+      context: ..
+      dockerfile: order-service/Dockerfile
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3003}:3003"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      CREDIT_SERVICE_URL: ${CREDIT_SERVICE_URL:?CREDIT_SERVICE_URL must be set in .env}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
+      DB_LOGGING: ${DB_LOGGING:-false}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3003/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
