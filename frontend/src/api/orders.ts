@@ -122,6 +122,11 @@ export function mapOrderRow(
     courier,
     courierId: row.courier_id,
     createdAt: row.created_at,
+    acceptedAt: row.accepted_at,
+    pickedUpAt: row.picked_up_at,
+    completedAt: row.completed_at,
+    cancelledAt: row.cancelled_at,
+    expiredAt: row.expired_at,
   }
 }
 

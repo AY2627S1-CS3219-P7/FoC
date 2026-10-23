@@ -51,6 +51,7 @@ import {
   orderProgressSteps,
   orderStatusDisplay,
   type Order,
+  type OrderStatus,
 } from '../orders/orderTypes'
 
 type OrderRequestResult = {
@@ -133,11 +134,19 @@ function OrderProgress({ order }: { order: Order }) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const activeStep = orderProgressSteps.indexOf(order.status)
+  const stepTimes: Partial<Record<OrderStatus, string | null | undefined>> = {
+    OPEN: order.createdAt,
+    ACCEPTED: order.acceptedAt,
+    PICKED_UP: order.pickedUpAt,
+    COMPLETED: order.completedAt,
+  }
 
   if (activeStep === -1) {
+    const endedAt = order.status === 'CANCELLED' ? order.cancelledAt : order.expiredAt
     return (
       <Alert severity={order.status === 'CANCELLED' ? 'warning' : 'info'}>
         {orderStatusDisplay[order.status].description}
+        {endedAt ? ` ${formatDateTime(endedAt)}.` : ''}
       </Alert>
     )
   }
@@ -149,11 +158,22 @@ function OrderProgress({ order }: { order: Order }) {
       orientation={isMobile ? 'vertical' : 'horizontal'}
       sx={{ '& .MuiStepLabel-label': { fontWeight: 650 } }}
     >
-      {orderProgressSteps.map((status) => (
-        <Step key={status}>
-          <StepLabel>{orderStatusDisplay[status].label}</StepLabel>
-        </Step>
-      ))}
+      {orderProgressSteps.map((status) => {
+        const stepTime = stepTimes[status]
+        return (
+          <Step key={status}>
+            <StepLabel
+              optional={
+                stepTime ? (
+                  <Typography variant="caption">{formatDateTime(stepTime)}</Typography>
+                ) : undefined
+              }
+            >
+              {orderStatusDisplay[status].label}
+            </StepLabel>
+          </Step>
+        )
+      })}
     </Stepper>
   )
 }
@@ -397,6 +417,15 @@ function OrderDetailsPage() {
                 }
               />
               <DetailField label="Created" value={formatDateTime(order.createdAt)} />
+              {order.acceptedAt && (
+                <DetailField label="Accepted" value={formatDateTime(order.acceptedAt)} />
+              )}
+              {order.pickedUpAt && (
+                <DetailField label="Picked up" value={formatDateTime(order.pickedUpAt)} />
+              )}
+              {order.completedAt && (
+                <DetailField label="Delivered" value={formatDateTime(order.completedAt)} />
+              )}
               {order.updatedAt && (
                 <DetailField label="Last updated" value={formatDateTime(order.updatedAt)} />
               )}
