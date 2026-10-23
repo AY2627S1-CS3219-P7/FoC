@@ -35,7 +35,6 @@ import {
   cancelOrder,
   confirmDelivery,
   fetchOrderById,
-  isOrderApiConnected,
   markOrderDelivered,
   markOrderPickedUp,
 } from '../api/orders'
@@ -187,7 +186,9 @@ function resolveDetailContext(
   if (!onFulfil && !onTasks) return 'requester'
   if (!order) return onFulfil ? 'fulfil' : 'tasks'
 
-  const assignedToMe = Boolean(userId && order.courier?.id === userId)
+  const assignedToMe = Boolean(
+    userId && (order.courier?.id === userId || order.courierId === userId),
+  )
   if (assignedToMe) return 'tasks'
   // OPEN and not this courier: still in the available-requests workflow.
   if (order.status === 'OPEN') return 'fulfil'
@@ -251,9 +252,9 @@ function OrderDetailsPage() {
       } else if (pendingAction === 'confirm') {
         updatedOrder = await confirmDelivery(order.id)
       } else if (pendingAction === 'accept') {
-        updatedOrder = await acceptOrder(order.id)
+        await acceptOrder(order.id)
         setPendingAction(null)
-        navigate(`/my-tasks/${updatedOrder.id}`, { replace: true })
+        navigate('/my-tasks?tab=active', { replace: true })
         return
       } else if (pendingAction === 'pick-up') {
         updatedOrder = await markOrderPickedUp(order.id)
@@ -305,7 +306,12 @@ function OrderDetailsPage() {
     const showConfirm =
       detailContext === 'requester' && canRequesterConfirmDelivery(order.status)
     const showAccept =
-      detailContext === 'fulfil' && canCourierAccept(order.status) && !order.courier
+      detailContext === 'fulfil' &&
+      canCourierAccept(order.status) &&
+      !order.courierId &&
+      order.requester.id !== user?.id
+    const waitingForRequester =
+      detailContext === 'tasks' && order.status === 'PICKED_UP'
     const showPickUp = detailContext === 'tasks' && canCourierMarkPickedUp(order.status)
     const showDeliver = detailContext === 'tasks' && canCourierMarkDelivered(order.status)
     const hasActions =
@@ -330,12 +336,6 @@ function OrderDetailsPage() {
             <OrderStatusChip status={order.status} size="medium" />
           </Box>
         </Stack>
-
-        {!isOrderApiConnected() && (
-          <Alert severity="info">
-            Showing preview data. Actions will report an error until the Order Service is connected.
-          </Alert>
-        )}
 
         <Paper
           variant="outlined"
@@ -388,13 +388,27 @@ function OrderDetailsPage() {
               <DetailField label="Requester" value={formatParticipantName(order.requester)} />
               <DetailField
                 label="Courier"
-                value={order.courier ? formatParticipantName(order.courier) : 'Not assigned yet'}
+                value={
+                  order.courier
+                    ? formatParticipantName(order.courier)
+                    : order.courierId
+                      ? 'Assigned'
+                      : 'Not assigned yet'
+                }
               />
               <DetailField label="Created" value={formatDateTime(order.createdAt)} />
-              <DetailField label="Last updated" value={formatDateTime(order.updatedAt)} />
+              {order.updatedAt && (
+                <DetailField label="Last updated" value={formatDateTime(order.updatedAt)} />
+              )}
             </Box>
           </Stack>
         </Paper>
+
+        {waitingForRequester && (
+          <Alert severity="info">
+            Picked up. Waiting for the requester to confirm delivery.
+          </Alert>
+        )}
 
         {hasActions && (
           <Paper

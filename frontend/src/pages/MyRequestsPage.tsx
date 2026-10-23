@@ -20,7 +20,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Link } from 'react-router-dom'
-import { fetchMyRequests, isOrderApiConnected } from '../api/orders'
+import { fetchMyRequests } from '../api/orders'
 import { ClipboardIcon, IconBadge } from '../components/CampusArt'
 import OrderCard from '../components/OrderCard'
 import {
@@ -214,12 +214,6 @@ function MyRequestsPage() {
             New request
           </Button>
         </Stack>
-
-        {!isOrderApiConnected() && (
-          <Alert severity="info">
-            Showing preview data. Requests will load from the Order Service once it is connected.
-          </Alert>
-        )}
 
         {loading ? (
           <Box role="status" aria-label="Loading requests" sx={orderGridSx}>

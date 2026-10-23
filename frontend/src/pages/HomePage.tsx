@@ -33,7 +33,6 @@ type QuickAction = {
   to: string
   icon: ReactNode
   tone: 'blue' | 'teal' | 'amber'
-  underDevelopment?: boolean
 }
 
 function HomePage() {
@@ -52,7 +51,6 @@ function HomePage() {
         to: '/suppliers',
         icon: <ClipboardIcon />,
         tone: 'blue',
-        underDevelopment: true,
       },
       {
         title: 'Browse Suppliers',
@@ -67,7 +65,6 @@ function HomePage() {
         to: '/requests',
         icon: <ClipboardIcon />,
         tone: 'blue',
-        underDevelopment: true,
       },
     )
   }
@@ -80,7 +77,6 @@ function HomePage() {
         to: '/fulfil',
         icon: <DeliveryBagIcon />,
         tone: 'teal',
-        underDevelopment: true,
       },
       {
         title: 'My Tasks',
@@ -88,7 +84,6 @@ function HomePage() {
         to: '/my-tasks',
         icon: <CheckTaskIcon />,
         tone: 'teal',
-        underDevelopment: true,
       },
     )
   }
@@ -224,15 +219,6 @@ function HomePage() {
                           {action.description}
                         </Typography>
                       </Stack>
-                      {action.underDevelopment && (
-                        <Chip
-                          label="Under development"
-                          size="small"
-                          color="secondary"
-                          variant="outlined"
-                          sx={{ alignSelf: 'flex-start' }}
-                        />
-                      )}
                     </Stack>
                   </CardContent>
                 </CardActionArea>
@@ -245,11 +231,6 @@ function HomePage() {
             or Admin access.
           </Alert>
         )}
-
-        <Alert severity="info" variant="outlined" sx={{ bgcolor: 'background.paper' }}>
-          Recent activity will appear here once the Order Service is connected. For now, use the
-          shortcuts above and the campus map to get started.
-        </Alert>
       </Stack>
     </Container>
   )

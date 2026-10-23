@@ -82,6 +82,31 @@ export async function fetchCurrentUser(): Promise<User | null> {
   }
 }
 
+export interface PublicUserProfile {
+  id: string
+  username: string
+  firstName: string
+  lastName: string
+  roles: Role[]
+}
+
+/** Looks up other users through User Service. Does not read the user database. */
+export async function fetchUsersByIds(userIds: string[]): Promise<PublicUserProfile[]> {
+  const uniqueIds = [...new Set(userIds.filter((id) => id.trim().length > 0))]
+  if (uniqueIds.length === 0) return []
+
+  try {
+    const response = await request('/users/batch', {
+      method: 'POST',
+      body: JSON.stringify({ userIds: uniqueIds }),
+    })
+    return (await response.json()) as PublicUserProfile[]
+  } catch (error) {
+    console.error(error)
+    return []
+  }
+}
+
 interface UpdateProfileInput {
   username?: string,
   email?: string,

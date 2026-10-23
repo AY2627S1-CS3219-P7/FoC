@@ -9,21 +9,397 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type MouseEvent } from 'react'
 import {
   Alert,
   Box,
   Button,
   Container,
+  IconButton,
+  InputAdornment,
   Paper,
+  Popover,
   Stack,
   TextField,
   Typography,
 } from '@mui/material'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import type { UserMode } from '../components/AppNavigation'
+import { createOrder } from '../api/orders'
 import { fetchSupplierById } from '../api/suppliers'
 import type { Supplier } from '../interfaces'
+
+function parseCreditAmount(value: string): number | null {
+  const trimmed = value.trim()
+  if (!/^\d+$/.test(trimmed)) return null
+  const amount = Number(trimmed)
+  if (!Number.isInteger(amount) || amount < 1) return null
+  return amount
+}
+
+function formatDayMonthYear(date: Date): string {
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${day}/${month}/${date.getFullYear()}`
+}
+
+function parseDayMonthYear(value: string): Date | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value.trim())
+  if (!match) return null
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  const date = new Date(year, month - 1, day)
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null
+  }
+  return date
+}
+
+function sameDay(left: Date, right: Date): boolean {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      sx={{ width: 22, height: 22, fill: 'currentColor' }}
+    >
+      <path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2zm11 8H6v8h12v-8zM6 6v2h12V6H6z" />
+    </Box>
+  )
+}
+
+const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+
+function AcceptanceDateField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (value: string) => void
+  disabled: boolean
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const selected = parseDayMonthYear(value)
+  const [visibleMonth, setVisibleMonth] = useState(() => selected ?? new Date())
+
+  function openCalendar(event: MouseEvent<HTMLElement>) {
+    setVisibleMonth(parseDayMonthYear(value) ?? new Date())
+    setAnchor(event.currentTarget)
+  }
+
+  const days = useMemo(() => {
+    const year = visibleMonth.getFullYear()
+    const month = visibleMonth.getMonth()
+    const startOffset = (new Date(year, month, 1).getDay() + 6) % 7
+    const count = new Date(year, month + 1, 0).getDate()
+    const cells: Array<Date | null> = Array.from({ length: startOffset }, () => null)
+    for (let day = 1; day <= count; day += 1) cells.push(new Date(year, month, day))
+    return cells
+  }, [visibleMonth])
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const monthLabel = visibleMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+
+  return (
+    <>
+      <TextField
+        label="Acceptance date"
+        placeholder="DD/MM/YYYY"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        fullWidth
+        required
+        disabled={disabled}
+        helperText="Day/month/year. Use the calendar to choose a day."
+        slotProps={{
+          input: {
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label="Choose a date"
+                  edge="end"
+                  disabled={disabled}
+                  onClick={openCalendar}
+                >
+                  <CalendarIcon />
+                </IconButton>
+              </InputAdornment>
+            ),
+          },
+        }}
+      />
+      <Popover
+        open={Boolean(anchor)}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Box sx={{ p: 2, width: 280 }}>
+          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+            <Button
+              size="small"
+              aria-label="Previous month"
+              onClick={() =>
+                setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))
+              }
+            >
+              ‹
+            </Button>
+            <Typography sx={{ fontWeight: 650 }}>{monthLabel}</Typography>
+            <Button
+              size="small"
+              aria-label="Next month"
+              onClick={() =>
+                setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))
+              }
+            >
+              ›
+            </Button>
+          </Stack>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 0.5 }}>
+            {WEEKDAYS.map((label) => (
+              <Typography
+                key={label}
+                variant="caption"
+                color="text.secondary"
+                sx={{ textAlign: 'center' }}
+              >
+                {label}
+              </Typography>
+            ))}
+            {days.map((day, index) =>
+              day ? (
+                <Button
+                  key={day.toISOString()}
+                  size="small"
+                  disabled={day < today}
+                  variant={selected && sameDay(day, selected) ? 'contained' : 'text'}
+                  onClick={() => {
+                    onChange(formatDayMonthYear(day))
+                    setAnchor(null)
+                  }}
+                  sx={{ minWidth: 0, px: 0 }}
+                >
+                  {day.getDate()}
+                </Button>
+              ) : (
+                <Box key={`empty-${index}`} />
+              ),
+            )}
+          </Box>
+        </Box>
+      </Popover>
+    </>
+  )
+}
+
+/** Parses DD/MM/YYYY plus HH:mm in local time. Returns an ISO string only when it is in the future. */
+function toFutureIso(dateText: string, timeText: string): string | null {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateText.trim())
+  const timeMatch = /^(\d{2}):(\d{2})$/.exec(timeText.trim())
+  if (!match || !timeMatch) return null
+
+  const day = Number(match[1])
+  const month = Number(match[2])
+  const year = Number(match[3])
+  const hours = Number(timeMatch[1])
+  const minutes = Number(timeMatch[2])
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0)
+  const valid =
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day &&
+    date.getHours() === hours &&
+    date.getMinutes() === minutes
+  if (!valid || date.getTime() <= Date.now()) return null
+  return date.toISOString()
+}
+
+function CreateRequestForm({ supplier }: { supplier: Supplier }) {
+  const navigate = useNavigate()
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [deliveryLocation, setDeliveryLocation] = useState('')
+  const [creditAmount, setCreditAmount] = useState('')
+  const [deadlineDate, setDeadlineDate] = useState('')
+  const [deadlineTime, setDeadlineTime] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+
+  const pickupLocation = `${supplier.name}, ${supplier.building}, Level ${supplier.floor}`
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const trimmedTitle = title.trim()
+    const trimmedDescription = description.trim()
+    const trimmedDelivery = deliveryLocation.trim()
+    const amount = parseCreditAmount(creditAmount)
+    const acceptBy = toFutureIso(deadlineDate, deadlineTime)
+
+    if (!trimmedTitle || trimmedTitle.length > 255) {
+      setErrorMessage('Title is required and must be 255 characters or fewer.')
+      return
+    }
+    if (trimmedDescription.length > 255) {
+      setErrorMessage('Item description must be 255 characters or fewer.')
+      return
+    }
+    if (!trimmedDelivery || trimmedDelivery.length > 255) {
+      setErrorMessage('Delivery location is required and must be 255 characters or fewer.')
+      return
+    }
+    if (amount === null) {
+      setErrorMessage('Credit amount must be a whole number of at least 1.')
+      return
+    }
+    if (!acceptBy) {
+      setErrorMessage(
+        'Enter a future deadline as day/month/year and a time, for example 23/10/2026 and 18:30.',
+      )
+      return
+    }
+
+    setSubmitting(true)
+    setErrorMessage('')
+    try {
+      await createOrder({
+        title: trimmedTitle,
+        description: trimmedDescription,
+        supplierId: supplier.id,
+        deliveryLocation: trimmedDelivery,
+        creditAmount: amount,
+        acceptBy,
+      })
+      navigate('/requests')
+    } catch (error) {
+      console.error(error)
+      setErrorMessage(error instanceof Error ? error.message : 'The request could not be created.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Container component="main" maxWidth="sm" sx={{ py: { xs: 3, md: 6 } }}>
+      <Stack spacing={3} component="form" onSubmit={handleSubmit}>
+        <Box>
+          <Typography component="h1" variant="h4">
+            Create Request
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
+            Pickup will be at {supplier.name}.
+          </Typography>
+        </Box>
+
+        {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 2.5, md: 3.5 },
+            borderColor: 'divider',
+            boxShadow: '0 8px 24px rgba(23, 35, 45, 0.05)',
+          }}
+        >
+          <Stack spacing={2.5}>
+            <TextField
+              label="Pickup location"
+              value={pickupLocation}
+              fullWidth
+              slotProps={{ input: { readOnly: true } }}
+              helperText="Prefilled from the selected supplier."
+            />
+            <TextField
+              label="Title"
+              placeholder="Chicken rice"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              fullWidth
+              required
+              disabled={submitting}
+              helperText="Short name sent as the order title."
+            />
+            <TextField
+              label="Item description"
+              placeholder="What should the courier collect?"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              fullWidth
+              multiline
+              minRows={3}
+              disabled={submitting}
+              helperText="Optional detail. Sent separately from the title."
+            />
+            <TextField
+              label="Delivery location"
+              placeholder="Where should it be delivered?"
+              value={deliveryLocation}
+              onChange={(event) => setDeliveryLocation(event.target.value)}
+              fullWidth
+              required
+              disabled={submitting}
+            />
+            <TextField
+              label="Credit amount offered"
+              placeholder="1"
+              type="number"
+              value={creditAmount}
+              onChange={(event) => setCreditAmount(event.target.value)}
+              fullWidth
+              required
+              disabled={submitting}
+              slotProps={{ htmlInput: { min: 1, step: 1 } }}
+              helperText="Whole number of at least 1."
+            />
+            <AcceptanceDateField
+              value={deadlineDate}
+              onChange={setDeadlineDate}
+              disabled={submitting}
+            />
+            <TextField
+              label="Acceptance time"
+              type="time"
+              value={deadlineTime}
+              onChange={(event) => setDeadlineTime(event.target.value)}
+              fullWidth
+              required
+              disabled={submitting}
+              slotProps={{ inputLabel: { shrink: true } }}
+              helperText="24-hour time. The deadline must be in the future."
+            />
+          </Stack>
+        </Paper>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <Button type="submit" variant="contained" disabled={submitting}>
+            {submitting ? 'Creating…' : 'Create request'}
+          </Button>
+          <Button
+            component={Link}
+            to={`/suppliers/${supplier.id}`}
+            variant="outlined"
+            disabled={submitting}
+            sx={{ alignSelf: { xs: 'flex-start', sm: 'auto' } }}
+          >
+            Back to supplier
+          </Button>
+        </Stack>
+      </Stack>
+    </Container>
+  )
+}
 
 type RequestCreationPageProps = {
   mode: UserMode
@@ -107,74 +483,7 @@ function RequestCreationPage({ mode }: RequestCreationPageProps) {
     )
   }
 
-  const pickupLocation = `${supplier.name}, ${supplier.building}, Level ${supplier.floor}`
-
-  return (
-    <Container component="main" maxWidth="sm" sx={{ py: { xs: 3, md: 6 } }}>
-      <Stack spacing={3}>
-        <Box>
-          <Typography component="h1" variant="h4">
-            Create Request
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 0.5 }}>
-            Pickup will be at {supplier.name}.
-          </Typography>
-        </Box>
-
-        <Alert severity="info">
-          Request creation is pending Order Service integration. Nothing on this page is submitted.
-        </Alert>
-
-        <Paper
-          variant="outlined"
-          sx={{
-            p: { xs: 2.5, md: 3.5 },
-            borderColor: 'divider',
-            boxShadow: '0 8px 24px rgba(23, 35, 45, 0.05)',
-          }}
-        >
-          <Stack spacing={2.5}>
-            <TextField
-              label="Pickup location"
-              value={pickupLocation}
-              fullWidth
-              slotProps={{ input: { readOnly: true } }}
-              helperText="Prefilled from the selected supplier."
-            />
-            <TextField
-              label="Item description"
-              placeholder="What should the courier collect?"
-              fullWidth
-              multiline
-              minRows={3}
-            />
-            <TextField
-              label="Delivery location"
-              placeholder="Where should it be delivered?"
-              fullWidth
-            />
-            <TextField
-              label="Credit amount offered"
-              placeholder="0"
-              type="number"
-              fullWidth
-              slotProps={{ htmlInput: { min: 0 } }}
-            />
-            <TextField
-              label="Acceptance deadline"
-              type="datetime-local"
-              fullWidth
-              slotProps={{ inputLabel: { shrink: true } }}
-            />
-          </Stack>
-        </Paper>
-
-        <Button component={Link} to={`/suppliers/${supplier.id}`} variant="outlined" sx={{ alignSelf: 'flex-start' }}>
-          Back to supplier
-        </Button>
-      </Stack>
-    </Container>
-  )
+  return <CreateRequestForm supplier={supplier} />
 }
 
 export default RequestCreationPage

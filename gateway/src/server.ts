@@ -154,6 +154,11 @@ const supplierServiceProxy = createJsonProxy(
   (path) => path.startsWith("/api/suppliers")
 );
 
+const orderServiceProxy = createJsonProxy(
+  env.orderServiceUrl,
+  (path) => path.startsWith("/api/orders")
+);
+
 const creditServiceProxy = createJsonProxy(
   env.creditServiceUrl,
   (path) =>

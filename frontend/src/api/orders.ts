@@ -1,260 +1,289 @@
-// TEMPORARY: the Order Service API is not available yet.
-// Every function here keeps the signature the views expect, so integration only
-// needs to replace the function bodies with `request('/orders...')` calls
-// (see ./client.ts) and remove the preview data below.
+// Requester and courier order screens call Order Service through the gateway.
 
-import type { Order } from '../orders/orderTypes'
-import { NotFoundError } from './client'
+import type { User } from '../interfaces'
+import type { Order, OrderParticipant, OrderPickup, OrderStatus } from '../orders/orderTypes'
+import { fetchSupplierById } from './suppliers'
+import { fetchCurrentUser, fetchUsersByIds, type PublicUserProfile } from './users'
+import { request } from './client'
 
-const NOT_CONNECTED_MESSAGE = 'Order Service is not connected yet.'
 
-// ---- Preview data (remove during integration) ----------------------------
+// ---- Chloe's Order Service JSON (snake_case, separate from the view model) ----
 
-const previewRequester = {
-  id: 'preview-requester',
-  username: 'you',
-  firstName: 'Preview',
-  lastName: 'Requester',
+export interface OrderApiRow {
+  order_id: string
+  requester_id: string
+  courier_id: string | null
+  status: OrderStatus
+  title: string
+  description: string
+  supplier_id: string
+  delivery_location: string
+  credit_amount: number
+  accept_by: string
+  created_at: string
+  accepted_at: string | null
+  picked_up_at: string | null
+  completed_at: string | null
+  cancelled_at: string | null
+  expired_at: string | null
 }
 
-const previewCourier = {
-  id: 'preview-courier',
-  username: 'courier01',
-  firstName: 'Alex',
-  lastName: 'Lim',
+export interface OrderApiPage {
+  data: OrderApiRow[]
+  total: number
+  limit: number
+  offset: number
 }
 
-const previewOrders: Order[] = [
-  {
-    id: '3f1c9a20-0001-4a00-8000-000000000001',
-    status: 'OPEN',
-    itemDescription: 'Chicken rice, no chilli',
-    pickup: { supplierId: 'preview-1', supplierName: 'Fine Food', building: 'Town Plaza', floor: '1' },
-    deliveryLocation: 'COM3, Seminar Room 1',
-    creditAmount: 5,
-    acceptanceDeadline: '2026-10-20T12:30:00+08:00',
-    requester: previewRequester,
-    courier: null,
-    createdAt: '2026-10-15T10:00:00+08:00',
-    updatedAt: '2026-10-15T10:00:00+08:00',
-  },
-  {
-    id: '3f1c9a20-0002-4a00-8000-000000000002',
-    status: 'ACCEPTED',
-    itemDescription: 'Print 20 pages of lecture notes (black and white)',
-    pickup: { supplierId: 'preview-2', supplierName: 'Print Hub', building: 'Central Library', floor: '3' },
-    deliveryLocation: 'UTown Residence, Lobby',
-    creditAmount: 3,
-    acceptanceDeadline: null,
-    requester: previewRequester,
-    courier: previewCourier,
-    createdAt: '2026-10-14T15:20:00+08:00',
-    updatedAt: '2026-10-14T15:45:00+08:00',
-  },
-  {
-    id: '3f1c9a20-0003-4a00-8000-000000000003',
-    status: 'PICKED_UP',
-    itemDescription: 'Iced latte, less sugar',
-    pickup: { supplierId: 'preview-3', supplierName: 'Campus Café', building: 'Frontier', floor: '1' },
-    deliveryLocation: 'Science Library, Study Area',
-    creditAmount: 4,
-    acceptanceDeadline: null,
-    requester: previewRequester,
-    courier: previewCourier,
-    createdAt: '2026-10-14T09:00:00+08:00',
-    updatedAt: '2026-10-14T09:40:00+08:00',
-  },
-  {
-    id: '3f1c9a20-0004-4a00-8000-000000000004',
-    status: 'COMPLETED',
-    itemDescription: 'Stationery: two A4 notebooks',
-    pickup: { supplierId: 'preview-4', supplierName: 'Co-op', building: 'Yusof Ishak House', floor: '1' },
-    deliveryLocation: 'Engineering Block E4, Level 5',
-    creditAmount: 6,
-    acceptanceDeadline: null,
-    requester: previewRequester,
-    courier: previewCourier,
-    createdAt: '2026-10-10T11:00:00+08:00',
-    updatedAt: '2026-10-10T12:10:00+08:00',
-  },
-  {
-    id: '3f1c9a20-0005-4a00-8000-000000000005',
-    status: 'CANCELLED',
-    itemDescription: 'Bubble tea, 50% sugar',
-    pickup: { supplierId: 'preview-5', supplierName: 'Tea Bar', building: 'Town Plaza', floor: '1' },
-    deliveryLocation: 'Arts Faculty, AS7',
-    creditAmount: 3,
-    acceptanceDeadline: null,
-    requester: previewRequester,
-    courier: null,
-    createdAt: '2026-10-09T14:00:00+08:00',
-    updatedAt: '2026-10-09T14:05:00+08:00',
-  },
-  {
-    id: '3f1c9a20-0006-4a00-8000-000000000006',
-    status: 'EXPIRED',
-    itemDescription: 'Nasi lemak with fried egg',
-    pickup: { supplierId: 'preview-6', supplierName: 'The Deck', building: 'Arts Canteen', floor: '1' },
-    deliveryLocation: 'Business School, BIZ1',
-    creditAmount: 5,
-    acceptanceDeadline: '2026-10-08T12:00:00+08:00',
-    requester: previewRequester,
-    courier: null,
-    createdAt: '2026-10-08T10:30:00+08:00',
-    updatedAt: '2026-10-08T12:00:00+08:00',
-  },
-  // Extra preview rows so list pagination (6 per page) is visible for requester
-  // and courier views. Remove during Order Service integration.
-  ...Array.from({ length: 7 }, (_, index) => {
-    const n = index + 7
+const ORDER_PAGE_LIMIT = 100
+
+function itemDescriptionFrom(title: string, description: string): string {
+  const extra = description.trim()
+  if (!extra) return title
+  return `${title} — ${extra}`
+}
+
+function toParticipant(user: User): OrderParticipant {
+  return {
+    id: user.id,
+    username: user.username,
+    firstName: user.firstName,
+    lastName: user.lastName,
+  }
+}
+
+function unresolvedParticipant(id: string, role: 'requester' | 'user'): OrderParticipant {
+  return {
+    id,
+    username: 'unresolved',
+    firstName: 'Unresolved',
+    lastName: role,
+  }
+}
+
+function toPickup(row: OrderApiRow, supplier: Awaited<ReturnType<typeof fetchSupplierById>>): OrderPickup {
+  if (!supplier) {
     return {
-      id: `3f1c9a20-000${n}-4a00-8000-00000000000${n}`,
-      status: 'OPEN' as const,
-      itemDescription: `Extra open request ${n}`,
-      pickup: {
-        supplierId: `preview-${n}`,
-        supplierName: `Preview Store ${n}`,
-        building: 'Town Plaza',
-        floor: '2',
-      },
-      deliveryLocation: `COM1, Room ${100 + n}`,
-      creditAmount: 2 + (n % 4),
-      acceptanceDeadline: null,
-      requester: previewRequester,
-      courier: null,
-      createdAt: '2026-10-15T11:00:00+08:00',
-      updatedAt: '2026-10-15T11:00:00+08:00',
+      supplierId: row.supplier_id,
+      supplierName: 'Supplier unavailable',
+      building: '',
+      floor: '',
     }
-  }),
-  ...Array.from({ length: 2 }, (_, index) => {
-    const n = index + 14
-    return {
-      id: `3f1c9a20-00${n}-4a00-8000-0000000000${n}`,
-      status: 'ACCEPTED' as const,
-      itemDescription: `Extra accepted task ${n}`,
-      pickup: {
-        supplierId: `preview-${n}`,
-        supplierName: `Preview Store ${n}`,
-        building: 'Frontier',
-        floor: '1',
-      },
-      deliveryLocation: `AS6, Room ${300 + n}`,
-      creditAmount: 4,
-      acceptanceDeadline: null,
-      requester: previewRequester,
-      courier: previewCourier,
-      createdAt: '2026-10-13T11:00:00+08:00',
-      updatedAt: '2026-10-13T11:30:00+08:00',
-    }
-  }),
-  ...Array.from({ length: 5 }, (_, index) => {
-    const n = index + 16
-    return {
-      id: `3f1c9a20-00${n}-4a00-8000-0000000000${n}`,
-      status: 'COMPLETED' as const,
-      itemDescription: `Extra completed request ${n}`,
-      pickup: {
-        supplierId: `preview-${n}`,
-        supplierName: `Preview Store ${n}`,
-        building: 'UTown',
-        floor: '1',
-      },
-      deliveryLocation: `E4, Room ${200 + n}`,
-      creditAmount: 3 + (n % 3),
-      acceptanceDeadline: null,
-      requester: previewRequester,
-      courier: previewCourier,
-      createdAt: '2026-10-05T11:00:00+08:00',
-      updatedAt: '2026-10-05T12:00:00+08:00',
-    }
-  }),
-]
-
-// In development only, `?preview=loading|empty|error` forces a view state.
-function getPreviewMode(): string | null {
-  if (!import.meta.env.DEV) return null
-  return new URLSearchParams(window.location.search).get('preview')
+  }
+  return {
+    supplierId: supplier.id,
+    supplierName: supplier.name,
+    building: supplier.building,
+    floor: supplier.floor,
+  }
 }
 
-function simulateLatency<T>(value: T): Promise<T> {
-  const mode = getPreviewMode()
-  if (mode === 'loading') return new Promise<T>(() => {})
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (mode === 'error') reject(new Error('Preview error: orders could not be loaded.'))
-      else resolve(value)
-    }, 400)
-  })
+function participantFromProfile(profile: PublicUserProfile): OrderParticipant {
+  return {
+    id: profile.id,
+    username: profile.username,
+    firstName: profile.firstName,
+    lastName: profile.lastName,
+  }
 }
 
-// ---- API functions (replace bodies during integration) --------------------
+/** Maps one Order Service row into the screen model and fills names we can resolve. */
+export function mapOrderRow(
+  row: OrderApiRow,
+  currentUser: User | null,
+  supplier: Awaited<ReturnType<typeof fetchSupplierById>>,
+  profiles: ReadonlyMap<string, PublicUserProfile> = new Map(),
+): Order {
+  const requesterProfile = profiles.get(row.requester_id)
+  const requester = requesterProfile
+    ? participantFromProfile(requesterProfile)
+    : currentUser && currentUser.id === row.requester_id
+      ? toParticipant(currentUser)
+      : unresolvedParticipant(row.requester_id, 'requester')
 
-// Integration: GET /orders?role=requester (or the agreed endpoint)
-export async function fetchMyRequests(): Promise<Order[]> {
-  const orders = getPreviewMode() === 'empty' ? [] : previewOrders
-  return simulateLatency(orders)
+  const courierProfile = row.courier_id ? profiles.get(row.courier_id) : undefined
+  const courier = courierProfile
+    ? participantFromProfile(courierProfile)
+    : currentUser && row.courier_id === currentUser.id
+      ? toParticipant(currentUser)
+      : null
+
+  return {
+    id: row.order_id,
+    status: row.status,
+    title: row.title,
+    description: row.description,
+    itemDescription: itemDescriptionFrom(row.title, row.description),
+    pickup: toPickup(row, supplier),
+    deliveryLocation: row.delivery_location,
+    creditAmount: row.credit_amount,
+    acceptanceDeadline: row.accept_by,
+    requester,
+    courier,
+    courierId: row.courier_id,
+    createdAt: row.created_at,
+  }
 }
 
-// Integration: GET /orders/:orderId
-export async function fetchOrderById(orderId: string): Promise<Order> {
-  const order = previewOrders.find((item) => item.id === orderId)
-  const result = await simulateLatency(order)
-  if (!result) throw new NotFoundError('Not Found')
-  return result
+async function loadSupplier(supplierId: string) {
+  try {
+    return await fetchSupplierById(supplierId)
+  } catch (error) {
+    console.error(error)
+    return null
+  }
 }
 
-// Integration: GET /orders?status=OPEN (or the agreed available-requests endpoint)
-export async function fetchAvailableRequests(): Promise<Order[]> {
-  const available = previewOrders.filter((order) => order.status === 'OPEN')
-  const orders = getPreviewMode() === 'empty' ? [] : available
-  return simulateLatency(orders)
-}
-
-// Integration: GET /orders?role=courier (orders assigned to the logged-in courier)
-export async function fetchMyCourierTasks(): Promise<Order[]> {
-  const assigned = previewOrders.filter(
-    (order) =>
-      order.courier?.id === previewCourier.id &&
-      (order.status === 'ACCEPTED' ||
-        order.status === 'PICKED_UP' ||
-        order.status === 'COMPLETED'),
+async function loadProfiles(rows: OrderApiRow[]): Promise<Map<string, PublicUserProfile>> {
+  const userIds = rows.flatMap((row) =>
+    row.courier_id ? [row.requester_id, row.courier_id] : [row.requester_id],
   )
-  const orders = getPreviewMode() === 'empty' ? [] : assigned
-  return simulateLatency(orders)
+  const profiles = await fetchUsersByIds(userIds)
+  return new Map(profiles.map((profile) => [profile.id, profile]))
 }
 
-// Integration: the agreed cancel endpoint, e.g. POST /orders/:orderId/cancel
+async function enrichRows(rows: OrderApiRow[], currentUser: User | null): Promise<Order[]> {
+  const suppliers = new Map<string, Awaited<ReturnType<typeof fetchSupplierById>>>()
+  const [profiles] = await Promise.all([
+    loadProfiles(rows),
+    Promise.all(
+      [...new Set(rows.map((row) => row.supplier_id))].map(async (supplierId) => {
+        suppliers.set(supplierId, await loadSupplier(supplierId))
+      }),
+    ),
+  ])
+  return rows.map((row) =>
+    mapOrderRow(row, currentUser, suppliers.get(row.supplier_id) ?? null, profiles),
+  )
+}
+
+async function requireCurrentUser(): Promise<User> {
+  const currentUser = await fetchCurrentUser()
+  if (!currentUser) {
+    throw new Error('You need to be logged in to view orders.')
+  }
+  return currentUser
+}
+
+async function fetchOrderPage(params: URLSearchParams): Promise<OrderApiPage> {
+  const response = await request(`/orders?${params.toString()}`)
+  return (await response.json()) as OrderApiPage
+}
+
+async function fetchAllRows(filters: Record<string, string>): Promise<OrderApiRow[]> {
+  const rows: OrderApiRow[] = []
+  let offset = 0
+  let total = 0
+
+  do {
+    const params = new URLSearchParams({
+      ...filters,
+      limit: String(ORDER_PAGE_LIMIT),
+      offset: String(offset),
+    })
+    const page = await fetchOrderPage(params)
+    rows.push(...page.data)
+    total = page.total
+    offset += page.data.length
+    if (page.data.length === 0) break
+  } while (rows.length < total)
+
+  return rows
+}
+
+async function enrichOne(row: OrderApiRow): Promise<Order> {
+  const [orders] = await enrichRows([row], await fetchCurrentUser())
+  return orders
+}
+
+// ---- API functions --------------------------------------------------------
+
+export async function fetchMyRequests(): Promise<Order[]> {
+  const currentUser = await requireCurrentUser()
+  const rows = await fetchAllRows({ requester_id: currentUser.id })
+  return enrichRows(rows, currentUser)
+}
+
+export interface CreateOrderInput {
+  title: string
+  description: string
+  supplierId: string
+  deliveryLocation: string
+  creditAmount: number
+  acceptBy: string
+}
+
+/** POST /orders. The requester id comes from the token, not this body. */
+export async function createOrder(input: CreateOrderInput): Promise<Order> {
+  const response = await request('/orders', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: input.title,
+      description: input.description,
+      supplier_id: input.supplierId,
+      delivery_location: input.deliveryLocation,
+      credit_amount: input.creditAmount,
+      accept_by: input.acceptBy,
+    }),
+  })
+  return enrichOne((await response.json()) as OrderApiRow)
+}
+
+export async function fetchOrderById(orderId: string): Promise<Order> {
+  const response = await request(`/orders/${encodeURIComponent(orderId)}`)
+  const row = (await response.json()) as OrderApiRow
+  return enrichOne(row)
+}
+
+/** GET /orders with no owner filter. Order Service returns OPEN orders that have not expired. */
+export async function fetchAvailableRequests(): Promise<Order[]> {
+  const currentUser = await requireCurrentUser()
+  const rows = await fetchAllRows({})
+  return enrichRows(rows, currentUser)
+}
+
+/** GET /orders?courier_id={current user}. Includes every status assigned to this courier. */
+export async function fetchMyCourierTasks(): Promise<Order[]> {
+  const currentUser = await requireCurrentUser()
+  const rows = await fetchAllRows({ courier_id: currentUser.id })
+  return enrichRows(rows, currentUser)
+}
+
 export async function cancelOrder(orderId: string): Promise<Order> {
-  void orderId
-  throw new Error(NOT_CONNECTED_MESSAGE)
+  const response = await request(`/orders/${encodeURIComponent(orderId)}/cancel`, {
+    method: 'POST',
+  })
+  return enrichOne((await response.json()) as OrderApiRow)
 }
 
-// Integration: the agreed confirm endpoint, e.g. POST /orders/:orderId/confirm-delivery
+/** Requester confirms delivery. Order Service calls this complete, not the courier. */
 export async function confirmDelivery(orderId: string): Promise<Order> {
-  void orderId
-  throw new Error(NOT_CONNECTED_MESSAGE)
+  const response = await request(`/orders/${encodeURIComponent(orderId)}/complete`, {
+    method: 'POST',
+  })
+  return enrichOne((await response.json()) as OrderApiRow)
 }
 
-// Integration: POST /orders/:orderId/accept
 export async function acceptOrder(orderId: string): Promise<Order> {
-  void orderId
-  throw new Error(NOT_CONNECTED_MESSAGE)
+  const response = await request(`/orders/${encodeURIComponent(orderId)}/accept`, {
+    method: 'POST',
+  })
+  return enrichOne((await response.json()) as OrderApiRow)
 }
 
-// Integration: POST /orders/:orderId/pick-up (or PATCH status -> PICKED_UP)
 export async function markOrderPickedUp(orderId: string): Promise<Order> {
-  void orderId
-  throw new Error(NOT_CONNECTED_MESSAGE)
+  const response = await request(`/orders/${encodeURIComponent(orderId)}/pickup`, {
+    method: 'POST',
+  })
+  return enrichOne((await response.json()) as OrderApiRow)
 }
 
-// Integration: POST /orders/:orderId/deliver (or PATCH status -> COMPLETED)
-// Note: existing requester UI also confirms delivery at PICKED_UP. Align with
-// Order Service on whether courier or requester owns the final COMPLETED step.
+/** Courier completion is not an Order Service action. The requester calls complete. */
 export async function markOrderDelivered(orderId: string): Promise<Order> {
   void orderId
-  throw new Error(NOT_CONNECTED_MESSAGE)
+  throw new Error('Only the requester can confirm that a delivery is complete.')
 }
 
 export function isOrderApiConnected(): boolean {
-  return false
+  return true
 }

@@ -29,15 +29,23 @@ export interface OrderPickup {
 export interface Order {
   id: string
   status: OrderStatus
+  /** Display text. Real orders combine Chloe's title and description here. */
   itemDescription: string
+  /** Chloe's title, present on orders loaded from Order Service. */
+  title?: string
+  /** Chloe's description, present on orders loaded from Order Service. */
+  description?: string
   pickup: OrderPickup
   deliveryLocation: string
   creditAmount: number
   acceptanceDeadline: string | null
   requester: OrderParticipant
   courier: OrderParticipant | null
+  /** Set when the order has a courier id but that user's name is not loaded yet. */
+  courierId?: string | null
   createdAt: string
-  updatedAt: string
+  /** Order Service has no updated_at. Absent on real orders. */
+  updatedAt?: string
 }
 
 type ChipColor = 'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'
@@ -100,8 +108,9 @@ export function canCourierMarkPickedUp(status: OrderStatus): boolean {
   return status === 'ACCEPTED'
 }
 
-export function canCourierMarkDelivered(status: OrderStatus): boolean {
-  return status === 'PICKED_UP'
+/** The requester confirms completion. A courier does not mark an order delivered. */
+export function canCourierMarkDelivered(_status: OrderStatus): boolean {
+  return false
 }
 
 export type CourierAction = 'accept' | 'pick-up' | 'deliver'
@@ -126,7 +135,10 @@ export function formatParticipantName(participant: OrderParticipant): string {
 }
 
 export function formatPickupLocation(pickup: OrderPickup): string {
-  return `${pickup.supplierName}, ${pickup.building}, Level ${pickup.floor}`
+  const place = [pickup.building, pickup.floor ? `Level ${pickup.floor}` : '']
+    .filter((part) => part.trim().length > 0)
+    .join(', ')
+  return place ? `${pickup.supplierName}, ${place}` : pickup.supplierName
 }
 
 export function formatOrderId(id: string): string {
