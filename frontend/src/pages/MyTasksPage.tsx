@@ -25,12 +25,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Link, useSearchParams } from 'react-router-dom'
-import {
-  fetchMyCourierTasks,
-  isOrderApiConnected,
-  markOrderDelivered,
-  markOrderPickedUp,
-} from '../api/orders'
+import { fetchMyCourierTasks, markOrderPickedUp } from '../api/orders'
 import { CheckTaskIcon, IconBadge } from '../components/CampusArt'
 import OrderCard from '../components/OrderCard'
 import {
@@ -67,20 +62,10 @@ const orderGridSx = {
   gap: 2,
 }
 
-const courierActionCopy: Record<
-  Exclude<CourierAction, 'accept'>,
-  { title: string; body: string; confirmLabel: string }
-> = {
-  'pick-up': {
-    title: 'Mark as picked up?',
-    body: 'Confirm only after you have collected the item from the supplier.',
-    confirmLabel: 'Mark picked up',
-  },
-  deliver: {
-    title: 'Mark as delivered?',
-    body: 'Confirm only after you have handed the item to the requester.',
-    confirmLabel: 'Mark delivered',
-  },
+const pickupCopy = {
+  title: 'Mark as picked up?',
+  body: 'Confirm only after you have collected the item from the supplier.',
+  confirmLabel: 'Mark picked up',
 }
 
 function OrderCardSkeleton() {
@@ -198,10 +183,7 @@ function MyTasksPage() {
   const [tasksResult, setTasksResult] = useState<ListRequestResult | null>(null)
   const [activePage, setActivePage] = useState(1)
   const [pastPage, setPastPage] = useState(1)
-  const [pending, setPending] = useState<{
-    order: Order
-    action: Exclude<CourierAction, 'accept'>
-  } | null>(null)
+  const [pendingOrder, setPendingOrder] = useState<Order | null>(null)
   const [actionOrderId, setActionOrderId] = useState<string | null>(null)
   const [actionError, setActionError] = useState('')
 
@@ -243,20 +225,16 @@ function MyTasksPage() {
     setSearchParams(newTab === 'active' ? {} : { tab: newTab }, { replace: true })
   }
 
-  async function handleConfirmAction() {
-    if (!pending) return
+  async function handleConfirmPickup() {
+    if (!pendingOrder) return
 
-    const { order, action } = pending
-    setPending(null)
+    const order = pendingOrder
+    setPendingOrder(null)
     setActionOrderId(order.id)
     setActionError('')
 
     try {
-      if (action === 'pick-up') {
-        await markOrderPickedUp(order.id)
-      } else {
-        await markOrderDelivered(order.id)
-      }
+      await markOrderPickedUp(order.id)
       setReloadCount((count) => count + 1)
     } catch (error) {
       setActionError(
@@ -268,8 +246,8 @@ function MyTasksPage() {
   }
 
   function handleCourierAction(order: Order, action: CourierAction) {
-    if (action === 'accept') return
-    setPending({ order, action })
+    if (action !== 'pick-up') return
+    setPendingOrder(order)
   }
 
   return (
@@ -288,13 +266,6 @@ function MyTasksPage() {
             </Typography>
           </Stack>
         </Stack>
-
-        {!isOrderApiConnected() && (
-          <Alert severity="info">
-            Showing preview data. Courier actions will report an error until the Order Service is
-            connected.
-          </Alert>
-        )}
 
         {actionError && (
           <Alert severity="error" onClose={() => setActionError('')}>
@@ -368,27 +339,17 @@ function MyTasksPage() {
         )}
       </Stack>
 
-      <Dialog open={pending !== null} onClose={() => setPending(null)}>
-        {pending && (
-          <>
-            <DialogTitle>{courierActionCopy[pending.action].title}</DialogTitle>
-            <DialogContent>
-              <DialogContentText>
-                {courierActionCopy[pending.action].body}
-              </DialogContentText>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setPending(null)}>Back</Button>
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={() => void handleConfirmAction()}
-              >
-                {courierActionCopy[pending.action].confirmLabel}
-              </Button>
-            </DialogActions>
-          </>
-        )}
+      <Dialog open={pendingOrder !== null} onClose={() => setPendingOrder(null)}>
+        <DialogTitle>{pickupCopy.title}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{pickupCopy.body}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingOrder(null)}>Back</Button>
+          <Button variant="contained" color="secondary" onClick={() => void handleConfirmPickup()}>
+            {pickupCopy.confirmLabel}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Container>
   )

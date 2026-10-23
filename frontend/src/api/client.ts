@@ -146,7 +146,11 @@ export async function request(
     }
 
     const errorBody = await response.json().catch(() => null);
-    throw new ApiError(response.status, errorBody?.message ?? `Request failed: ${response.status}`);
+    const details = Array.isArray(errorBody?.errors)
+      ? errorBody.errors.filter((item: unknown) => typeof item === "string").join(" ")
+      : "";
+    const message = errorBody?.message ?? `Request failed: ${response.status}`;
+    throw new ApiError(response.status, details ? `${message}: ${details}` : message);
   }
 
   return response;

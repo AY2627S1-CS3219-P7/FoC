@@ -105,10 +105,22 @@ function OrderCard({
         ) : (
           <OrderField
             label="Courier"
-            value={order.courier ? formatParticipantName(order.courier) : 'Not assigned yet'}
+            value={
+              order.courier
+                ? formatParticipantName(order.courier)
+                : order.courierId
+                  ? 'Assigned'
+                  : 'Not assigned yet'
+            }
           />
         )}
       </Box>
+
+      {isCourier && order.status === 'PICKED_UP' && (
+        <Typography variant="body2" color="text.secondary">
+          Waiting for the requester to confirm delivery.
+        </Typography>
+      )}
 
       <Stack
         direction={{ xs: 'column', sm: 'row' }}

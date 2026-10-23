@@ -23,11 +23,8 @@ import {
   Typography,
 } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import {
-  acceptOrder,
-  fetchAvailableRequests,
-  isOrderApiConnected,
-} from '../api/orders'
+import { acceptOrder, fetchAvailableRequests } from '../api/orders'
+import { useAuth } from '../auth/AuthContext'
 import { DeliveryBagIcon, IconBadge } from '../components/CampusArt'
 import OrderCard from '../components/OrderCard'
 import {
@@ -91,6 +88,7 @@ function EmptySection({
 
 function FulfilRequestsPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [reloadCount, setReloadCount] = useState(0)
   const [result, setResult] = useState<ListRequestResult | null>(null)
   const [page, setPage] = useState(1)
@@ -167,12 +165,6 @@ function FulfilRequestsPage() {
           </Stack>
         </Stack>
 
-        {!isOrderApiConnected() && (
-          <Alert severity="info">
-            Showing preview data. Accept will report an error until the Order Service is connected.
-          </Alert>
-        )}
-
         {actionError && (
           <Alert severity="error" onClose={() => setActionError('')}>
             {actionError}
@@ -218,9 +210,13 @@ function FulfilRequestsPage() {
                   variant="courier"
                   detailsTo={`/fulfil/${order.id}`}
                   actionPending={actionOrderId === order.id}
-                  onCourierAction={(selected) => {
-                    setPendingOrder(selected)
-                  }}
+                  onCourierAction={
+                    order.requester.id === user?.id
+                      ? undefined
+                      : (selected) => {
+                          setPendingOrder(selected)
+                        }
+                  }
                 />
               ))}
             </Box>
