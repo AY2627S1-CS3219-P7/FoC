@@ -30,7 +30,7 @@ services:
     environment:
       PORT: ${PORT:-3002}
       NODE_ENV: ${NODE_ENV:-development}
-      CREDIT_SERVICE_URL: ${CREDIT_SERVICE_URL:-http://credit-service-api:3004}
+      CREDIT_SERVICE_URL: http://credit-service-api:3004
       DB_HOST: user-service-postgres
       DB_PORT: 5432
       DB_DATABASE: ${DB_DATABASE:?DB_DATABASE is required}

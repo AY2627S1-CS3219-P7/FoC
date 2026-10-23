@@ -1,27 +1,24 @@
 services:
-  postgres:
+  order-service-postgres:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_DATABASE:?DB_DATABASE must be set in .env}
+      POSTGRES_DB: ${ORDER_DB_DATABASE:-order_service}
       POSTGRES_USER: ${DB_USER:?DB_USER must be set in .env}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
     ports:
       # Host port only, for connecting with a DB client. Containers talk to
       # each other on 5432.
-      - "${DB_PORT:-5435}:5432"
+      - "${ORDER_DB_EXTERNAL_PORT:-5435}:5432"
     volumes:
-      # Named volume: managed by Docker, nothing ends up in your repo
-      - postgres_data:/var/lib/postgresql/data
+      - order_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  # Message broker. Management UI: http://localhost:15672
-  # NOTE: only ONE broker should exist when the whole team's services run
-  # together (see README, "Sharing RabbitMQ across services").
+  # Shared broker for the root stack. Management UI: http://localhost:15672
   rabbitmq:
     image: rabbitmq:3-management
     restart: unless-stopped
@@ -34,37 +31,40 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
+      # ping only checks the Erlang node. check_port_connectivity waits until
+      # the AMQP listener on 5672 accepts clients.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
       timeout: 10s
-      retries: 10
+      retries: 12
+      start_period: 20s
 
-  api:
+  order-service-api:
     build:
-      # Repo root, so the image can include the shared common/ folder
       context: ..
       dockerfile: order-service/Dockerfile
     init: true
     restart: unless-stopped
     ports:
-      - "${PORT:-3003}:3003"
+      - "${ORDER_PORT:-3003}:3003"
     environment:
-      DB_HOST: postgres
+      PORT: 3003
+      DB_HOST: order-service-postgres
       DB_PORT: 5432
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      DB_DATABASE: ${DB_DATABASE}
-
+      DB_DATABASE: ${ORDER_DB_DATABASE:-order_service}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
-      CREDIT_SERVICE_URL: ${CREDIT_SERVICE_URL:?CREDIT_SERVICE_URL must be set in .env}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE:-orders}
+      CREDIT_SERVICE_URL: http://credit-service-api:3004
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
       DB_LOGGING: ${DB_LOGGING:-false}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
-      postgres:
+      order-service-postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3003/health || exit 1"]
@@ -74,5 +74,5 @@ services:
       start_period: 10s
 
 volumes:
-  postgres_data:
+  order_postgres_data:
   rabbitmq_data:

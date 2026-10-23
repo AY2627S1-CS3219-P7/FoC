@@ -15,7 +15,7 @@ services:
       - "${CREDIT_DB_EXTERNAL_PORT:-5436}:5432"
     volumes:
       - ./migrations/up:/docker-entrypoint-initdb.d
-      - ./data/postgres:/var/lib/postgresql/data
+      - credit-postgres-data:/var/lib/postgresql/data
   credit-service-api:
     build:
       context: ..
@@ -31,5 +31,12 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_PORT=5432
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
+      - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE:-orders}
     depends_on:
-      - credit-service-postgres
+      credit-service-postgres:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+volumes:
+  credit-postgres-data:
