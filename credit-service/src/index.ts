@@ -4,6 +4,7 @@ import router from './routes/creditRoutes.ts';
 import dotenv from "dotenv";
 import errorHandling from "./middleware/errorHandler.ts";
 import cors from 'cors';
+import { connectAndConsume } from "./events/rabbitmq.ts";
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use('/api/credit/', router)
 app.use(errorHandling)
 
 // Server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server running on PORT ${PORT}`);
+  await connectAndConsume();
 });

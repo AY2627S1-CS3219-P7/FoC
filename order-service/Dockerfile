@@ -4,7 +4,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm i
 
-COPY common ./common
 COPY order-service ./order-service
 
 WORKDIR /app/order-service

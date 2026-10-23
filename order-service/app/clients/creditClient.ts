@@ -31,7 +31,7 @@ export async function reserve({ orderId, userId, amount }: ReserveInput): Promis
     res = await fetch(`${env.CREDIT_SERVICE_URL}/api/credit/tx/reserve`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ order_id: orderId, user_id: userId, amount: amount }),
+      body: JSON.stringify({ order_id: orderId, requester_id: userId, amount }),
       signal: AbortSignal.timeout(env.CREDIT_TIMEOUT_MS),
     });
   } catch (err) {

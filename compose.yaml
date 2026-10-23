@@ -12,6 +12,7 @@ include:
   - ./user-service/docker-compose.yml
   - ./supplier-service/docker-compose.yml
   - ./credit-service/docker-compose.yml
+  - ./order-service/docker-compose.yml
 
 services:
   gateway:
@@ -28,10 +29,12 @@ services:
       USER_SERVICE_URL: http://user-service-api:3002
       SUPPLIER_SERVICE_URL: http://supplier-service-api:3001
       CREDIT_SERVICE_URL: http://credit-service-api:3004
+      ORDER_SERVICE_URL: http://order-service-api:3003
     depends_on:
       - user-service-api
       - supplier-service-api
       - credit-service-api
+      - order-service-api
     networks:
       - default
 

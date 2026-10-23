@@ -18,4 +18,5 @@ export const env = {
   userServiceUrl: process.env.USER_SERVICE_URL ?? "http://localhost:3002",
   supplierServiceUrl: process.env.SUPPLIER_SERVICE_URL ?? "http://localhost:3001",
   creditServiceUrl: process.env.CREDIT_SERVICE_URL ?? "http://localhost:3004",
+  orderServiceUrl: process.env.ORDER_SERVICE_URL ?? "http://localhost:3003",
 };
