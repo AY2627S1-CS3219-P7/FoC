@@ -465,5 +465,15 @@ Date: 2026-10-15
 Prompt: Provided function names and the SQL Schema, AI was used to implement the SQL queries
 Author review: Code manually reviewed and tested with Postman
 Files affected:
-- order-service/src/service/walletService.ts
-- order-service/src/service/transactionService.ts
+- credit-service/src/service/walletService.ts
+- credit-service/src/service/transactionService.ts
+
+### Event management
+
+Prompt: Provided event types, implemented handling events from RabbitMQ
+Models: Gemini (model: 1.5 Pro), Grok 4.7
+Author Review: Code manually reviewed and tested. For event handling, skeleton code was generated and logic was added by the author.
+Files affected
+- credit-service/src/events/orderEvents.ts
+- credit-service/src/events/processOrderEvent.ts
+- credit-service/src/events/rabbitmq.ts

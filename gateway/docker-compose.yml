@@ -17,3 +17,4 @@ services:
       USER_SERVICE_URL: http://host.docker.internal:3002
       SUPPLIER_SERVICE_URL: http://host.docker.internal:3001
       CREDIT_SERVICE_URL: http://host.docker.internal:3004
+      ORDER_SERVICE_URL: http://host.docker.internal:3003
