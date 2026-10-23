@@ -166,11 +166,6 @@ const creditServiceProxy = createJsonProxy(
     path.startsWith("/api/credit/tx/")
 );
 
-const orderServiceProxy = createJsonProxy(
-  env.orderServiceUrl,
-  (path) => path.startsWith("/api/orders")
-);
-
 app.use(publicAuthProxy);
 app.use(protectedAuthProxy);
 app.use(userProxy);

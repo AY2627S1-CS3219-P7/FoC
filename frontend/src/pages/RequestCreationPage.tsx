@@ -22,6 +22,7 @@ import {
   Stack,
   TextField,
   Typography,
+  MenuItem,
 } from '@mui/material'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import type { UserMode } from '../components/AppNavigation'
@@ -121,7 +122,10 @@ function AcceptanceDateField({
         fullWidth
         required
         disabled={disabled}
-        helperText="Day/month/year. Use the calendar to choose a day."
+        helperText="Click the date box to open the calendar."
+        onClick={(event) => {
+          if (!disabled) openCalendar(event)
+        }}
         slotProps={{
           input: {
             endAdornment: (
@@ -205,26 +209,127 @@ function AcceptanceDateField({
   )
 }
 
-/** Parses DD/MM/YYYY plus HH:mm in local time. Returns an ISO string only when it is in the future. */
+function parseClock(timeText: string): { hours: number; minutes: number } | null {
+  const match = /^(\d{1,2}):(\d{2})\s*([AaPp][Mm])?$/.exec(timeText.trim())
+  if (!match) return null
+  let hours = Number(match[1])
+  const minutes = Number(match[2])
+  const meridiem = match[3]?.toLowerCase()
+  if (minutes > 59) return null
+  if (meridiem) {
+    if (hours < 1 || hours > 12) return null
+    if (meridiem === 'pm' && hours !== 12) hours += 12
+    if (meridiem === 'am' && hours === 12) hours = 0
+  } else if (hours > 23) {
+    return null
+  }
+  return { hours, minutes }
+}
+
+/** Parses DD/MM/YYYY plus a clock time. Returns an ISO string only when it is in the future. */
 function toFutureIso(dateText: string, timeText: string): string | null {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dateText.trim())
-  const timeMatch = /^(\d{2}):(\d{2})$/.exec(timeText.trim())
-  if (!match || !timeMatch) return null
+  const clock = parseClock(timeText)
+  if (!match || !clock) return null
 
   const day = Number(match[1])
   const month = Number(match[2])
   const year = Number(match[3])
-  const hours = Number(timeMatch[1])
-  const minutes = Number(timeMatch[2])
-  const date = new Date(year, month - 1, day, hours, minutes, 0, 0)
+  const date = new Date(year, month - 1, day, clock.hours, clock.minutes, 0, 0)
   const valid =
     date.getFullYear() === year &&
     date.getMonth() === month - 1 &&
     date.getDate() === day &&
-    date.getHours() === hours &&
-    date.getMinutes() === minutes
+    date.getHours() === clock.hours &&
+    date.getMinutes() === clock.minutes
   if (!valid || date.getTime() <= Date.now()) return null
   return date.toISOString()
+}
+
+function deadlineError(dateText: string, timeText: string): string | null {
+  if (!/^(\d{2})\/(\d{2})\/(\d{4})$/.test(dateText.trim())) {
+    return 'Enter the date as day/month/year, for example 24/10/2026.'
+  }
+  if (!parseClock(timeText)) {
+    return 'Type the time as 10:30, then choose AM or PM.'
+  }
+  if (!toFutureIso(dateText, timeText)) {
+    return 'That deadline is already in the past. Choose a later time.'
+  }
+  return null
+}
+
+function AcceptanceTimeField({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string
+  onChange: (value: string) => void
+  disabled: boolean
+}) {
+  const parsed = parseClock(value)
+  const [clockText, setClockText] = useState(() => {
+    if (!parsed) return ''
+    const hour12 = parsed.hours % 12 === 0 ? 12 : parsed.hours % 12
+    return `${hour12}:${String(parsed.minutes).padStart(2, '0')}`
+  })
+  const [meridiem, setMeridiem] = useState(parsed ? (parsed.hours >= 12 ? 'PM' : 'AM') : '')
+
+  function emit(nextClock: string, nextMeridiem: string) {
+    const match = /^(\d{1,2}):(\d{2})$/.exec(nextClock.trim())
+    if (!match || !nextMeridiem) {
+      onChange('')
+      return
+    }
+    const hours = Number(match[1])
+    const minutes = Number(match[2])
+    if (hours < 1 || hours > 12 || minutes > 59) {
+      onChange('')
+      return
+    }
+    onChange(`${hours}:${match[2]} ${nextMeridiem}`)
+  }
+
+  return (
+    <Stack spacing={0.75}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <TextField
+          label="Time"
+          placeholder="--:--"
+          value={clockText}
+          onChange={(event) => {
+            const nextClock = event.target.value
+            setClockText(nextClock)
+            emit(nextClock, meridiem)
+          }}
+          fullWidth
+          disabled={disabled}
+          slotProps={{ htmlInput: { inputMode: 'numeric' } }}
+        />
+        <TextField
+          select
+          label="AM or PM"
+          value={meridiem}
+          onChange={(event) => {
+            const nextMeridiem = event.target.value
+            setMeridiem(nextMeridiem)
+            emit(clockText, nextMeridiem)
+          }}
+          sx={{ minWidth: 130 }}
+          disabled={disabled}
+          slotProps={{ select: { displayEmpty: true } }}
+        >
+          <MenuItem value="" sx={{ display: 'none' }} />
+          <MenuItem value="AM">AM</MenuItem>
+          <MenuItem value="PM">PM</MenuItem>
+        </TextField>
+      </Stack>
+      <Typography variant="caption" color="text.secondary">
+        Type the time as 10:30, then choose AM or PM.
+      </Typography>
+    </Stack>
+  )
 }
 
 function CreateRequestForm({ supplier }: { supplier: Supplier }) {
@@ -246,7 +351,8 @@ function CreateRequestForm({ supplier }: { supplier: Supplier }) {
     const trimmedDescription = description.trim()
     const trimmedDelivery = deliveryLocation.trim()
     const amount = parseCreditAmount(creditAmount)
-    const acceptBy = toFutureIso(deadlineDate, deadlineTime)
+    const deadlineProblem = deadlineError(deadlineDate, deadlineTime)
+    const acceptBy = deadlineProblem ? null : toFutureIso(deadlineDate, deadlineTime)
 
     if (!trimmedTitle || trimmedTitle.length > 255) {
       setErrorMessage('Title is required and must be 255 characters or fewer.')
@@ -264,10 +370,8 @@ function CreateRequestForm({ supplier }: { supplier: Supplier }) {
       setErrorMessage('Credit amount must be a whole number of at least 1.')
       return
     }
-    if (!acceptBy) {
-      setErrorMessage(
-        'Enter a future deadline as day/month/year and a time, for example 23/10/2026 and 18:30.',
-      )
+    if (deadlineProblem || !acceptBy) {
+      setErrorMessage(deadlineProblem ?? 'Enter a deadline in the future.')
       return
     }
 
@@ -368,16 +472,10 @@ function CreateRequestForm({ supplier }: { supplier: Supplier }) {
               onChange={setDeadlineDate}
               disabled={submitting}
             />
-            <TextField
-              label="Acceptance time"
-              type="time"
+            <AcceptanceTimeField
               value={deadlineTime}
-              onChange={(event) => setDeadlineTime(event.target.value)}
-              fullWidth
-              required
+              onChange={setDeadlineTime}
               disabled={submitting}
-              slotProps={{ inputLabel: { shrink: true } }}
-              helperText="24-hour time. The deadline must be in the future."
             />
           </Stack>
         </Paper>

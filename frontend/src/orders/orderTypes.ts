@@ -44,6 +44,11 @@ export interface Order {
   /** Set when the order has a courier id but that user's name is not loaded yet. */
   courierId?: string | null
   createdAt: string
+  acceptedAt?: string | null
+  pickedUpAt?: string | null
+  completedAt?: string | null
+  cancelledAt?: string | null
+  expiredAt?: string | null
   /** Order Service has no updated_at. Absent on real orders. */
   updatedAt?: string
 }
