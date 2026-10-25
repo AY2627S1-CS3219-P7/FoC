@@ -10,12 +10,12 @@
 # Author review: Review pending.
 
 # Stage 1: Build
-FROM node:20-alpine AS builder
+FROM node:20.18.0-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY gateway/package*.json gateway/tsconfig*.json ./gateway/
 RUN cd gateway && npm ci
@@ -27,7 +27,7 @@ RUN cd gateway && npm prune --production
 
 
 # Stage 2: Runtime
-FROM node:20-alpine AS runner
+FROM node:20.18.0-alpine AS runner
 
 WORKDIR /app
 
