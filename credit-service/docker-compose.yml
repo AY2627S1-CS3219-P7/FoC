@@ -11,6 +11,11 @@ services:
       - POSTGRES_DB=${CREDIT_DB_DATABASE:-credit_service}
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     ports:
       - "${CREDIT_DB_EXTERNAL_PORT:-5436}:5432"
     volumes:
@@ -35,7 +40,7 @@ services:
       - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE:-orders}
     depends_on:
       credit-service-postgres:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 volumes:
