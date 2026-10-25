@@ -224,7 +224,7 @@ function CreditsPanel() {
             <BalanceCard
               label="Total balance"
               value={wallet.totalCredits}
-              helper="As reported by Credit Service"
+              helper="Sum of available and reserved credits"
               emphasize
             />
             <BalanceCard

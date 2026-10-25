@@ -18,8 +18,8 @@ services:
       - credit-postgres-data:/var/lib/postgresql/data
   credit-service-api:
     build:
-      context: ..
-      dockerfile: credit-service/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     restart: always
     ports:
       - "${CREDIT_PORT:-3004}:3004"

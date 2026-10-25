@@ -41,8 +41,8 @@ services:
 
   order-service-api:
     build:
-      context: ..
-      dockerfile: order-service/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     init: true
     restart: unless-stopped
     ports:

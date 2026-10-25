@@ -19,8 +19,8 @@ services:
 
   user-service-api:
     build:
-      context: ..
-      dockerfile: ./user-service/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     depends_on:
       user-service-postgres:
@@ -41,3 +41,5 @@ services:
 
 volumes:
   user_db_data:
+
+  

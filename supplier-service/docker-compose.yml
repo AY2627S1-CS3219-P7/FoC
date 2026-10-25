@@ -18,8 +18,8 @@ services:
       - ./data/postgres:/var/lib/postgresql/data
   supplier-service-api:
     build:
-      context: ..
-      dockerfile: supplier-service/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     restart: always
     ports:
       - ${PORT:-3001}:3001

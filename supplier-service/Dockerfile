@@ -1,16 +1,11 @@
-# AI Assistance Disclosure:
-# Tool: GitHub Copilot, date: 2026-10-20
-# Scope: Remove the supplier image's common build dependency after moving auth locally.
-# Author review: Review pending.
-
 FROM node:20-alpine
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm i
 
-COPY supplier-service ./supplier-service
+COPY src ./src
 
-WORKDIR /app/supplier-service
-RUN npm i
+EXPOSE 3001
+
 CMD ["npm", "run", "dev"]
