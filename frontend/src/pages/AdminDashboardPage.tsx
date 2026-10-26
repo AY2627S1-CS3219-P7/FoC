@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  MenuItem,
   Pagination,
   Paper,
   Stack,
@@ -32,7 +33,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { fetchAdminOrders } from '../api/orders'
 import {
   ForbiddenError,
   NotFoundError,
@@ -47,13 +49,29 @@ import {
 } from '../components/CampusArt'
 import ManageRolesDialog from '../components/ManageRolesDialog'
 import SuccessSnackbar from '../components/SuccessSnackbar'
+import OrderStatusChip from '../components/OrderStatusChip'
 import type { AdminUser, Role, UserListResponse } from '../interfaces'
+import {
+  formatOrderId,
+  orderStatusDisplay,
+  type Order,
+  type OrderStatus,
+} from '../orders/orderTypes'
 
 type AdminSection = 'users' | 'suppliers' | 'orders'
 
 const userTableColumns = ['Username', 'Email', 'Roles', 'Status', 'Actions']
 
 const USERS_PER_PAGE = 20
+const ORDERS_PER_PAGE = 20
+const ADMIN_ORDER_STATUSES: OrderStatus[] = [
+  'OPEN',
+  'ACCEPTED',
+  'PICKED_UP',
+  'COMPLETED',
+  'CANCELLED',
+  'EXPIRED',
+]
 
 const roleChips: Record<Role, { label: string; color: 'default' | 'primary' | 'secondary' }> = {
   ADMIN: { label: 'Admin', color: 'default' },
@@ -100,14 +118,16 @@ function SectionHeader({
   )
 }
 
-function TableMessageRow({ children }: { children: ReactNode }) {
+function TableMessageRow({
+  children,
+  colSpan = userTableColumns.length,
+}: {
+  children: ReactNode
+  colSpan?: number
+}) {
   return (
     <TableRow>
-      <TableCell
-        colSpan={userTableColumns.length}
-        align="center"
-        sx={{ py: 4, color: 'text.secondary' }}
-      >
+      <TableCell colSpan={colSpan} align="center" sx={{ py: 4, color: 'text.secondary' }}>
         {children}
       </TableCell>
     </TableRow>
@@ -472,14 +492,250 @@ function SuppliersSection() {
   )
 }
 
+const orderTableColumns = [
+  'Order ID',
+  'Title',
+  'Requester',
+  'Courier',
+  'Supplier',
+  'Delivery location',
+  'Credits',
+  'Status',
+  'Acceptance deadline',
+  'Created',
+]
+
+type AdminOrdersResult = {
+  key: string
+  orders?: Order[]
+  total?: number
+  error?: string
+}
+
+function formatAdminDateTime(value: string | null): string {
+  if (!value) return 'Not set'
+  return new Date(value).toLocaleString('en-SG', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+function participantLabel(participant: Order['requester']): string {
+  const name = [participant.firstName, participant.lastName].filter(Boolean).join(' ')
+  return name || participant.username
+}
+
+function orderMatchesPageSearch(order: Order, search: string): boolean {
+  const courierName = order.courier ? participantLabel(order.courier) : 'Not assigned'
+  const haystack = [
+    order.id,
+    formatOrderId(order.id),
+    order.title ?? '',
+    order.itemDescription,
+    participantLabel(order.requester),
+    order.requester.username,
+    courierName,
+    order.courier?.username ?? '',
+    order.pickup.supplierName,
+  ]
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(search)
+}
+
 function OrdersSection() {
+  const [status, setStatus] = useState<OrderStatus>('OPEN')
+  const [page, setPage] = useState(1)
+  const [pageSearch, setPageSearch] = useState('')
+  const [reloadCount, setReloadCount] = useState(0)
+  const [result, setResult] = useState<AdminOrdersResult | null>(null)
+
+  const requestKey = `${status}|${page}|${reloadCount}`
+  const loading = result?.key !== requestKey
+  const orders = !loading ? (result?.orders ?? []) : []
+  const total = !loading ? (result?.total ?? 0) : 0
+  const errorMessage = !loading ? result?.error : undefined
+  const search = pageSearch.trim().toLowerCase()
+  const visibleOrders = search
+    ? orders.filter((order) => orderMatchesPageSearch(order, search))
+    : orders
+  const pageCount = Math.max(1, Math.ceil(total / ORDERS_PER_PAGE))
+
+  useEffect(() => {
+    let ignore = false
+
+    fetchAdminOrders({
+      status,
+      limit: ORDERS_PER_PAGE,
+      offset: (page - 1) * ORDERS_PER_PAGE,
+    })
+      .then((data) => {
+        if (!ignore) {
+          setResult({ key: requestKey, orders: data.orders, total: data.total })
+        }
+      })
+      .catch((error: unknown) => {
+        if (ignore) return
+        console.error(error)
+        const message =
+          error instanceof ForbiddenError
+            ? 'You do not have permission to view these orders.'
+            : 'Orders could not be loaded.'
+        setResult({ key: requestKey, error: message })
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [status, page, requestKey])
+
   return (
     <Paper variant="outlined" sx={sectionPaperSx}>
-      <SectionHeader
-        icon={<ClipboardIcon sx={{ fontSize: 28 }} />}
-        title="Orders"
-        description="Order monitoring is pending Order Service integration."
-      />
+      <Stack spacing={2.5}>
+        <SectionHeader
+          icon={<ClipboardIcon sx={{ fontSize: 28 }} />}
+          title="Orders"
+          description="Review orders recorded by Order Service."
+        />
+
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={2}
+          sx={{ alignItems: { md: 'center' } }}
+        >
+          <TextField
+            select
+            label="Status"
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value as OrderStatus)
+              setPage(1)
+              setPageSearch('')
+            }}
+            sx={{ minWidth: 180 }}
+          >
+            {ADMIN_ORDER_STATUSES.map((orderStatus) => (
+              <MenuItem key={orderStatus} value={orderStatus}>
+                {orderStatusDisplay[orderStatus].label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Search this page"
+            value={pageSearch}
+            onChange={(event) => setPageSearch(event.target.value)}
+            placeholder="Order id, title, name, or supplier"
+            sx={{ flex: 1 }}
+          />
+        </Stack>
+        <Typography variant="body2" color="text.secondary">
+          Status is loaded from Order Service. Search only checks the orders on this page.
+          {status === 'OPEN'
+            ? ' Open orders past the acceptance deadline are left out of this list.'
+            : ''}
+        </Typography>
+
+        {errorMessage && (
+          <Alert
+            severity="error"
+            action={
+              <Button
+                color="inherit"
+                size="small"
+                onClick={() => setReloadCount((count) => count + 1)}
+              >
+                Retry
+              </Button>
+            }
+          >
+            {errorMessage}
+          </Alert>
+        )}
+
+        <TableContainer sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}>
+          <Table size="small" aria-label="Orders">
+            <TableHead>
+              <TableRow>
+                {orderTableColumns.map((column) => (
+                  <TableCell key={column} sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    {column}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading && (
+                <TableMessageRow colSpan={orderTableColumns.length}>
+                  <CircularProgress size={28} aria-label="Loading orders" />
+                </TableMessageRow>
+              )}
+
+              {!loading && !errorMessage && visibleOrders.length === 0 && (
+                <TableMessageRow colSpan={orderTableColumns.length}>
+                  {orders.length === 0 ? 'No orders found.' : 'No orders on this page match that search.'}
+                </TableMessageRow>
+              )}
+
+              {!loading &&
+                visibleOrders.map((order) => (
+                  <TableRow key={order.id} hover>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      <Button
+                        component={Link}
+                        to={`/admin/orders/${order.id}`}
+                        variant="text"
+                        size="small"
+                        sx={{ fontFamily: 'monospace', px: 0, minWidth: 0 }}
+                      >
+                        {formatOrderId(order.id)}
+                      </Button>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 160 }}>{order.title || order.itemDescription}</TableCell>
+                    <TableCell>{participantLabel(order.requester)}</TableCell>
+                    <TableCell>
+                      {order.courier ? participantLabel(order.courier) : 'Not assigned'}
+                    </TableCell>
+                    <TableCell>{order.pickup.supplierName}</TableCell>
+                    <TableCell>{order.deliveryLocation}</TableCell>
+                    <TableCell>{order.creditAmount}</TableCell>
+                    <TableCell>
+                      <OrderStatusChip status={order.status} />
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {formatAdminDateTime(order.acceptanceDeadline)}
+                    </TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                      {formatAdminDateTime(order.createdAt)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+
+        {!loading && !errorMessage && total > 0 && (
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            sx={{ alignItems: { sm: 'center' }, justifyContent: 'space-between' }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              {total} {total === 1 ? 'order' : 'orders'}
+            </Typography>
+            {total > ORDERS_PER_PAGE && (
+              <Pagination
+                page={Math.min(page, pageCount)}
+                count={pageCount}
+                onChange={(_event, nextPage) => {
+                  setPage(nextPage)
+                  setPageSearch('')
+                }}
+                color="primary"
+              />
+            )}
+          </Stack>
+        )}
+      </Stack>
     </Paper>
   )
 }
@@ -489,7 +745,18 @@ const adminAccentSoft = '#FFEDD5'
 const adminAccentDeep = '#9A3412'
 
 function AdminDashboardPage() {
-  const [section, setSection] = useState<AdminSection>('users')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const sectionParam = searchParams.get('section')
+  const section: AdminSection =
+    sectionParam === 'suppliers' || sectionParam === 'orders' ? sectionParam : 'users'
+
+  function handleSectionChange(_event: unknown, newSection: AdminSection) {
+    if (newSection === 'users') {
+      setSearchParams({}, { replace: true })
+      return
+    }
+    setSearchParams({ section: newSection }, { replace: true })
+  }
 
   return (
     <Container component="main" maxWidth="lg" sx={{ py: { xs: 3, md: 6 } }}>
@@ -554,7 +821,7 @@ function AdminDashboardPage() {
 
         <Tabs
           value={section}
-          onChange={(_event, newSection: AdminSection) => setSection(newSection)}
+          onChange={handleSectionChange}
           variant="scrollable"
           allowScrollButtonsMobile
           aria-label="Admin sections"

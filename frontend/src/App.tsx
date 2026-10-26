@@ -227,6 +227,14 @@ function AppContent() {
             </RequireRole>
           }
         />
+        <Route
+          path="/admin/orders/:orderId"
+          element={
+            <RequireRole roles={['ADMIN']}>
+              <OrderDetailsPage />
+            </RequireRole>
+          }
+        />
 
         <Route
           path="/suppliers"

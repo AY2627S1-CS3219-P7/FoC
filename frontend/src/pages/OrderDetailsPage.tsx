@@ -194,13 +194,14 @@ function OrderDetailsSkeleton() {
   )
 }
 
-type DetailContext = 'requester' | 'fulfil' | 'tasks'
+type DetailContext = 'requester' | 'fulfil' | 'tasks' | 'admin'
 
 function resolveDetailContext(
   pathname: string,
   order: Order | undefined,
   userId: string | undefined,
 ): DetailContext {
+  if (pathname.startsWith('/admin/orders/')) return 'admin'
   const onFulfil = pathname.startsWith('/fulfil/')
   const onTasks = pathname.startsWith('/my-tasks/')
   if (!onFulfil && !onTasks) return 'requester'
@@ -232,11 +233,13 @@ function OrderDetailsPage() {
   const loadError = !loading ? result?.error : undefined
   const detailContext = resolveDetailContext(location.pathname, order, user?.id)
   const backLink =
-    detailContext === 'tasks'
-      ? { to: '/my-tasks', label: '← Back to My Tasks' }
-      : detailContext === 'fulfil'
-        ? { to: '/fulfil', label: '← Back to Fulfil Requests' }
-        : { to: '/requests', label: '← Back to My Requests' }
+    detailContext === 'admin'
+      ? { to: '/admin?section=orders', label: '← Back to Orders' }
+      : detailContext === 'tasks'
+        ? { to: '/my-tasks', label: '← Back to My Tasks' }
+        : detailContext === 'fulfil'
+          ? { to: '/fulfil', label: '← Back to Fulfil Requests' }
+          : { to: '/requests', label: '← Back to My Requests' }
 
   useEffect(() => {
     let ignore = false
