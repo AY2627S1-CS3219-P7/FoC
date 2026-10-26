@@ -180,8 +180,8 @@ export async function listOrders(
   const effectiveStatus = (status as OrderStatus | undefined) ?? (scoped ? undefined : "OPEN");
   if (effectiveStatus) where.status = effectiveStatus;
  
-  // Browsing OPEN orders: hide ones whose accept-by time has passed
-  // (they can no longer be accepted; expiry will mark them EXPIRED later)
+  // Browsing OPEN orders: hide ones whose accept-by time has passed.
+  // The expiry worker marks those rows EXPIRED and publishes ORDER_EXPIRED.
   if (effectiveStatus === "OPEN" && requesterId === undefined) {
     where.accept_by = { [Op.gt]: new Date() };
   }
@@ -306,4 +306,47 @@ export const cancel = (user: AuthenticatedUser, orderId: string) =>
     authorize: requireRequester,
     eventType: EVENT_TYPES.ORDER_CANCELLED, // credit service: release the reservation
   });
+
+const EXPIRY_BATCH_SIZE = 50;
+
+/**
+ * Moves due OPEN orders to EXPIRED and writes one outbox event per row that changed.
+ * The status check is in the UPDATE, so an accept that commits first keeps the order.
+ * skipLocked lets a concurrent accept or another scan wait its turn without double expiry.
+ */
+export async function expireDueOpenOrders(limit = EXPIRY_BATCH_SIZE): Promise<number> {
+  const now = new Date();
+  let expired = 0;
+
+  await sequelize.transaction(async (t: Transaction) => {
+    const due = await Order.findAll({
+      where: {
+        status: "OPEN",
+        accept_by: { [Op.lte]: now },
+      },
+      order: [["accept_by", "ASC"]],
+      limit,
+      lock: t.LOCK.UPDATE,
+      skipLocked: true,
+      transaction: t,
+    });
+
+    for (const order of due) {
+      const [count, rows] = await Order.update(
+        { status: "EXPIRED", expired_at: now },
+        {
+          where: { order_id: order.order_id, status: "OPEN" },
+          returning: true,
+          transaction: t,
+        }
+      );
+      const row = rows[0];
+      if (count !== 1 || !row) continue;
+      await recordOrderEvent(EVENT_TYPES.ORDER_EXPIRED, row, t);
+      expired += 1;
+    }
+  });
+
+  return expired;
+}
 

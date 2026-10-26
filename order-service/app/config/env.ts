@@ -43,4 +43,7 @@ export const env = {
   // Outbox relay tuning
   OUTBOX_POLL_MS: int("OUTBOX_POLL_MS", 2000),
   OUTBOX_BATCH_SIZE: int("OUTBOX_BATCH_SIZE", 50),
+
+  // How often to mark overdue OPEN orders as EXPIRED.
+  EXPIRY_POLL_MS: int("EXPIRY_POLL_MS", 15000),
 };

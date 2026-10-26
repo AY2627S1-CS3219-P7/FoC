@@ -45,6 +45,7 @@ export async function connectAndConsume(): Promise<void> {
         
         await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, "order.completed");
         await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, "order.cancelled");
+        await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, "order.expired");
 
         channel.prefetch(1);
 

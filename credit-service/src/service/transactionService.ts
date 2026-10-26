@@ -134,3 +134,58 @@ export const releaseCreditsService = async (data: any): Promise<TransactionRecor
         client.release();
     }
 };
+
+/** Same wallet movement as cancellation. A second release for this order is a no-op. */
+export const releaseCreditsOnceService = async (data: any): Promise<TransactionRecord> => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query(
+            `SELECT pg_advisory_xact_lock(hashtext('order-expiry'), hashtext($1::text))`,
+            [data.order_id]
+        );
+
+        const existing = await client.query<TransactionRecord>(
+            `SELECT * FROM transaction_records
+             WHERE order_id = $1 AND type = 'RELEASE'
+             LIMIT 1`,
+            [data.order_id]
+        );
+        if ((existing.rowCount ?? 0) > 0 && existing.rows[0]) {
+            await client.query('COMMIT');
+            return existing.rows[0];
+        }
+
+        const releaseWalletQuery = `
+            UPDATE wallets
+            SET reserved_credits = reserved_credits - $1,
+                available_credits = available_credits + $1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = $2 AND reserved_credits >= $1
+            RETURNING *;
+        `;
+        const walletResult = await client.query(releaseWalletQuery, [data.amount, data.requester_id]);
+        if (walletResult.rowCount === 0) {
+            throw new Error("Insufficient reserved credits or wallet not found");
+        }
+
+        const insertTxQuery = `
+            INSERT INTO transaction_records (user_id, order_id, type, amount)
+            VALUES ($1, $2, 'RELEASE', $3)
+            RETURNING *;
+        `;
+        const txResult = await client.query<TransactionRecord>(insertTxQuery, [
+            data.requester_id,
+            data.order_id,
+            data.amount,
+        ]);
+
+        await client.query('COMMIT');
+        return txResult.rows[0];
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+};

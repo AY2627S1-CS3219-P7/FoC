@@ -4,6 +4,7 @@ import cors from "cors";
 import "./config/env.ts";
 import { sequelize } from "./models/index.ts";
 import * as outboxRelay from "./events/outboxRelay.ts";
+import * as expiryWorker from "./events/expiryWorker.ts";
 import router from "./routes/orderRoutes.ts";
 import errorHandling, { notFoundHandler } from "./middleware/errorHandler.ts";
 
@@ -36,6 +37,7 @@ async function start(): Promise<void> {
     console.log("Database connected and synced.");
 
     outboxRelay.start();
+    expiryWorker.start();
 
     server = app.listen(PORT, () => {
       console.log(`Server running on PORT ${PORT}`);
@@ -49,6 +51,7 @@ async function start(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     console.log(`${signal} received, shutting down...`);
     server.close(); // stop accepting new connections
+    await expiryWorker.stop();
     await outboxRelay.stop();
     await sequelize.close();
     process.exit(0);
