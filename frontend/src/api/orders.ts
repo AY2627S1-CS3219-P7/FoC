@@ -240,6 +240,39 @@ export async function fetchOrderById(orderId: string): Promise<Order> {
   return enrichOne(row)
 }
 
+export interface AdminOrderPage {
+  orders: Order[]
+  total: number
+  limit: number
+  offset: number
+}
+
+/**
+ * GET /orders?status=&limit=&offset=
+ * Chloe's list treats a request with no owner as the public open-order view
+ * unless status is set. An admin may pass any one status and receive that
+ * status for every requester. There is no single query for every status.
+ */
+export async function fetchAdminOrders(options: {
+  status: OrderStatus
+  limit: number
+  offset: number
+}): Promise<AdminOrderPage> {
+  const currentUser = await requireCurrentUser()
+  const params = new URLSearchParams({
+    status: options.status,
+    limit: String(options.limit),
+    offset: String(options.offset),
+  })
+  const page = await fetchOrderPage(params)
+  return {
+    orders: await enrichRows(page.data, currentUser),
+    total: page.total,
+    limit: page.limit,
+    offset: page.offset,
+  }
+}
+
 /** GET /orders with no owner filter. Order Service returns OPEN orders that have not expired. */
 export async function fetchAvailableRequests(): Promise<Order[]> {
   const currentUser = await requireCurrentUser()
