@@ -5,7 +5,11 @@
  * Author review: Verified and added the correct logic
  */
 
-import { releaseCreditsService, transferCreditsService } from "../service/transactionService.ts";
+import {
+  releaseCreditsOnceService,
+  releaseCreditsService,
+  transferCreditsService,
+} from "../service/transactionService.ts";
 import { ORDER_EVENT_TYPES, type OrderEvent } from "../types/eventTypes.ts";
 
 export const processOrderEvent = async (event: OrderEvent): Promise<void> => {
@@ -15,6 +19,9 @@ export const processOrderEvent = async (event: OrderEvent): Promise<void> => {
       return;
     case ORDER_EVENT_TYPES.ORDER_CANCELLED:
       await handleOrderCancelled(event);
+      return;
+    case ORDER_EVENT_TYPES.ORDER_EXPIRED:
+      await handleOrderExpired(event);
       return;
     default:
       console.log(
@@ -38,6 +45,14 @@ const handleOrderCompleted = async (event: OrderEvent): Promise<void> => {
 
 const handleOrderCancelled = async (event: OrderEvent): Promise<void> => {
   await releaseCreditsService({
+    order_id: event.data.order_id,
+    requester_id: event.data.requester_id,
+    amount: event.data.credit_amount,
+  });
+};
+
+const handleOrderExpired = async (event: OrderEvent): Promise<void> => {
+  await releaseCreditsOnceService({
     order_id: event.data.order_id,
     requester_id: event.data.requester_id,
     amount: event.data.credit_amount,

@@ -57,6 +57,7 @@ export interface NewOrderFields {
 export const EVENT_TYPES = {
   ORDER_CANCELLED: "ORDER_CANCELLED", // credit service: release the reservation
   ORDER_COMPLETED: "ORDER_COMPLETED", // credit service: transfer requester -> courier
+  ORDER_EXPIRED: "ORDER_EXPIRED", // credit service: release the reservation
 } as const;
 export type OrderEventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];
 

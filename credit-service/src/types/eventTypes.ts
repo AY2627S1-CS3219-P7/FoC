@@ -1,6 +1,7 @@
 export const ORDER_EVENT_TYPES = {
   ORDER_COMPLETED: "ORDER_COMPLETED",
   ORDER_CANCELLED: "ORDER_CANCELLED",
+  ORDER_EXPIRED: "ORDER_EXPIRED",
 } as const;
 
 export type OrderEventType = (typeof ORDER_EVENT_TYPES)[keyof typeof ORDER_EVENT_TYPES];
