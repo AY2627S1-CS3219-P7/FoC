@@ -28,6 +28,11 @@ const router = express.Router();
 const requireAnyRole = requireRoles("ADMIN", "REQUESTER", "COURIER");
 const requireAdminRole = requireRoles("ADMIN");
 
+router.get("/health", (req, res) => {
+  console.log("supplier service running")
+  res.status(200).json({ status: "ok" });
+});
+
 // GET api/suppliers/
 router.get("/", authMiddleware, requireAnyRole, getAllSuppliers);
 

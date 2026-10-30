@@ -1,16 +1,13 @@
-// AI Assistance Disclosure:
-// Tool: GitHub Copilot, date: 2026-10-20
-// Scope: Remove Supplier Service's TypeScript dependency on common auth files.
-// Author review: Review pending.
 {
   "compilerOptions": {
-    "target": "esnext",
+    "target": "ES2022",
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "rewriteRelativeImportExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
-    "noEmit": true,
+    "rootDir": "src",
+    "outDir": "dist",
     "strict": true,
     "skipLibCheck": true
   },
