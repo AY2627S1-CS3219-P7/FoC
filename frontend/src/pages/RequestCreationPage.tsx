@@ -26,7 +26,7 @@ import {
 } from '@mui/material'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import type { UserMode } from '../components/AppNavigation'
-import { createOrder } from '../api/orders'
+import { createOrder, fetchOrderById } from '../api/orders'
 import { fetchSupplierById } from '../api/suppliers'
 import type { Supplier } from '../interfaces'
 
@@ -332,12 +332,27 @@ function AcceptanceTimeField({
   )
 }
 
-function CreateRequestForm({ supplier }: { supplier: Supplier }) {
+type RequestPrefill = {
+  title: string
+  description: string
+  deliveryLocation: string
+  creditAmount: number
+}
+
+function CreateRequestForm({
+  supplier,
+  prefill,
+}: {
+  supplier: Supplier
+  prefill?: RequestPrefill | null
+}) {
   const navigate = useNavigate()
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [deliveryLocation, setDeliveryLocation] = useState('')
-  const [creditAmount, setCreditAmount] = useState('')
+  const [title, setTitle] = useState(prefill?.title ?? '')
+  const [description, setDescription] = useState(prefill?.description ?? '')
+  const [deliveryLocation, setDeliveryLocation] = useState(prefill?.deliveryLocation ?? '')
+  const [creditAmount, setCreditAmount] = useState(
+    prefill ? String(prefill.creditAmount) : '',
+  )
   const [deadlineDate, setDeadlineDate] = useState('')
   const [deadlineTime, setDeadlineTime] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -506,8 +521,10 @@ type RequestCreationPageProps = {
 function RequestCreationPage({ mode }: RequestCreationPageProps) {
   const [searchParams] = useSearchParams()
   const supplierId = searchParams.get('supplierId')
+  const reorderFrom = searchParams.get('reorderFrom')
 
   const [supplier, setSupplier] = useState<Supplier | null>(null)
+  const [prefill, setPrefill] = useState<RequestPrefill | null>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
 
   useEffect(() => {
@@ -517,10 +534,27 @@ function RequestCreationPage({ mode }: RequestCreationPageProps) {
     }
     let cancelled = false
     setStatus('loading')
-    fetchSupplierById(supplierId)
-      .then((data) => {
+    // A failed order lookup only skips the prefill; the supplier is what matters.
+    const prefillPromise = reorderFrom
+      ? fetchOrderById(reorderFrom).catch((error) => {
+          console.error(error)
+          return null
+        })
+      : Promise.resolve(null)
+    Promise.all([fetchSupplierById(supplierId), prefillPromise])
+      .then(([data, source]) => {
         if (cancelled) return
         setSupplier(data)
+        setPrefill(
+          source && source.pickup.supplierId === supplierId
+            ? {
+                title: source.title ?? '',
+                description: source.description ?? '',
+                deliveryLocation: source.deliveryLocation,
+                creditAmount: source.creditAmount,
+              }
+            : null,
+        )
         setStatus('ready')
       })
       .catch((error) => {
@@ -531,7 +565,7 @@ function RequestCreationPage({ mode }: RequestCreationPageProps) {
     return () => {
       cancelled = true
     }
-  }, [supplierId, mode])
+  }, [supplierId, reorderFrom, mode])
 
   if (mode !== 'requester') {
     return <Navigate to="/home" replace />
@@ -581,7 +615,7 @@ function RequestCreationPage({ mode }: RequestCreationPageProps) {
     )
   }
 
-  return <CreateRequestForm supplier={supplier} />
+  return <CreateRequestForm supplier={supplier} prefill={prefill} />
 }
 
 export default RequestCreationPage

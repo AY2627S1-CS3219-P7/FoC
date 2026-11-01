@@ -10,9 +10,11 @@ import { Link } from 'react-router-dom'
 import {
   formatOrderId,
   formatParticipantName,
+  canReorder,
   formatPickupLocation,
   getCourierAction,
   type CourierAction,
+  reorderPath,
   type Order,
 } from '../orders/orderTypes'
 import OrderStatusChip from './OrderStatusChip'
@@ -130,6 +132,11 @@ function OrderCard({
         <Button component={Link} to={detailsHref} variant="outlined" size="small">
           View details
         </Button>
+        {!isCourier && canReorder(order.status) && (
+          <Button component={Link} to={reorderPath(order)} variant="contained" size="small">
+            Reorder
+          </Button>
+        )}
         {courierAction && onCourierAction && (
           <Button
             variant="contained"

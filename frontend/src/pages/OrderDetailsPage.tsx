@@ -43,6 +43,7 @@ import {
   canCourierAccept,
   canCourierMarkDelivered,
   canCourierMarkPickedUp,
+  canReorder,
   canRequesterCancel,
   canRequesterConfirmDelivery,
   formatOrderId,
@@ -50,6 +51,7 @@ import {
   formatPickupLocation,
   orderProgressSteps,
   orderStatusDisplay,
+  reorderPath,
   type Order,
   type OrderStatus,
 } from '../orders/orderTypes'
@@ -337,8 +339,9 @@ function OrderDetailsPage() {
       detailContext === 'tasks' && order.status === 'PICKED_UP'
     const showPickUp = detailContext === 'tasks' && canCourierMarkPickedUp(order.status)
     const showDeliver = detailContext === 'tasks' && canCourierMarkDelivered(order.status)
+    const showReorder = detailContext === 'requester' && canReorder(order.status)
     const hasActions =
-      showCancel || showConfirm || showAccept || showPickUp || showDeliver
+      showCancel || showConfirm || showAccept || showPickUp || showDeliver || showReorder
 
     content = (
       <Stack spacing={3}>
@@ -490,6 +493,11 @@ function OrderDetailsPage() {
                     onClick={() => setPendingAction('confirm')}
                   >
                     Confirm delivery
+                  </Button>
+                )}
+                {showReorder && (
+                  <Button component={Link} to={reorderPath(order)} variant="contained">
+                    Reorder
                   </Button>
                 )}
                 {showCancel && (

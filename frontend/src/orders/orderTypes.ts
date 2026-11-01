@@ -131,6 +131,18 @@ export function isOrderActive(status: OrderStatus): boolean {
   return status === 'OPEN' || status === 'ACCEPTED' || status === 'PICKED_UP'
 }
 
+export function canReorder(status: OrderStatus): boolean {
+  return !isOrderActive(status)
+}
+
+export function reorderPath(order: Order): string {
+  const params = new URLSearchParams({
+    supplierId: order.pickup.supplierId,
+    reorderFrom: order.id,
+  })
+  return `/requests/new?${params.toString()}`
+}
+
 export function isCourierTaskActive(status: OrderStatus): boolean {
   return status === 'ACCEPTED' || status === 'PICKED_UP'
 }
