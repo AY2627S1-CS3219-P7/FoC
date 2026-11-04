@@ -18,3 +18,4 @@ jobs:
     uses: ./.github/workflows/reusable-deploy.yml
     with:
       service-path: "supplier-service"
+    secrets: inherit
