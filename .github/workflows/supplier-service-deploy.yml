@@ -10,12 +10,12 @@ on:
     branches: ["main"]
     paths:
       - "supplier-service/**"
-      - ".github/workflows/supplier-service-ci.yml"
+      - ".github/workflows/supplier-service-deploy.yml"
   pull_request:
     branches: ["main"]
     paths:
       - "supplier-service/**"
-      - ".github/workflows/supplier-service-ci.yml"
+      - ".github/workflows/supplier-service-deploy.yml"
 
 permissions:
   id-token: write
