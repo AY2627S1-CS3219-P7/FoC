@@ -17,6 +17,7 @@ on:
     paths:
       - "order-service/**"
       - ".github/workflows/order-service-deploy.yml"
+      - ".github/workflows/reusable-deploy.yml"
 
 jobs:
   deploy:

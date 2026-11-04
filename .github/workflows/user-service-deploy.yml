@@ -17,6 +17,7 @@ on:
     paths:
       - "user-service/**"
       - ".github/workflows/user-service-deploy.yml"
+      - ".github/workflows/reusable-deploy.yml"
 
 jobs:
   deploy:

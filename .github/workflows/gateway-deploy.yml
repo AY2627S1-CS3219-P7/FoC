@@ -17,6 +17,7 @@ on:
     paths:
       - "gateway/**"
       - ".github/workflows/gateway-deploy.yml"
+      - ".github/workflows/reusable-deploy.yml"
 
 jobs:
   deploy:

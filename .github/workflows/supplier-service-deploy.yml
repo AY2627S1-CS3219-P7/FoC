@@ -17,6 +17,7 @@ on:
     paths:
       - "supplier-service/**"
       - ".github/workflows/supplier-service-deploy.yml"
+      - ".github/workflows/reusable-deploy.yml"
 
 jobs:
   deploy:
