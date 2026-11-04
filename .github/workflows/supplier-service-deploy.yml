@@ -27,7 +27,7 @@ jobs:
     env:
       AWS_REGION: ap-southeast-1
       ECR_REPOSITORY: cs3219ay2627s1/p7
-      ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_ARN }}
+      ROLE_TO_ASSUME: arn:aws:iam::551162198630:role/push-ecr
 
     steps:
       - name: Checkout repository
@@ -46,7 +46,7 @@ jobs:
 
       - name: Build, tag, and push image to Amazon ECR
         env:
-          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./supplier-service
