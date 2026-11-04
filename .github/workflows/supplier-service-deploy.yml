@@ -27,7 +27,7 @@ jobs:
     env:
       AWS_REGION: ap-southeast-1
       ECR_REPOSITORY: cs3219ay2627s1/p7
-      ROLE_TO_ASSUME: arn:aws:iam::551162198630:role/push-ecr
+      ROLE_TO_ASSUME: arn:aws:iam::551162198630:role/github-actions-connect
 
     steps:
       - name: Checkout repository
