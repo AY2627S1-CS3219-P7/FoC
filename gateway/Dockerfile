@@ -9,7 +9,6 @@
 # Scope: Remove Gateway's build dependency on the shared common module.
 # Author review: Review pending.
 
-# Stage 1: Build
 FROM node:20.18.0-alpine AS builder
 
 WORKDIR /app
@@ -17,28 +16,23 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
-COPY gateway/package*.json gateway/tsconfig*.json ./gateway/
-RUN cd gateway && npm ci
+COPY . .
+RUN npm run build
 
-COPY gateway ./gateway
-RUN cd gateway && npm run build
+RUN npm prune --production
 
-RUN cd gateway && npm prune --production
-
-
-# Stage 2: Runtime
 FROM node:20.18.0-alpine AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY --chown=node:node --from=builder /app/gateway/package*.json ./
-COPY --chown=node:node --from=builder /app/gateway/node_modules ./node_modules
-COPY --chown=node:node --from=builder /app/gateway/dist ./dist
+COPY --chown=node:node --from=builder /app/package*.json ./
+COPY --chown=node:node --from=builder /app/node_modules ./node_modules
+COPY --chown=node:node --from=builder /app/dist ./dist
 
 USER node
 
 EXPOSE 8080
 
-CMD ["node", "dist/gateway/src/server.js"]
+CMD ["npm", "start"]
