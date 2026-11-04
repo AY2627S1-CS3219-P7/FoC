@@ -1,0 +1,34 @@
+{
+   "containerDefinitions": [ 
+      { 
+         "name": "gateway",
+         "essential": true,
+         "image": "551162198630.dkr.ecr.ap-southeast-1.amazonaws.com/cs3219ay2627s1/p7:gateway",
+         "logConfiguration": { 
+            "logDriver": "awslogs",
+            "options": { 
+               "awslogs-group" : "/ecs/gateway",
+               "awslogs-region": "ap-southeast-1",
+               "awslogs-stream-prefix": "ecs"
+            }
+         },
+         "portMappings": [ 
+            { 
+               "containerPort": 8080,
+               "protocol": "tcp"
+            }
+         ]
+      }
+   ],
+   "cpu": "256",
+   "executionRoleArn": "arn:aws:iam::551162198630:role/ecsTaskExecutionRole",
+   "family": "gateway-task",
+   "memory": "512",
+   "networkMode": "awsvpc",
+   "runtimePlatform": {
+        "operatingSystemFamily": "LINUX"
+    },
+   "requiresCompatibilities": [ 
+       "FARGATE" 
+    ]
+}
