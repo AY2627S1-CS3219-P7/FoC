@@ -20,7 +20,6 @@ app.use('/api/suppliers/', router)
 
 app.use(errorHandling)
 
-// Server
 app.listen(PORT, () => {
   console.log(`Server running on PORT ${PORT}`);
 });
