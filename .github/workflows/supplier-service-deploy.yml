@@ -12,6 +12,11 @@ on:
       - "supplier-service/**"
       - ".github/workflows/supplier-service-deploy.yml"
       - ".github/workflows/reusable-deploy.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "supplier-service/**"
+      - ".github/workflows/supplier-service-deploy.yml"
 
 jobs:
   deploy:
