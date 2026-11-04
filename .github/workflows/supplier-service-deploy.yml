@@ -11,10 +11,10 @@ on:
     paths:
       - "supplier-service/**"
       - ".github/workflows/supplier-service-deploy.yml"
-      - ".github/workflows/reusable-service-deploy.yml"
+      - ".github/workflows/reusable-deploy.yml"
 
 jobs:
   deploy:
-    uses: ./.github/workflows/reusable-service-deploy.yml
+    uses: ./.github/workflows/reusable-deploy.yml
     with:
       service-path: "supplier-service"
