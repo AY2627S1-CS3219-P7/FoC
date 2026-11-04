@@ -21,7 +21,7 @@ on:
         required: true
 
 permissions:
-  id-token: write
+  # id-token: write
   contents: read
 
 jobs:
