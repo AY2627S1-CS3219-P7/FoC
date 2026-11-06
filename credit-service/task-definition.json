@@ -20,6 +20,10 @@
          ],
          "environment": [
             {
+               "name": "CORS_ORIGIN",
+               "value": "https://d3414od56848h5.cloudfront.net"
+            },
+            {
                "name": "PORT",
                "value": "3004"
             },
