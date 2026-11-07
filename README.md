@@ -12,8 +12,8 @@ withdrawn, or exchanged for money, and only circulate within the platform.
 
 ## Team Members
 
-| Name | Role |
-| ----- | ----- |
+| Name      | Role           |
+| --------- | -------------- |
 | Your Name | Your ownership |
 | Your Name | Your ownership |
 | Your Name | Your ownership |
@@ -50,10 +50,12 @@ microservice (`user-service/`, `supplier-service/`, `order-service/`,
 ## AI Use Summary
 
 Tools used:
+
 - Cursor (GPT-5.6 Sol Medium) — frontend implementation, debugging and UI refinement.
 - ChatGPT (GPT-5.6 Sol) — learning support, code explanations and debugging guidance.
 
 Prohibited phases avoided:
+
 - Requirements elicitation
 - Architecture/design decisions
 - Service boundary and API design decisions
@@ -64,3 +66,7 @@ The author reviewed and tested the generated code and iteratively refined the im
 Project requirements, architecture, service boundaries and API decisions were determined by the team.
 
 See `/ai/usage-log.md` for prompts and usage details.
+
+## References
+
+- Task definitions for AWS ECS were referenced from: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/example_task_definitions.html#example_task_definition-webserver

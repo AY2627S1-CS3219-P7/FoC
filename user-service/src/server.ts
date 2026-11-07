@@ -16,7 +16,7 @@ import roleRoutes from "./routes/roleRoutes.js";
 const app: Express = express();
 
 app.use(express.json());
-app.use(cors({ origin: 'http://localhost:5173' }))
+app.use(cors({ origin: process.env.CORS_ORIGIN }))
 app.use(cookieParser());
 
 app.get("/health", async (_req: Request, res: Response, next: NextFunction) => {
