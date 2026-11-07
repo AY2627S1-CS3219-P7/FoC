@@ -7,12 +7,6 @@ on:
       - "credit-service/**"
       - ".github/workflows/credit-service-deploy.yml"
       - ".github/workflows/reusable-deploy.yml"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "credit-service/**"
-      - ".github/workflows/credit-service-deploy.yml"
-      - ".github/workflows/reusable-deploy.yml"
 
 jobs:
   deploy:

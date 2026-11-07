@@ -7,12 +7,6 @@ on:
       - "order-service/**"
       - ".github/workflows/order-service-deploy.yml"
       - ".github/workflows/reusable-deploy.yml"
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "order-service/**"
-      - ".github/workflows/order-service-deploy.yml"
-      - ".github/workflows/reusable-deploy.yml"
 
 jobs:
   deploy:
