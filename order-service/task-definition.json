@@ -57,7 +57,7 @@
             },
             {
                "name": "CREDIT_SERVICE_URL",
-               "value": "http://credit-service:3004"
+               "value": "http://credit-service.cs3219.local:3004"
             }
          ],
          "secrets": [
