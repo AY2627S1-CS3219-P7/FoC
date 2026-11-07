@@ -1,3 +1,8 @@
+// AI Assistance Disclosure:
+// Tool: GitHub Copilot, date: 2026-11-07
+// Scope: Add opt-in SSL support for PostgreSQL connections to AWS RDS.
+// Author review: Verified. It was only a 3 line change.
+
 import pg from "pg";
 import { env } from "./env.js";
 
@@ -12,6 +17,9 @@ export const pool = new Pool({
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+  ssl: process.env.DB_SSL === "true"
+    ? { rejectUnauthorized: false } 
+    : false,
 });
 
 pool.on("error", (err: Error) => {

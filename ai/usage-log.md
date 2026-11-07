@@ -495,3 +495,31 @@ Files affected:
 - order-service/app/models/index.ts
 
 Author review: Reviewed manually and tested on deployment
+
+
+## AWS RDS SSL connection for remaining microservices
+Author: Maegan Tan
+Tool: GitHub Copilot
+Date: 2026-11-07
+
+Exact prompt:
+> I need to fix an AWS RDS SSL connection issue across my remaining microservices (User, Credit, Supplier, and Order services).
+>
+> Please scan the codebase for these services and locate the files where the PostgreSQL database connection pool is initialized (specifically where `new Pool(...)` from the `pg` library is called).
+>
+> Example of the error faced:
+> error: no pg_hba.conf entry for host "172.30.2.40", user "postgres", database "user_service", no encryption
+
+Key response:
+Added opt-in SSL to the User, Credit, and Supplier PostgreSQL pools, enabled it in their ECS task definitions, and documented the local setting. Order service already had SSL enabled.
+
+Files affected:
+- user-service/src/config/db.ts
+- credit-service/src/config/db.ts
+- supplier-service/src/config/db.ts
+- user-service/task-definition.json
+- credit-service/task-definition.json
+- supplier-service/task-definition.json
+- user-service/.env.example
+- credit-service/.env.example
+- supplier-service/.env.example

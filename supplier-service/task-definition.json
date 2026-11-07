@@ -36,6 +36,10 @@
                "value": "5432"
             },
             {
+               "name": "DB_SSL",
+               "value": "true"
+            },
+            {
                "name": "CORS_ORIGIN",
                "value": "https://d3414od56848h5.cloudfront.net"
             }

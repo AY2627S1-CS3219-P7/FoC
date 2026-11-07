@@ -40,6 +40,10 @@
                "value": "5432"
             },
             {
+               "name": "DB_SSL",
+               "value": "true"
+            },
+            {
                "name": "INITIAL_CREDITS",
                "value": "10"
             },
