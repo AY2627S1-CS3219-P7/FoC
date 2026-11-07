@@ -29,19 +29,19 @@
             },
             {
                "name": "USER_SERVICE_URL",
-               "value": "http://user-service:3002"
+               "value": "http://user-service.cs3219.local:3002"
             },
             {
                "name": "SUPPLIER_SERVICE_URL",
-               "value": "http://supplier-service:3001"
+               "value": "http://supplier-service.cs3219.local:3001"
             },
             {
                "name": "CREDIT_SERVICE_URL",
-               "value": "http://credit-service:3004"
+               "value": "http://credit-service.cs3219.local:3004"
             },
             {
                "name": "ORDER_SERVICE_URL",
-               "value": "http://order-service:3003"
+               "value": "http://order-service.cs3219.local:3003"
             }
          ]
       }
