@@ -40,6 +40,10 @@
                "value": "5432"
             },
             {
+               "name": "DB_SSL",
+               "value": "true"
+            },
+            {
                "name": "DB_LOGGING",
                "value": "false"
             },

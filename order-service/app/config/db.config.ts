@@ -1,3 +1,8 @@
+// AI Assistance Disclosure:
+// Tool: GitHub Copilot, date: 2026-11-07
+// Scope: Added an environment-controlled PostgreSQL SSL setting for deployment.
+// Author review: Reviewed manually and tested on deployment. The change was only 1 line.
+
 import { required } from "./env.ts";
 
 export default {
@@ -6,6 +11,7 @@ export default {
   USER: required("DB_USER"),
   PASSWORD: required("DB_PASSWORD"),
   DB: required("DB_DATABASE"),
+  SSL: process.env.DB_SSL === "true",
   dialect: "postgres" as const,
   pool: {
     max: 5,

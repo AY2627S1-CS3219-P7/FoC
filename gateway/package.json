@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "rm -rf dist && tsc",
-    "start": "node dist/gateway/src/server.js"
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

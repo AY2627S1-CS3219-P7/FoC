@@ -478,3 +478,20 @@ Files affected
 - credit-service/src/events/orderEvents.ts
 - credit-service/src/events/processOrderEvent.ts
 - credit-service/src/events/rabbitmq.ts
+
+## Debugging Errors that arose in cloud deployment
+Author: Maegan Tan
+Tool: GitHub Copilot
+Date: 2026-11-07
+
+Prompt:
+> Order service failing to start in deployment with a PostgreSQL `pg_hba.conf` error indicating no encryption.
+
+Key response:
+Added an opt-in PostgreSQL SSL setting, enabled it for the deployed order-service task definition, and documented the setting for local configuration
+
+Files affected:
+- order-service/app/config/db.config.ts
+- order-service/app/models/index.ts
+
+Author review: Reviewed manually and tested on deployment
