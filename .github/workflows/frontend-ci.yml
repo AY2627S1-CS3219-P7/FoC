@@ -54,7 +54,7 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
-          VITE_API_GATEWAY_URL: ${{ secrets.VITE_API_GATEWAY_URL }}
+          VITE_API_GATEWAY_URL: https://d3414od56848h5.cloudfront.net/api
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
