@@ -45,7 +45,7 @@
             },
             {
                "name": "DB_DATABASE",
-               "value": "user_service_db"
+               "value": "user_service"
             },
             {
                "name": "JWT_EXPIRES_IN",
