@@ -17,8 +17,8 @@ include:
 services:
   gateway:
     build:
-      context: .
-      dockerfile: ./gateway/Dockerfile
+      context: ./gateway
+      dockerfile: Dockerfile
     container_name: api-gateway
     restart: unless-stopped
     ports:
