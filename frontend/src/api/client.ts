@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || "http://localhost:8080/api";
+const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || "https://d3414od56848h5.cloudfront.net/api";
 
 const ACCESS_TOKEN_KEY = "auth_token";
 const REFRESH_TOKEN_KEY = "refresh_token";
