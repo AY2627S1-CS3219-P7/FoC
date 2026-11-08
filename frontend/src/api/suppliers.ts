@@ -178,7 +178,8 @@ function toSupplier(s: ApiSupplier): Supplier {
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
-  const response = await request(BASE_URL)
+  // Bust CloudFront/browser caches so list images match a just-saved crop.
+  const response = await request(`${BASE_URL}?_=${Date.now()}`)
   const data: ApiSupplier[] = await response.json()
   return data.filter((s) => s.is_active).map(toSupplier)
 }
@@ -186,7 +187,7 @@ export async function fetchSuppliers(): Promise<Supplier[]> {
 
 export async function fetchSupplierById(id: string): Promise<Supplier | null> {
   try {
-    const response = await request(`${BASE_URL}/${id}`)
+    const response = await request(`${BASE_URL}/${id}?_=${Date.now()}`)
     const data: ApiSupplier | null = await response.json()
     if (!data || !data.is_active) return null
     return toSupplier(data)
