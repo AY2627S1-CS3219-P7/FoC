@@ -61,8 +61,10 @@ async function createImage(url: string): Promise<HTMLImageElement> {
     image.addEventListener('error', () =>
       reject(new Error('Image failed to load')),
     )
-    // Needed for canvas export from many CDNs (imgur, github raw, etc.).
-    image.crossOrigin = 'anonymous'
+    // crossOrigin on data: URLs can break canvas export in some browsers.
+    if (/^https?:/i.test(url)) {
+      image.crossOrigin = 'anonymous'
+    }
     image.src = url
   })
 }
@@ -132,15 +134,20 @@ const SupplierImageField = forwardRef<
   const croppedAreaPixelsRef = useRef<Area | null>(null)
   const valueRef = useRef(value)
   const sourceUrlRef = useRef(sourceUrl)
+  const cropImageSrcRef = useRef<string | null>(null)
 
   const normalizedSource = normalizeSupplierImageUrl(sourceUrl)
-  const canCropSource =
-    normalizedSource !== null &&
+  // Prefer a fresh http(s) URL; otherwise re-open the already-saved crop so Edit can re-frame it.
+  const cropImageSrc =
+    normalizedSource &&
     isValidSupplierImageUrl(sourceUrl) &&
-    !isCroppedDataUrl(sourceUrl) &&
-    !previewFailed
+    !isCroppedDataUrl(sourceUrl)
+      ? normalizedSource
+      : isCroppedDataUrl(value)
+        ? value.trim()
+        : null
 
-  const showingCroppedResult = isCroppedDataUrl(value)
+  const canCropSource = Boolean(cropImageSrc) && !previewFailed
 
   useEffect(() => {
     valueRef.current = value
@@ -151,13 +158,17 @@ const SupplierImageField = forwardRef<
   }, [sourceUrl])
 
   useEffect(() => {
+    cropImageSrcRef.current = cropImageSrc
+  }, [cropImageSrc])
+
+  useEffect(() => {
     setPreviewFailed(false)
     setCropError('')
     setZoom(1)
     setCrop({ x: 0, y: 0 })
     setCroppedAreaPixels(null)
     croppedAreaPixelsRef.current = null
-  }, [sourceUrl])
+  }, [cropImageSrc])
 
   useEffect(() => {
     if (!isCroppedDataUrl(value) && value !== sourceUrl) {
@@ -172,11 +183,7 @@ const SupplierImageField = forwardRef<
 
   async function applyCurrentCrop(): Promise<string> {
     const currentValue = valueRef.current
-    if (isCroppedDataUrl(currentValue)) {
-      return currentValue
-    }
-
-    const source = normalizeSupplierImageUrl(sourceUrlRef.current)
+    const source = cropImageSrcRef.current
     const pixels = croppedAreaPixelsRef.current
     if (!source || !pixels) {
       return currentValue.trim()
@@ -209,12 +216,12 @@ const SupplierImageField = forwardRef<
   }))
 
   async function handleApplyCrop() {
-    if (!normalizedSource || !croppedAreaPixels) return
+    if (!cropImageSrc || !croppedAreaPixels) return
     try {
       setCropping(true)
       setCropError('')
       const dataUrl = await getNormalizedCropDataUrl(
-        normalizedSource,
+        cropImageSrc,
         croppedAreaPixels,
       )
       onChange(dataUrl)
@@ -231,16 +238,14 @@ const SupplierImageField = forwardRef<
     }
   }
 
-  function handleClearCropped() {
-    onChange(sourceUrl.trim() ? sourceUrl.trim() : '')
+  function handleClearImage() {
+    setSourceUrl('')
+    onChange('')
   }
 
   function handleUrlFieldChange(next: string) {
     setSourceUrl(next)
-    // Keep form value in sync for uncropped URLs so submit still works without Apply.
-    if (!isCroppedDataUrl(value)) {
-      onChange(next)
-    }
+    onChange(next)
   }
 
   return (
@@ -248,47 +253,28 @@ const SupplierImageField = forwardRef<
       <TextField
         fullWidth
         label="Image URL"
-        value={showingCroppedResult ? sourceUrl || 'Cropped image ready' : sourceUrl}
+        value={
+          isCroppedDataUrl(value) && !sourceUrl.trim()
+            ? ''
+            : sourceUrl
+        }
+        placeholder={
+          isCroppedDataUrl(value) && !sourceUrl.trim()
+            ? 'Saved crop below — paste a new URL to replace, or re-frame and Save'
+            : undefined
+        }
         onChange={(event) => handleUrlFieldChange(event.target.value)}
-        disabled={showingCroppedResult}
         error={error || Boolean(cropError)}
         helperText={
           error
             ? getSupplierImageUrlError(sourceUrl || value)
-            : showingCroppedResult
-              ? 'Crop ready — click Save Changes to store it on the supplier.'
-              : 'Optional. Drag to frame the photo, then Save Changes (Apply crop is optional; Save will use your current framing).'
+            : isCroppedDataUrl(value) && !sourceUrl.trim()
+              ? 'This supplier already has a cropped image. Re-frame it below and Save, or paste a new image URL.'
+              : 'Optional. Drag to frame the photo, then Save Changes (Save keeps your current framing).'
         }
       />
 
-      {showingCroppedResult && (
-        <Stack spacing={1} sx={{ mt: 1.5, alignItems: 'flex-start' }}>
-          <Typography variant="caption" color="text.secondary">
-            Applied crop
-          </Typography>
-          <Box
-            component="img"
-            src={value}
-            alt="Cropped supplier preview"
-            sx={{
-              display: 'block',
-              width: '100%',
-              height: 'auto',
-              aspectRatio: `${CROP_ASPECT}`,
-              objectFit: 'cover',
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'grey.100',
-            }}
-          />
-          <Button type="button" size="small" onClick={handleClearCropped}>
-            Clear crop / change URL
-          </Button>
-        </Stack>
-      )}
-
-      {!showingCroppedResult && normalizedSource && (
+      {cropImageSrc && (
         <Box sx={{ mt: 1.5 }}>
           <Typography
             variant="caption"
@@ -315,7 +301,7 @@ const SupplierImageField = forwardRef<
                 }}
               >
                 <Cropper
-                  image={normalizedSource}
+                  image={cropImageSrc}
                   crop={crop}
                   zoom={zoom}
                   minZoom={0.35}
@@ -333,21 +319,26 @@ const SupplierImageField = forwardRef<
                 />
                 <Box
                   component="img"
-                  src={normalizedSource}
+                  src={cropImageSrc}
                   alt=""
                   onError={() => setPreviewFailed(true)}
                   sx={{ display: 'none' }}
                 />
               </Box>
 
-              <Button
-                type="button"
-                variant="outlined"
-                onClick={handleApplyCrop}
-                disabled={cropping || !croppedAreaPixels}
-              >
-                {cropping ? 'Applying crop…' : 'Preview applied crop'}
-              </Button>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                <Button
+                  type="button"
+                  variant="outlined"
+                  onClick={handleApplyCrop}
+                  disabled={cropping || !croppedAreaPixels}
+                >
+                  {cropping ? 'Applying crop…' : 'Preview applied crop'}
+                </Button>
+                <Button type="button" size="small" onClick={handleClearImage}>
+                  Clear image
+                </Button>
+              </Stack>
               {cropError && (
                 <Typography variant="body2" color="error">
                   {cropError}

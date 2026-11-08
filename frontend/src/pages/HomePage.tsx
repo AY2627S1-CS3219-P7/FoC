@@ -17,8 +17,8 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import type { UserMode } from '../components/AppNavigation'
 import {
   CheckTaskIcon,
   ClipboardIcon,
@@ -31,11 +31,17 @@ type QuickAction = {
   title: string
   description: string
   to: string
+  /** Workspace to activate before navigating (cross-mode Home shortcuts). */
+  mode: UserMode
   icon: ReactNode
   tone: 'blue' | 'teal' | 'amber'
 }
 
-function HomePage() {
+type HomePageProps = {
+  onWorkspaceNavigate: (mode: UserMode, path: string) => void
+}
+
+function HomePage({ onWorkspaceNavigate }: HomePageProps) {
   const { user, canRequest, canCourier, isAdmin } = useAuth()
   const displayName = user
     ? user.firstName?.trim() || user.username
@@ -49,6 +55,7 @@ function HomePage() {
         title: 'Create Request',
         description: 'Start a campus errand by choosing a supplier.',
         to: '/suppliers',
+        mode: 'requester',
         icon: <ClipboardIcon />,
         tone: 'blue',
       },
@@ -56,6 +63,7 @@ function HomePage() {
         title: 'Browse Suppliers',
         description: 'Find food, printing, and other useful campus services.',
         to: '/suppliers',
+        mode: 'requester',
         icon: <DeliveryBagIcon />,
         tone: 'blue',
       },
@@ -63,6 +71,7 @@ function HomePage() {
         title: 'My Requests',
         description: 'Track active and past requests you placed.',
         to: '/requests',
+        mode: 'requester',
         icon: <ClipboardIcon />,
         tone: 'blue',
       },
@@ -75,6 +84,7 @@ function HomePage() {
         title: 'Available Requests',
         description: 'Discover open campus errands you can accept.',
         to: '/fulfil',
+        mode: 'courier',
         icon: <DeliveryBagIcon />,
         tone: 'teal',
       },
@@ -82,6 +92,7 @@ function HomePage() {
         title: 'My Tasks',
         description: 'Track active courier tasks and past history.',
         to: '/my-tasks',
+        mode: 'courier',
         icon: <CheckTaskIcon />,
         tone: 'teal',
       },
@@ -93,6 +104,7 @@ function HomePage() {
       title: 'Admin Dashboard',
       description: 'Manage users, roles, and campus suppliers.',
       to: '/admin',
+      mode: 'admin',
       icon: <CheckTaskIcon />,
       tone: 'amber',
     })
@@ -191,9 +203,8 @@ function HomePage() {
                 }}
               >
                 <CardActionArea
-                  component={Link}
-                  to={action.to}
                   sx={{ height: '100%' }}
+                  onClick={() => onWorkspaceNavigate(action.mode, action.to)}
                 >
                   <Box
                     sx={{

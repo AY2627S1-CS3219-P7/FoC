@@ -48,6 +48,7 @@ type SupplierDetailPageProps = {
 
 type DetailLocationState = {
   successMessage?: string
+  supplier?: Supplier | null
 }
 
 function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
@@ -69,27 +70,46 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
 
   useEffect(() => {
     if (!supplierId) return
+
+    const state = location.state as DetailLocationState | null
+    // Prefer the supplier from Save so a cached GET cannot show the old image.
+    if (state?.supplier && state.supplier.id === supplierId) {
+      setSupplier(state.supplier)
+      setStatus('ready')
+      const message = state.successMessage?.trim()
+      if (message) {
+        setSaveSuccessMessage(message)
+        setIsSaveSuccessOpen(true)
+      }
+      navigate(location.pathname, { replace: true, state: null })
+      return
+    }
+
+    if (state?.successMessage?.trim()) {
+      setSaveSuccessMessage(state.successMessage.trim())
+      setIsSaveSuccessOpen(true)
+      navigate(location.pathname, { replace: true, state: null })
+    }
+
+    let cancelled = false
     fetchSupplierById(supplierId)
       .then((data) => {
+        if (cancelled) return
         setSupplier(data)
         setStatus('ready')
       })
       .catch((error) => {
+        if (cancelled) return
         console.error(error)
         setStatus('error')
       })
+
+    return () => {
+      cancelled = true
+    }
+    // location.state is read only on mount / supplier change (Save redirect).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: do not refetch when clearing state
   }, [supplierId])
-
-  // Show save confirmation after redirect from Edit Supplier.
-  useEffect(() => {
-    const state = location.state as DetailLocationState | null
-    const message = state?.successMessage?.trim()
-    if (!message) return
-
-    setSaveSuccessMessage(message)
-    setIsSaveSuccessOpen(true)
-    navigate(location.pathname, { replace: true, state: null })
-  }, [location.pathname, location.state, navigate])
 
   function closeDeleteDialog() {
     setIsDeleteDialogOpen(false)
