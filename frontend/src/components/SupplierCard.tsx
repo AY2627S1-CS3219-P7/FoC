@@ -128,7 +128,7 @@ function SupplierCard({
             width: '100%',
             aspectRatio: '16 / 9',
             height: 'auto',
-            objectFit: 'fill',
+            objectFit: 'cover',
             bgcolor: 'grey.100',
           }}
         />

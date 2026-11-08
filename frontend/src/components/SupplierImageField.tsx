@@ -28,13 +28,16 @@ type SupplierImageFieldProps = {
 /** Matches SupplierCard / SupplierHeroImage. */
 const CROP_ASPECT = 16 / 9
 
-/** Normalized export size — independent of the source image. */
-const OUTPUT_WIDTH = 800
-const OUTPUT_HEIGHT = 450
-const OUTPUT_QUALITY = 0.72
+/**
+ * Normalized export size — independent of the source image.
+ * Keep under ~100kb JSON (cloud gateway may still be on Express default until redeployed).
+ */
+const OUTPUT_WIDTH = 640
+const OUTPUT_HEIGHT = 360
+const OUTPUT_QUALITY = 0.65
 
-/** Stay comfortably under Express/gateway JSON body limits (avoid 413). */
-const MAX_CROPPED_DATA_URL_CHARS = 85_000
+/** Stay under Express default ~100kb JSON body so cropped saves work without a gateway redeploy. */
+const MAX_CROPPED_DATA_URL_CHARS = 70_000
 
 function isCroppedDataUrl(value: string): boolean {
   return value.trim().startsWith('data:image/')
@@ -188,8 +191,8 @@ function SupplierImageField({
           error
             ? getSupplierImageUrlError(sourceUrl || value)
             : showingCroppedResult
-              ? 'Crop applied (resized & compressed). Clear crop to paste a new URL or adjust again.'
-              : 'Optional. Paste a direct image URL, or crop to a consistent 16∶9 card image. Source file size does not matter.'
+              ? 'Crop ready locally — click Save Changes to store it. Clear crop to use the original URL instead.'
+              : 'Optional. Paste a direct image URL. Crop is optional: frame it, Apply crop, then Save Changes.'
         }
       />
 
@@ -271,6 +274,9 @@ function SupplierImageField({
               >
                 {cropping ? 'Applying crop…' : 'Apply crop'}
               </Button>
+              <Typography variant="caption" color="text.secondary">
+                Apply only prepares the image. You still need Save Changes for it to stick.
+              </Typography>
               {cropError && (
                 <Typography variant="body2" color="error">
                   {cropError}
