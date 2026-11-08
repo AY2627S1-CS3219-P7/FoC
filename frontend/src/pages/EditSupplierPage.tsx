@@ -34,6 +34,7 @@ import {
   isValidSupplierImageUrl,
   isValidSupplierTime,
   normalizeSupplierImageUrl,
+  rememberSupplierImage,
   toSupplierTimeInput,
   toSupplierTimePayload,
 } from '../api/suppliers'
@@ -178,6 +179,8 @@ function EditSupplierPage() {
         longitude: Number(formValues.longitude),
         image_url: imageUrl,
       }
+      // So Supplier List shows this crop even if GET /api/suppliers is CDN-stale.
+      rememberSupplierImage(savedSupplier.id, savedSupplier.image_url)
       navigate(`/suppliers/${supplier.id}`, {
         replace: true,
         state: {

@@ -177,11 +177,46 @@ function toSupplier(s: ApiSupplier): Supplier {
   }
 }
 
+const SUPPLIER_IMAGE_OVERRIDE_KEY = 'foc:supplier-image-overrides'
+
+/** Remember a just-saved crop so Supplier List can show it even if GET /suppliers is stale. */
+export function rememberSupplierImage(
+  id: string,
+  imageUrl: string | null,
+): void {
+  try {
+    const current = JSON.parse(
+      sessionStorage.getItem(SUPPLIER_IMAGE_OVERRIDE_KEY) || '{}',
+    ) as Record<string, string | null>
+    current[id] = imageUrl
+    sessionStorage.setItem(SUPPLIER_IMAGE_OVERRIDE_KEY, JSON.stringify(current))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function applySupplierImageOverrides(suppliers: Supplier[]): Supplier[] {
+  try {
+    const raw = sessionStorage.getItem(SUPPLIER_IMAGE_OVERRIDE_KEY)
+    if (!raw) return suppliers
+    const overrides = JSON.parse(raw) as Record<string, string | null>
+    return suppliers.map((supplier) =>
+      Object.prototype.hasOwnProperty.call(overrides, supplier.id)
+        ? { ...supplier, image_url: overrides[supplier.id] }
+        : supplier,
+    )
+  } catch {
+    return suppliers
+  }
+}
+
 export async function fetchSuppliers(): Promise<Supplier[]> {
   // Bust CloudFront/browser caches so list images match a just-saved crop.
   const response = await request(`${BASE_URL}?_=${Date.now()}`)
   const data: ApiSupplier[] = await response.json()
-  return data.filter((s) => s.is_active).map(toSupplier)
+  return applySupplierImageOverrides(
+    data.filter((s) => s.is_active).map(toSupplier),
+  )
 }
 
 

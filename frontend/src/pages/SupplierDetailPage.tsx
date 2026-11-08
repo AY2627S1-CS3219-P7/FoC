@@ -200,7 +200,13 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
     <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
       <Stack spacing={3}>
         <Stack direction="row" spacing={2}>
-          <Button component={Link} to="/suppliers" variant="outlined">
+          <Button
+            component={Link}
+            to="/suppliers"
+            variant="outlined"
+            // Carry the on-screen supplier (incl. just-saved crop) into the list.
+            state={{ updatedSupplier: supplier }}
+          >
             Back
           </Button>
           {isAdmin && (

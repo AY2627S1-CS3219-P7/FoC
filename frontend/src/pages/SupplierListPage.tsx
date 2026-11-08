@@ -27,7 +27,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { CampusBuildingIcon, IconBadge } from '../components/CampusArt'
 import SupplierCard from '../components/SupplierCard'
 import SupplierListStatus from '../components/SupplierListStatus'
@@ -135,9 +135,14 @@ type SupplierListPageProps = {
 
 type SupplierListPreviewState = 'ready' | 'loading' | 'empty' | 'error'
 
+type ListLocationState = {
+  updatedSupplier?: Supplier | null
+}
+
 function SupplierListPage({ isAdmin }: SupplierListPageProps) {
   // Change 'ready' to 'loading', 'empty', or 'error' to preview each list state.
   // TODO: Replace this preview state with results from the Supplier Service.
+  const location = useLocation()
   const [listPreviewState, setListPreviewState] = useState<SupplierListPreviewState>('loading')
 
   const [searchText, setSearchText] = useState('')
@@ -149,17 +154,50 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
   const [supplierRecords, setSuppliers] = useState<Supplier[]>([]);
   const [favouriteLoadingId, setFavouriteLoadingId] = useState<string | null>(null)
   const [favouriteError, setFavouriteError] = useState('')
+
+  // Refetch on every visit (location.key). Mount-only [] kept showing a stale
+  // list after Edit→Detail→Back when GET /api/suppliers was CDN-cached.
   useEffect(() => {
+    let cancelled = false
+    const navState = location.state as ListLocationState | null
+    const updatedSupplier = navState?.updatedSupplier
+
+    setListPreviewState('loading')
     fetchSuppliers()
       .then((data) => {
-        setSuppliers(data)
+        if (cancelled) return
+        const withNavUpdate =
+          updatedSupplier && updatedSupplier.id
+            ? data.map((supplier) =>
+                supplier.id === updatedSupplier.id
+                  ? {
+                      ...supplier,
+                      image_url: updatedSupplier.image_url,
+                      name: updatedSupplier.name,
+                      type: updatedSupplier.type,
+                      building: updatedSupplier.building,
+                      floor: updatedSupplier.floor,
+                      location_description: updatedSupplier.location_description,
+                      operatingHours: updatedSupplier.operatingHours,
+                      starting_time: updatedSupplier.starting_time,
+                      closing_time: updatedSupplier.closing_time,
+                    }
+                  : supplier,
+              )
+            : data
+        setSuppliers(withNavUpdate)
         setListPreviewState('ready')
       })
       .catch((error) => {
+        if (cancelled) return
         console.error(error)
         setListPreviewState('error')
       })
-  }, [])
+
+    return () => {
+      cancelled = true
+    }
+  }, [location.key, location.state])
 
   async function toggleFavourite(supplier: Supplier) {
     try {
