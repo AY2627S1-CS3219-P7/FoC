@@ -225,7 +225,9 @@ export async function fetchSupplierById(id: string): Promise<Supplier | null> {
     const response = await request(`${BASE_URL}/${id}?_=${Date.now()}`)
     const data: ApiSupplier | null = await response.json()
     if (!data || !data.is_active) return null
-    return toSupplier(data)
+    // Same session override as the list — View Details was showing a CDN-stale
+    // GET /:id image while the list already showed the just-saved crop.
+    return applySupplierImageOverrides([toSupplier(data)])[0] ?? null
   } catch (error) {
     if (error instanceof NotFoundError) return null
     throw error
