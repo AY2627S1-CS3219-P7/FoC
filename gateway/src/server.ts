@@ -48,7 +48,8 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+// Allow cropped supplier image data URLs (base64) without hitting Express's 100kb default (413).
+app.use(express.json({ limit: "2mb" }));
 app.use(requestIdMiddleware);
 app.use(loggerMiddleware);
 

@@ -17,7 +17,6 @@ import {
   Typography,
 } from '@mui/material'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import SuccessSnackbar from '../components/SuccessSnackbar'
 import SupplierImageField from '../components/SupplierImageField'
 import SupplierLocationFields, {
   hasValidCoordinates,
@@ -39,7 +38,6 @@ import {
 
 function EditSupplierPage() {
   const navigate = useNavigate()
-  const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
   const { supplierId } = useParams()
@@ -146,7 +144,11 @@ function EditSupplierPage() {
         longitude: Number(formValues.longitude),
         image_url: normalizeSupplierImageUrl(formValues.imageUrl),
       })
-      setIsSuccessOpen(true)
+      // Show success on the detail page (where the user lands), not on the edit form.
+      navigate(`/suppliers/${supplier.id}`, {
+        replace: true,
+        state: { successMessage: 'Supplier changes saved successfully.' },
+      })
     } catch (error) {
       console.error(error)
       setSubmitError(
@@ -349,15 +351,6 @@ function EditSupplierPage() {
           </Paper>
         </form>
       </Stack>
-
-      <SuccessSnackbar
-        open={isSuccessOpen}
-        message="Supplier changes saved successfully."
-        onClose={() => {
-          setIsSuccessOpen(false)
-          navigate(`/suppliers/${supplier.id}`)
-        }}
-      />
     </Container>
   )
 }

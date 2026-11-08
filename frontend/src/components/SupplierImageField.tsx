@@ -8,7 +8,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Slider from '@mui/material/Slider'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
@@ -26,6 +25,17 @@ type SupplierImageFieldProps = {
   error?: boolean
 }
 
+/** Matches SupplierCard / SupplierHeroImage. */
+const CROP_ASPECT = 16 / 9
+
+/** Normalized export size — independent of the source image. */
+const OUTPUT_WIDTH = 800
+const OUTPUT_HEIGHT = 450
+const OUTPUT_QUALITY = 0.72
+
+/** Stay comfortably under Express/gateway JSON body limits (avoid 413). */
+const MAX_CROPPED_DATA_URL_CHARS = 85_000
+
 function isCroppedDataUrl(value: string): boolean {
   return value.trim().startsWith('data:image/')
 }
@@ -41,25 +51,26 @@ async function createImage(url: string): Promise<HTMLImageElement> {
   })
 }
 
-async function getCroppedImageDataUrl(
+/**
+ * Crop → always resize to OUTPUT_WIDTH×OUTPUT_HEIGHT → compressed JPEG data URL.
+ * Source resolution/file size does not affect the final payload shape.
+ */
+async function getNormalizedCropDataUrl(
   imageSrc: string,
   pixelCrop: Area,
 ): Promise<string> {
   const image = await createImage(imageSrc)
   const canvas = document.createElement('canvas')
-  const maxEdge = 900
-  const scale = Math.min(1, maxEdge / Math.max(pixelCrop.width, pixelCrop.height))
-  const outputWidth = Math.max(1, Math.round(pixelCrop.width * scale))
-  const outputHeight = Math.max(1, Math.round(pixelCrop.height * scale))
-
-  canvas.width = outputWidth
-  canvas.height = outputHeight
+  canvas.width = OUTPUT_WIDTH
+  canvas.height = OUTPUT_HEIGHT
 
   const context = canvas.getContext('2d')
   if (!context) {
     throw new Error('Could not crop image')
   }
 
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT)
   context.drawImage(
     image,
     pixelCrop.x,
@@ -68,11 +79,24 @@ async function getCroppedImageDataUrl(
     pixelCrop.height,
     0,
     0,
-    outputWidth,
-    outputHeight,
+    OUTPUT_WIDTH,
+    OUTPUT_HEIGHT,
   )
 
-  return canvas.toDataURL('image/jpeg', 0.85)
+  for (const quality of [OUTPUT_QUALITY, 0.6, 0.48, 0.36]) {
+    const dataUrl = canvas.toDataURL('image/jpeg', quality)
+    if (dataUrl.length <= MAX_CROPPED_DATA_URL_CHARS) {
+      return dataUrl
+    }
+  }
+
+  const fallback = canvas.toDataURL('image/jpeg', 0.28)
+  if (fallback.length > MAX_CROPPED_DATA_URL_CHARS) {
+    throw new Error(
+      'Could not prepare this crop for upload. Click “Clear crop / change URL” and Save with the original image link instead (crop is optional).',
+    )
+  }
+  return fallback
 }
 
 function SupplierImageField({
@@ -122,7 +146,7 @@ function SupplierImageField({
     try {
       setCropping(true)
       setCropError('')
-      const dataUrl = await getCroppedImageDataUrl(
+      const dataUrl = await getNormalizedCropDataUrl(
         normalizedSource,
         croppedAreaPixels,
       )
@@ -130,7 +154,9 @@ function SupplierImageField({
     } catch (cropApplyError) {
       console.error(cropApplyError)
       setCropError(
-        'Could not crop this image (the host may block canvas use). Try another direct image URL.',
+        cropApplyError instanceof Error
+          ? cropApplyError.message
+          : 'Could not crop this image (the host may block canvas use). Try another direct image URL.',
       )
     } finally {
       setCropping(false)
@@ -162,15 +188,15 @@ function SupplierImageField({
           error
             ? getSupplierImageUrlError(sourceUrl || value)
             : showingCroppedResult
-              ? 'Crop applied. Clear crop to paste a new URL or adjust again.'
-              : 'Optional. Paste a direct image URL, then drag and zoom the window to frame it.'
+              ? 'Crop applied (resized & compressed). Clear crop to paste a new URL or adjust again.'
+              : 'Optional. Paste a direct image URL, or crop to a consistent 16∶9 card image. Source file size does not matter.'
         }
       />
 
       {showingCroppedResult && (
         <Stack spacing={1} sx={{ mt: 1.5, alignItems: 'flex-start' }}>
           <Typography variant="caption" color="text.secondary">
-            Cropped preview
+            Applied crop
           </Typography>
           <Box
             component="img"
@@ -180,8 +206,8 @@ function SupplierImageField({
               display: 'block',
               width: '100%',
               height: 'auto',
-              aspectRatio: '16 / 9',
-              objectFit: 'fill',
+              aspectRatio: `${CROP_ASPECT}`,
+              objectFit: 'cover',
               borderRadius: 2,
               border: '1px solid',
               borderColor: 'divider',
@@ -197,7 +223,7 @@ function SupplierImageField({
       {!showingCroppedResult && normalizedSource && (
         <Box sx={{ mt: 1.5 }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.75 }}>
-            Frame image — drag to move, zoom to resize
+            Fixed 16∶9 frame (same as supplier cards). Drag to move; scroll or pinch to zoom.
           </Typography>
           {canCropSource ? (
             <Stack spacing={1.5}>
@@ -205,26 +231,29 @@ function SupplierImageField({
                 sx={{
                   position: 'relative',
                   width: '100%',
-                  height: { xs: 240, sm: 280 },
+                  aspectRatio: `${CROP_ASPECT}`,
                   borderRadius: 2,
                   overflow: 'hidden',
                   bgcolor: '#111',
                   border: '1px solid',
                   borderColor: 'divider',
+                  touchAction: 'none',
                 }}
               >
                 <Cropper
                   image={normalizedSource}
                   crop={crop}
                   zoom={zoom}
-                  aspect={16 / 9}
+                  minZoom={1}
+                  maxZoom={3}
+                  aspect={CROP_ASPECT}
                   onCropChange={setCrop}
                   onZoomChange={setZoom}
                   onCropComplete={onCropComplete}
                   onMediaLoaded={() => setPreviewFailed(false)}
+                  zoomWithScroll
                   showGrid
                 />
-                {/* Hidden probe for load errors when Cropper cannot surface them. */}
                 <Box
                   component="img"
                   src={normalizedSource}
@@ -233,19 +262,7 @@ function SupplierImageField({
                   sx={{ display: 'none' }}
                 />
               </Box>
-              <Box sx={{ px: 1 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Zoom
-                </Typography>
-                <Slider
-                  value={zoom}
-                  min={1}
-                  max={3}
-                  step={0.05}
-                  aria-label="Zoom image"
-                  onChange={(_event, next) => setZoom(Number(next))}
-                />
-              </Box>
+
               <Button
                 type="button"
                 variant="outlined"
