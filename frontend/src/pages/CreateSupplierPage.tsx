@@ -10,19 +10,30 @@ import {
   Box,
   Button,
   Container,
-  FormControl,
   FormHelperText,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Stack,
   TextField,
   Typography,
 } from '@mui/material'
 import { Link, useNavigate } from 'react-router-dom'
 import SuccessSnackbar from '../components/SuccessSnackbar'
-import { createSupplier } from '../api/suppliers'
+import SupplierImageField from '../components/SupplierImageField'
+import SupplierLocationFields, {
+  hasValidCoordinates,
+} from '../components/SupplierLocationFields'
+import SupplierTypeField from '../components/SupplierTypeField'
+import {
+  createSupplier,
+  getSupplierRequestErrorMessage,
+  isValidSupplierImageUrl,
+  isValidSupplierTime,
+  normalizeSupplierImageUrl,
+} from '../api/suppliers'
+import {
+  isValidSupplierType,
+  normalizeSupplierType,
+} from '../suppliers/supplierTypes'
 
 function CreateSupplierPage() {
   const navigate = useNavigate()
@@ -36,8 +47,10 @@ function CreateSupplierPage() {
     building: '',
     floor: '',
     locationDescription: '',
-    startingTime: '',
-    closingTime: '',
+    imageUrl: '',
+    // Start at midnight so the time picker is usable (shows as 12:00 AM).
+    startingTime: '00:00',
+    closingTime: '00:00',
     latitude: '',
     longitude: ''
   })
@@ -46,28 +59,36 @@ function CreateSupplierPage() {
     supplierName: false,
     type: false,
     building: false,
+    imageUrl: false,
     startingTime: false,
     closingTime: false,
-    latitude: false,
-    longitude: false
+    location: false,
   })
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
+    const trimmedType = normalizeSupplierType(formValues.type)
+    const openingValid = isValidSupplierTime(formValues.startingTime)
+    const closingValid = isValidSupplierTime(formValues.closingTime)
     const newErrors = {
       supplierName: formValues.supplierName.trim() === '',
-      type: formValues.type === '',
+      type: !isValidSupplierType(formValues.type),
       building: formValues.building.trim() === '',
-      startingTime: formValues.startingTime === '',
-      closingTime: formValues.closingTime === '',
-      latitude: formValues.latitude.trim() === '' || Number.isNaN(Number(formValues.latitude)),
-      longitude: formValues.longitude.trim() === '' || Number.isNaN(Number(formValues.longitude))
+      imageUrl: !isValidSupplierImageUrl(formValues.imageUrl),
+      startingTime: !openingValid,
+      closingTime: !closingValid,
+      location: !hasValidCoordinates(formValues.latitude, formValues.longitude),
     }
 
     setErrors(newErrors)
 
     if (Object.values(newErrors).some((hasError) => hasError)) {
+      if (!openingValid || !closingValid) {
+        setSubmitError('Please enter a valid opening and closing time.')
+      } else {
+        setSubmitError('')
+      }
       return
     }
 
@@ -76,24 +97,30 @@ function CreateSupplierPage() {
       setSubmitError("")
       await createSupplier({
         name: formValues.supplierName.trim(),
-        type: formValues.type,
+        type: trimmedType,
         building: formValues.building.trim(),
         floor: formValues.floor.trim(),
         location_description: formValues.locationDescription.trim(),
         starting_time: `${formValues.startingTime}:00`, // format in db is "HH:MM:SS"
         closing_time: `${formValues.closingTime}:00`,
         latitude: Number(formValues.latitude),
-        longitude: Number(formValues.longitude)
+        longitude: Number(formValues.longitude),
+        image_url: normalizeSupplierImageUrl(formValues.imageUrl),
       })
       setIsSuccessOpen(true)
     } catch (error) {
       console.error(error)
-      setSubmitError("Uh oh, we could not create this supplier. Please try again.")
+      setSubmitError(
+        getSupplierRequestErrorMessage(
+          error,
+          'Uh oh, we could not create this supplier. Please try again.',
+        ),
+      )
     }
   }
 
   return (
-    <Container component="main" maxWidth="sm" sx={{ py: { xs: 3, md: 6 } }}>
+    <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
       <Stack spacing={3}>
         <Box>
           <Typography component="h1" variant="h4">
@@ -119,10 +146,10 @@ function CreateSupplierPage() {
                 label="Supplier Name"
                 value={formValues.supplierName}
                 onChange={(event) =>
-                  setFormValues({
-                    ...formValues,
+                  setFormValues((current) => ({
+                    ...current,
                     supplierName: event.target.value,
-                  })
+                  }))
                 }
                 error={errors.supplierName}
                 helperText={
@@ -130,40 +157,44 @@ function CreateSupplierPage() {
                 }
               />
 
-              <FormControl required error={errors.type}>
-                <InputLabel id="create-supplier-type-label">Type</InputLabel>
-                <Select
-                  labelId="create-supplier-type-label"
-                  label="Type"
-                  value={formValues.type}
-                  onChange={(event) =>
-                    setFormValues({ ...formValues, type: event.target.value })
-                  }
-                >
-                  <MenuItem value="Food">Food</MenuItem>
-                  <MenuItem value="Food/Coffee">Food/Coffee</MenuItem>
-                  <MenuItem value="Printing">Printing</MenuItem>
-                  <MenuItem value="Shopping">Shopping</MenuItem>
-                </Select>
-                {errors.type && <FormHelperText>Type is required</FormHelperText>}
-              </FormControl>
-
-              <TextField
-                required
-                label="Building"
-                value={formValues.building}
-                onChange={(event) =>
-                  setFormValues({ ...formValues, building: event.target.value })
+              <SupplierTypeField
+                value={formValues.type}
+                error={errors.type}
+                onChange={(type) =>
+                  setFormValues((current) => ({ ...current, type }))
                 }
-                error={errors.building}
-                helperText={errors.building ? 'Building is required' : ''}
+              />
+
+              <SupplierLocationFields
+                building={formValues.building}
+                latitude={formValues.latitude}
+                longitude={formValues.longitude}
+                buildingError={errors.building}
+                coordinatesError={errors.location}
+                onBuildingChange={(building) =>
+                  setFormValues((current) => ({ ...current, building }))
+                }
+                onCoordinatesChange={(latitude, longitude) =>
+                  setFormValues((current) => ({ ...current, latitude, longitude }))
+                }
+                onKnownLocationSelect={(place) =>
+                  setFormValues((current) => ({
+                    ...current,
+                    building: place.name,
+                    latitude: String(place.latitude),
+                    longitude: String(place.longitude),
+                  }))
+                }
               />
 
               <TextField
                 label="Floor"
                 value={formValues.floor}
                 onChange={(event) =>
-                  setFormValues({ ...formValues, floor: event.target.value })
+                  setFormValues((current) => ({
+                    ...current,
+                    floor: event.target.value,
+                  }))
                 }
               />
 
@@ -171,7 +202,18 @@ function CreateSupplierPage() {
                 label="Location Description"
                 value={formValues.locationDescription}
                 onChange={(event) =>
-                  setFormValues({ ...formValues, locationDescription: event.target.value })
+                  setFormValues((current) => ({
+                    ...current,
+                    locationDescription: event.target.value,
+                  }))
+                }
+              />
+
+              <SupplierImageField
+                value={formValues.imageUrl}
+                error={errors.imageUrl}
+                onChange={(imageUrl) =>
+                  setFormValues((current) => ({ ...current, imageUrl }))
                 }
               />
 
@@ -182,10 +224,18 @@ function CreateSupplierPage() {
                 label="Opening Time"
                 value={formValues.startingTime}
                 onChange={(event) =>
-                  setFormValues({ ...formValues, startingTime: event.target.value })
+                  setFormValues((current) => ({
+                    ...current,
+                    startingTime: event.target.value,
+                  }))
                 }
                 error={errors.startingTime}
-                helperText={errors.startingTime ? 'Opening time is required' : ''}
+                helperText={
+                  errors.startingTime
+                    ? 'Please enter a valid opening time.'
+                    : 'Defaults to 12:00 AM — change as needed.'
+                }
+                slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
                 required
@@ -194,40 +244,19 @@ function CreateSupplierPage() {
                 label="Closing Time"
                 value={formValues.closingTime}
                 onChange={(event) =>
-                  setFormValues({ ...formValues, closingTime: event.target.value })
+                  setFormValues((current) => ({
+                    ...current,
+                    closingTime: event.target.value,
+                  }))
                 }
                 error={errors.closingTime}
-                helperText={errors.closingTime ? 'Closing time is required' : ''}
+                helperText={
+                  errors.closingTime
+                    ? 'Please enter a valid closing time.'
+                    : 'Defaults to 12:00 AM — change as needed.'
+                }
+                slotProps={{ inputLabel: { shrink: true } }}
               />
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  required
-                  fullWidth
-                  type="number"
-                  label="Latitude"
-                  value={formValues.latitude}
-                  onChange={(event) =>
-                    setFormValues({ ...formValues, latitude: event.target.value })
-                  }
-                  error={errors.latitude}
-                  helperText={errors.latitude ? 'Valid latitude is required' : ''}
-                  slotProps={{ htmlInput: { step: 'any' } }}
-                />
-                <TextField
-                  required
-                  fullWidth
-                  type="number"
-                  label="Longitude"
-                  value={formValues.longitude}
-                  onChange={(event) =>
-                    setFormValues({ ...formValues, longitude: event.target.value })
-                  }
-                  error={errors.longitude}
-                  helperText={errors.longitude ? 'Valid longitude is required' : ''}
-                  slotProps={{ htmlInput: { step: 'any' } }}
-                />
-              </Stack>
 
               {submitError && <FormHelperText error>{submitError}</FormHelperText>}
 
@@ -246,7 +275,7 @@ function CreateSupplierPage() {
 
       <SuccessSnackbar
         open={isSuccessOpen}
-        message="Supplier created successfully (UI preview)."
+        message="Supplier created successfully."
         onClose={() => {
           setIsSuccessOpen(false)
           navigate('/suppliers')

@@ -12,7 +12,6 @@ import {
   Card,
   CardActions,
   CardContent,
-  CardMedia,
   Chip,
   Stack,
   Typography,
@@ -100,12 +99,19 @@ function SupplierCard({
       }}
     >
       {imageUrl && !imageFailed ? (
-        <CardMedia
+        <Box
           component="img"
-          image={imageUrl}
+          src={imageUrl}
           alt={name}
-          sx={{ height: 148 }}
           onError={() => setImageFailed(true)}
+          sx={{
+            display: 'block',
+            width: '100%',
+            aspectRatio: '16 / 9',
+            height: 'auto',
+            objectFit: 'fill',
+            bgcolor: 'grey.100',
+          }}
         />
       ) : (
         <Box
@@ -114,7 +120,8 @@ function SupplierCard({
           sx={{
             position: 'relative',
             display: 'grid',
-            height: 148,
+            width: '100%',
+            aspectRatio: '16 / 9',
             placeItems: 'center',
             color: '#FFFFFF',
             background: placeholder.wash,
