@@ -32,6 +32,8 @@ import {
   isValidSupplierImageUrl,
   isValidSupplierTime,
   normalizeSupplierImageUrl,
+  toSupplierTimeInput,
+  toSupplierTimePayload,
 } from '../api/suppliers'
 import {
   isValidSupplierType,
@@ -114,8 +116,8 @@ function CreateSupplierPage() {
         building: formValues.building.trim(),
         floor: formValues.floor.trim(),
         location_description: formValues.locationDescription.trim(),
-        starting_time: `${formValues.startingTime}:00`, // format in db is "HH:MM:SS"
-        closing_time: `${formValues.closingTime}:00`,
+        starting_time: toSupplierTimePayload(formValues.startingTime),
+        closing_time: toSupplierTimePayload(formValues.closingTime),
         latitude: Number(formValues.latitude),
         longitude: Number(formValues.longitude),
         image_url: normalizeSupplierImageUrl(imageUrlForSave),
@@ -240,16 +242,19 @@ function CreateSupplierPage() {
                 onChange={(event) =>
                   setFormValues((current) => ({
                     ...current,
-                    startingTime: event.target.value,
+                    startingTime: toSupplierTimeInput(event.target.value),
                   }))
                 }
                 error={errors.startingTime}
                 helperText={
                   errors.startingTime
-                    ? 'Please enter a valid opening time.'
+                    ? 'Please enter a valid opening time (HH:MM).'
                     : 'Defaults to 12:00 AM — change as needed.'
                 }
-                slotProps={{ inputLabel: { shrink: true } }}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  htmlInput: { step: 60 },
+                }}
               />
               <TextField
                 required
@@ -260,16 +265,19 @@ function CreateSupplierPage() {
                 onChange={(event) =>
                   setFormValues((current) => ({
                     ...current,
-                    closingTime: event.target.value,
+                    closingTime: toSupplierTimeInput(event.target.value),
                   }))
                 }
                 error={errors.closingTime}
                 helperText={
                   errors.closingTime
-                    ? 'Please enter a valid closing time.'
+                    ? 'Please enter a valid closing time (HH:MM).'
                     : 'Defaults to 12:00 AM — change as needed.'
                 }
-                slotProps={{ inputLabel: { shrink: true } }}
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  htmlInput: { step: 60 },
+                }}
               />
 
               {submitError && <FormHelperText error>{submitError}</FormHelperText>}
