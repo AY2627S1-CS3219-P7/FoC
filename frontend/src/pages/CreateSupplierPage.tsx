@@ -5,7 +5,7 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import {
   Box,
   Button,
@@ -18,13 +18,16 @@ import {
 } from '@mui/material'
 import { Link, useNavigate } from 'react-router-dom'
 import SuccessSnackbar from '../components/SuccessSnackbar'
-import SupplierImageField from '../components/SupplierImageField'
+import SupplierImageField, {
+  type SupplierImageFieldHandle,
+} from '../components/SupplierImageField'
 import SupplierLocationFields, {
   hasValidCoordinates,
 } from '../components/SupplierLocationFields'
 import SupplierTypeField from '../components/SupplierTypeField'
 import {
   createSupplier,
+  getSupplierImageUrlError,
   getSupplierRequestErrorMessage,
   isValidSupplierImageUrl,
   isValidSupplierTime,
@@ -37,6 +40,7 @@ import {
 
 function CreateSupplierPage() {
   const navigate = useNavigate()
+  const imageFieldRef = useRef<SupplierImageFieldHandle>(null)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
@@ -94,7 +98,16 @@ function CreateSupplierPage() {
 
     // Send the validated form to the team's existing Supplier Service.
     try {
-      setSubmitError("")
+      setSubmitError('')
+      // Capture current crop framing even if the user skipped "Apply crop".
+      const imageUrlForSave =
+        (await imageFieldRef.current?.prepareForSubmit()) ?? formValues.imageUrl
+      if (!isValidSupplierImageUrl(imageUrlForSave)) {
+        setErrors((current) => ({ ...current, imageUrl: true }))
+        setSubmitError(getSupplierImageUrlError(imageUrlForSave))
+        return
+      }
+
       await createSupplier({
         name: formValues.supplierName.trim(),
         type: trimmedType,
@@ -105,7 +118,7 @@ function CreateSupplierPage() {
         closing_time: `${formValues.closingTime}:00`,
         latitude: Number(formValues.latitude),
         longitude: Number(formValues.longitude),
-        image_url: normalizeSupplierImageUrl(formValues.imageUrl),
+        image_url: normalizeSupplierImageUrl(imageUrlForSave),
       })
       setIsSuccessOpen(true)
     } catch (error) {
@@ -210,6 +223,7 @@ function CreateSupplierPage() {
               />
 
               <SupplierImageField
+                ref={imageFieldRef}
                 value={formValues.imageUrl}
                 error={errors.imageUrl}
                 onChange={(imageUrl) =>
