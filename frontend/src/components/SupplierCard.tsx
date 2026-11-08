@@ -9,7 +9,7 @@
 // Scope: Added the favourite toggle to the supplier card.
 // Author review: Read through all code and verified through testing
 
-import {useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   Box,
   Button,
@@ -90,6 +90,10 @@ function SupplierCard({
   const [imageFailed, setImageFailed] = useState(false)
   const placeholder = placeholderByType[type] ?? 
   (type.includes('Food') ? placeholderByType.Food : defaultPlaceholder)
+
+  useEffect(() => {
+    setImageFailed(false)
+  }, [imageUrl])
 
   return (
     <Card
