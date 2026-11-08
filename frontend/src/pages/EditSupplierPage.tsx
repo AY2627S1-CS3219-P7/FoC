@@ -28,6 +28,7 @@ import type { Supplier } from '../interfaces'
 import {
   updateSupplier,
   fetchSupplierById,
+  formatHours,
   getSupplierImageUrlError,
   getSupplierRequestErrorMessage,
   isValidSupplierImageUrl,
@@ -147,24 +148,41 @@ function EditSupplierPage() {
         return
       }
 
+      const startingTime = toSupplierTimePayload(formValues.startingTime)
+      const closingTime = toSupplierTimePayload(formValues.closingTime)
+      const imageUrl = normalizeSupplierImageUrl(imageUrlForSave)
       const updated = await updateSupplier(supplier.id, {
         name: formValues.supplierName.trim(),
         type: trimmedType,
         building: formValues.building.trim(),
         floor: formValues.floor.trim(),
         location_description: formValues.locationDescription.trim(),
-        starting_time: toSupplierTimePayload(formValues.startingTime),
-        closing_time: toSupplierTimePayload(formValues.closingTime),
+        starting_time: startingTime,
+        closing_time: closingTime,
         latitude: Number(formValues.latitude),
         longitude: Number(formValues.longitude),
-        image_url: normalizeSupplierImageUrl(imageUrlForSave),
+        image_url: imageUrl,
       })
-      // Pass the PATCH response so detail can show the new image even if GET is cached.
+      // Prefer API body; if Safari cannot parse it, still show the values we just saved.
+      const savedSupplier = updated ?? {
+        ...supplier,
+        name: formValues.supplierName.trim(),
+        type: trimmedType,
+        building: formValues.building.trim(),
+        floor: formValues.floor.trim(),
+        location_description: formValues.locationDescription.trim(),
+        starting_time: startingTime,
+        closing_time: closingTime,
+        operatingHours: formatHours(startingTime, closingTime),
+        latitude: Number(formValues.latitude),
+        longitude: Number(formValues.longitude),
+        image_url: imageUrl,
+      }
       navigate(`/suppliers/${supplier.id}`, {
         replace: true,
         state: {
           successMessage: 'Supplier changes saved successfully.',
-          supplier: updated,
+          supplier: savedSupplier,
         },
       })
     } catch (error) {
@@ -318,48 +336,60 @@ function EditSupplierPage() {
               <TextField
                 required
                 fullWidth
-                type="time"
+                type="text"
                 label="Opening Time"
+                placeholder="09:00"
                 value={formValues.startingTime}
                 onChange={(event) =>
                   setFormValues((current) => ({
                     ...current,
-                    startingTime: toSupplierTimeInput(event.target.value),
+                    startingTime: event.target.value,
+                  }))
+                }
+                onBlur={() =>
+                  setFormValues((current) => ({
+                    ...current,
+                    startingTime:
+                      toSupplierTimeInput(current.startingTime) ||
+                      current.startingTime,
                   }))
                 }
                 error={errors.startingTime}
                 helperText={
                   errors.startingTime
-                    ? 'Please enter a valid opening time (HH:MM).'
-                    : ''
+                    ? 'Use 24-hour time like 09:00.'
+                    : '24-hour time, e.g. 09:00'
                 }
-                slotProps={{
-                  inputLabel: { shrink: true },
-                  htmlInput: { step: 60 },
-                }}
+                slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
                 required
                 fullWidth
-                type="time"
+                type="text"
                 label="Closing Time"
+                placeholder="18:00"
                 value={formValues.closingTime}
                 onChange={(event) =>
                   setFormValues((current) => ({
                     ...current,
-                    closingTime: toSupplierTimeInput(event.target.value),
+                    closingTime: event.target.value,
+                  }))
+                }
+                onBlur={() =>
+                  setFormValues((current) => ({
+                    ...current,
+                    closingTime:
+                      toSupplierTimeInput(current.closingTime) ||
+                      current.closingTime,
                   }))
                 }
                 error={errors.closingTime}
                 helperText={
                   errors.closingTime
-                    ? 'Please enter a valid closing time (HH:MM).'
-                    : ''
+                    ? 'Use 24-hour time like 18:00.'
+                    : '24-hour time, e.g. 18:00'
                 }
-                slotProps={{
-                  inputLabel: { shrink: true },
-                  htmlInput: { step: 60 },
-                }}
+                slotProps={{ inputLabel: { shrink: true } }}
               />
 
               {submitError && <FormHelperText error>{submitError}</FormHelperText>}

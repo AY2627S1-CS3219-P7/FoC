@@ -14,7 +14,6 @@ import {
   useState,
 } from 'react'
 import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
@@ -208,11 +207,6 @@ const SupplierImageField = forwardRef<
     },
   }))
 
-  function handleClearImage() {
-    setSourceUrl('')
-    onChange('')
-  }
-
   function handleUrlFieldChange(next: string) {
     setSourceUrl(next)
     onChange(next)
@@ -295,10 +289,6 @@ const SupplierImageField = forwardRef<
                   sx={{ display: 'none' }}
                 />
               </Box>
-
-              <Button type="button" size="small" onClick={handleClearImage}>
-                Clear image
-              </Button>
               {cropError && (
                 <Typography variant="body2" color="error">
                   {cropError}
