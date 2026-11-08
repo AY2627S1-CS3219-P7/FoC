@@ -137,7 +137,9 @@ function SupplierLocationFields({
         getOptionLabel={(option) =>
           typeof option === 'string' ? option : option.name
         }
-        isOptionEqualToValue={(option, value) => option.id === value.id}
+        isOptionEqualToValue={(option, value) =>
+          typeof value !== 'string' && option.id === value.id
+        }
         value={selectedLocation}
         inputValue={building}
         onChange={(_event, newValue) => handleBuildingSelect(newValue)}
