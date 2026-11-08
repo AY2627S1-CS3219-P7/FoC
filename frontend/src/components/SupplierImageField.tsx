@@ -70,7 +70,7 @@ async function createImage(url: string): Promise<HTMLImageElement> {
 
 /**
  * Crop → always resize to OUTPUT_WIDTH×OUTPUT_HEIGHT → compressed JPEG data URL.
- * Source resolution/file size does not affect the final payload shape.
+ * Clamps to the image bounds so zoom-out / contain letterboxing becomes white, not a wrong crop.
  */
 async function getNormalizedCropDataUrl(
   imageSrc: string,
@@ -88,17 +88,29 @@ async function getNormalizedCropDataUrl(
 
   context.fillStyle = '#ffffff'
   context.fillRect(0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT)
-  context.drawImage(
-    image,
-    pixelCrop.x,
-    pixelCrop.y,
-    pixelCrop.width,
-    pixelCrop.height,
-    0,
-    0,
-    OUTPUT_WIDTH,
-    OUTPUT_HEIGHT,
-  )
+
+  const scaleX = OUTPUT_WIDTH / pixelCrop.width
+  const scaleY = OUTPUT_HEIGHT / pixelCrop.height
+  const sx = Math.max(0, pixelCrop.x)
+  const sy = Math.max(0, pixelCrop.y)
+  const ex = Math.min(image.naturalWidth, pixelCrop.x + pixelCrop.width)
+  const ey = Math.min(image.naturalHeight, pixelCrop.y + pixelCrop.height)
+  const sw = ex - sx
+  const sh = ey - sy
+
+  if (sw > 0 && sh > 0) {
+    context.drawImage(
+      image,
+      sx,
+      sy,
+      sw,
+      sh,
+      (sx - pixelCrop.x) * scaleX,
+      (sy - pixelCrop.y) * scaleY,
+      sw * scaleX,
+      sh * scaleY,
+    )
+  }
 
   for (const quality of [OUTPUT_QUALITY, 0.45, 0.35, 0.28]) {
     const dataUrl = canvas.toDataURL('image/jpeg', quality)
@@ -110,7 +122,7 @@ async function getNormalizedCropDataUrl(
   const fallback = canvas.toDataURL('image/jpeg', 0.22)
   if (fallback.length > MAX_CROPPED_DATA_URL_CHARS) {
     throw new Error(
-      'Could not prepare this crop for upload. Clear the crop and Save with the original image link instead (crop is optional).',
+      'Could not prepare this crop for upload. Paste the original image link again (crop is optional), then Save.',
     )
   }
   return fallback
@@ -129,6 +141,7 @@ const SupplierImageField = forwardRef<
   // Start at 1; allow zoom-out (<1) so a tall/wide photo can fit entirely in the 16:9 frame.
   const [zoom, setZoom] = useState(1)
   const croppedAreaPixelsRef = useRef<Area | null>(null)
+  const cropDirtyRef = useRef(true)
   const valueRef = useRef(value)
   const sourceUrlRef = useRef(sourceUrl)
   const cropImageSrcRef = useRef<string | null>(null)
@@ -164,6 +177,7 @@ const SupplierImageField = forwardRef<
     setZoom(1)
     setCrop({ x: 0, y: 0 })
     croppedAreaPixelsRef.current = null
+    cropDirtyRef.current = true
   }, [cropImageSrc])
 
   useEffect(() => {
@@ -174,16 +188,32 @@ const SupplierImageField = forwardRef<
 
   const onCropComplete = useCallback((_area: Area, pixels: Area) => {
     croppedAreaPixelsRef.current = pixels
+    cropDirtyRef.current = false
   }, [])
 
-  function waitForCropPixels(timeoutMs = 1200): Promise<Area | null> {
-    if (croppedAreaPixelsRef.current) {
+  function handleCropChange(next: { x: number; y: number }) {
+    cropDirtyRef.current = true
+    croppedAreaPixelsRef.current = null
+    setCrop(next)
+  }
+
+  function handleZoomChange(next: number) {
+    cropDirtyRef.current = true
+    croppedAreaPixelsRef.current = null
+    setZoom(next)
+  }
+
+  /** Wait until react-easy-crop reports pixels for the *current* pan/zoom. */
+  function waitForFreshCropPixels(timeoutMs = 1500): Promise<Area | null> {
+    if (!cropDirtyRef.current && croppedAreaPixelsRef.current) {
       return Promise.resolve(croppedAreaPixelsRef.current)
     }
     return new Promise((resolve) => {
       const started = Date.now()
       const timer = window.setInterval(() => {
-        if (croppedAreaPixelsRef.current || Date.now() - started >= timeoutMs) {
+        const ready =
+          !cropDirtyRef.current && croppedAreaPixelsRef.current !== null
+        if (ready || Date.now() - started >= timeoutMs) {
           window.clearInterval(timer)
           resolve(croppedAreaPixelsRef.current)
         }
@@ -200,11 +230,11 @@ const SupplierImageField = forwardRef<
     }
 
     // Never silently fall back to the raw URL: list/detail would then
-    // object-fit:cover the original and look nothing like the framed crop.
-    const pixels = await waitForCropPixels()
+    // re-crop the original and look nothing like the framed window.
+    const pixels = await waitForFreshCropPixels()
     if (!pixels) {
       throw new Error(
-        'Crop is still loading. Wait a moment for the frame to appear, then Save again.',
+        'Crop is still loading. Wait a moment after zooming/dragging, then Save again.',
       )
     }
 
@@ -295,8 +325,8 @@ const SupplierImageField = forwardRef<
                   minZoom={0.35}
                   maxZoom={3}
                   aspect={CROP_ASPECT}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
+                  onCropChange={handleCropChange}
+                  onZoomChange={handleZoomChange}
                   onCropComplete={onCropComplete}
                   onMediaLoaded={() => setPreviewFailed(false)}
                   zoomWithScroll
