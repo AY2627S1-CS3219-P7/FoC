@@ -128,7 +128,8 @@ function SupplierCard({
             width: '100%',
             aspectRatio: '16 / 9',
             height: 'auto',
-            objectFit: 'cover',
+            // Saved crops are already 16:9 — fill avoids re-cropping the framed image.
+            objectFit: 'fill',
             bgcolor: 'grey.100',
           }}
         />

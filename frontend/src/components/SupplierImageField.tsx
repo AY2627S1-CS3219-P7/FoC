@@ -176,12 +176,36 @@ const SupplierImageField = forwardRef<
     croppedAreaPixelsRef.current = pixels
   }, [])
 
+  function waitForCropPixels(timeoutMs = 1200): Promise<Area | null> {
+    if (croppedAreaPixelsRef.current) {
+      return Promise.resolve(croppedAreaPixelsRef.current)
+    }
+    return new Promise((resolve) => {
+      const started = Date.now()
+      const timer = window.setInterval(() => {
+        if (croppedAreaPixelsRef.current || Date.now() - started >= timeoutMs) {
+          window.clearInterval(timer)
+          resolve(croppedAreaPixelsRef.current)
+        }
+      }, 40)
+    })
+  }
+
   async function applyCurrentCrop(): Promise<string> {
     const currentValue = valueRef.current
     const source = cropImageSrcRef.current
-    const pixels = croppedAreaPixelsRef.current
-    if (!source || !pixels) {
+    // No cropper open (blank image) — keep whatever is in the form.
+    if (!source) {
       return currentValue.trim()
+    }
+
+    // Never silently fall back to the raw URL: list/detail would then
+    // object-fit:cover the original and look nothing like the framed crop.
+    const pixels = await waitForCropPixels()
+    if (!pixels) {
+      throw new Error(
+        'Crop is still loading. Wait a moment for the frame to appear, then Save again.',
+      )
     }
 
     const dataUrl = await getNormalizedCropDataUrl(source, pixels)

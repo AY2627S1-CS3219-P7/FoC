@@ -77,8 +77,8 @@ function SupplierHeroImage({
           aspectRatio: '16 / 9',
           height: 'auto',
           minHeight: height,
-          // cover keeps 16:9 framing without stretching (fill was distorting crops)
-          objectFit: 'cover',
+          // Crops are exported as 16:9; fill shows exactly what was framed.
+          objectFit: 'fill',
           borderRadius: 3,
           bgcolor: 'grey.100',
         }}
