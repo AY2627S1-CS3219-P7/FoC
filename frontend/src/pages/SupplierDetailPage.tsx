@@ -9,13 +9,14 @@
 // Scope: Added supplier favourite status and toggling to the supplier detail page.
 // Author review: Read through all code and verified through testing
 
-import { useEffect, useState } from "react";
+
+import { useEffect, useState } from 'react'
 import {
+  Alert,
+  Box,
   Button,
   Chip,
   Container,
-  Alert,
-  Box,
   Dialog,
   DialogActions,
   DialogContent,
@@ -25,32 +26,25 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
-import { Link, useLocation, useParams, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import type { UserMode } from '../components/AppNavigation'
 import SuccessSnackbar from '../components/SuccessSnackbar'
+import SupplierFavouriteButton from '../components/SupplierFavouriteButton'
 import SupplierHeroImage from '../components/SupplierHeroImage'
 import SupplierInfo from '../components/SupplierInfo'
 import type { Supplier } from '../interfaces'
-} from "@mui/material";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import type { UserMode } from "../components/AppNavigation";
-import SuccessSnackbar from "../components/SuccessSnackbar";
-import SupplierHeroImage from "../components/SupplierHeroImage";
-import SupplierInfo from "../components/SupplierInfo";
-import SupplierFavouriteButton from "../components/SupplierFavouriteButton";
-import type { Supplier } from "../interfaces";
 import {
   addFavouriteSupplier,
   deleteFavouriteSupplier,
   deleteSupplier,
   fetchSupplierById,
   getSupplierRequestErrorMessage,
-} from "../api/suppliers";
+} from '../api/suppliers'
 
 type SupplierDetailPageProps = {
-  isAdmin: boolean;
-  mode: UserMode;
-};
+  isAdmin: boolean
+  mode: UserMode
+}
 
 type DetailLocationState = {
   successMessage?: string
@@ -63,37 +57,28 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
   const [isSaveSuccessOpen, setIsSaveSuccessOpen] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isFavouriteLoading, setIsFavouriteLoading] = useState(false)
+  const [favouriteError, setFavouriteError] = useState('')
 
   const navigate = useNavigate()
   const location = useLocation()
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isFavouriteLoading, setIsFavouriteLoading] = useState(false);
-  const [favouriteError, setFavouriteError] = useState("");
+  const { supplierId } = useParams()
 
-  const navigate = useNavigate();
-
-  const { supplierId } = useParams();
-
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">(
-    "loading",
-  );
+  const [supplier, setSupplier] = useState<Supplier | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
 
   useEffect(() => {
-    if (!supplierId) return;
+    if (!supplierId) return
     fetchSupplierById(supplierId)
       .then((data) => {
-        setSupplier(data);
-        setStatus("ready");
+        setSupplier(data)
+        setStatus('ready')
       })
       .catch((error) => {
-        console.error(error);
-        setStatus("error");
-      });
-  }, [supplierId]);
+        console.error(error)
+        setStatus('error')
+      })
+  }, [supplierId])
 
   // Show save confirmation after redirect from Edit Supplier.
   useEffect(() => {
@@ -107,12 +92,12 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
   }, [location.pathname, location.state, navigate])
 
   function closeDeleteDialog() {
-    setIsDeleteDialogOpen(false);
-    setDeleteError("");
+    setIsDeleteDialogOpen(false)
+    setDeleteError('')
   }
 
   async function handleDelete() {
-    if (!supplier) return;
+    if (!supplier) return
     try {
       setDeleteError('')
       setIsDeleting(true)
@@ -120,46 +105,46 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       setIsDeleteDialogOpen(false)
       setIsDeleteSuccessOpen(true)
     } catch (error) {
-      console.error(error);
+      console.error(error)
       setDeleteError(
         getSupplierRequestErrorMessage(
           error,
-          "Could not delete supplier. Please try again.",
+          'Could not delete supplier. Please try again.',
         ),
-      );
+      )
     } finally {
-      setIsDeleting(false);
+      setIsDeleting(false)
     }
   }
 
   async function toggleFavourite() {
-    if (!supplier) return;
+    if (!supplier) return
     try {
-      setFavouriteError("");
-      setIsFavouriteLoading(true);
+      setFavouriteError('')
+      setIsFavouriteLoading(true)
       if (supplier.isFavourite) {
-        await deleteFavouriteSupplier(supplier.id);
+        await deleteFavouriteSupplier(supplier.id)
       } else {
-        await addFavouriteSupplier(supplier.id);
+        await addFavouriteSupplier(supplier.id)
       }
-      setSupplier({ ...supplier, isFavourite: !supplier.isFavourite });
+      setSupplier({ ...supplier, isFavourite: !supplier.isFavourite })
     } catch (error) {
-      console.error(error);
-      setFavouriteError("Could not update favourite. Please try again.");
+      console.error(error)
+      setFavouriteError('Could not update favourite. Please try again.')
     } finally {
-      setIsFavouriteLoading(false);
+      setIsFavouriteLoading(false)
     }
   }
 
-  if (status === "loading") {
+  if (status === 'loading') {
     return (
       <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
         <Typography color="text.secondary">Loading supplier…</Typography>
       </Container>
-    );
+    )
   }
 
-  if (status === "error") {
+  if (status === 'error') {
     return (
       <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
         <Stack spacing={2}>
@@ -171,7 +156,7 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
           </Button>
         </Stack>
       </Container>
-    );
+    )
   }
 
   if (!supplier) {
@@ -186,10 +171,10 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
           </Button>
         </Stack>
       </Container>
-    );
+    )
   }
 
-  const isFood = supplier.type.includes("Food");
+  const isFood = supplier.type.includes('Food')
 
   return (
     <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
@@ -221,14 +206,14 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
         <Paper
           variant="outlined"
           sx={{
-            position: "relative",
+            position: 'relative',
             p: { xs: 2.5, md: 3.5 },
-            borderColor: "divider",
-            boxShadow: "0 8px 24px rgba(23, 35, 45, 0.06)",
+            borderColor: 'divider',
+            boxShadow: '0 8px 24px rgba(23, 35, 45, 0.06)',
           }}
         >
           {!isAdmin && (
-            <Box sx={{ position: "absolute", top: 16, right: 16, zIndex: 1 }}>
+            <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1 }}>
               <SupplierFavouriteButton
                 isFavourite={supplier.isFavourite}
                 isLoading={isFavouriteLoading}
@@ -249,21 +234,21 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
             <Chip
               label={supplier.type}
               size="small"
-              color={isFood ? "secondary" : "primary"}
+              color={isFood ? 'secondary' : 'primary'}
               variant="outlined"
-              sx={{ alignSelf: "flex-start" }}
+              sx={{ alignSelf: 'flex-start' }}
             />
             <SupplierInfo
               location={`${supplier.building}, Level ${supplier.floor}`}
               operatingHours={supplier.operatingHours}
             />
             {favouriteError && <Alert severity="error">{favouriteError}</Alert>}
-            {mode === "requester" && (
+            {mode === 'requester' && (
               <Button
                 component={Link}
                 to={`/requests/new?supplierId=${supplier.id}`}
                 variant="contained"
-                sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+                sx={{ alignSelf: { xs: 'stretch', sm: 'flex-start' } }}
               >
                 Create Request
               </Button>
@@ -273,11 +258,7 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       </Stack>
 
       {isAdmin && (
-        <Dialog
-          open={isDeleteDialogOpen}
-          onClose={closeDeleteDialog}
-          //onClose={() => setIsDeleteDialogOpen(false)}
-        >
+        <Dialog open={isDeleteDialogOpen} onClose={closeDeleteDialog}>
           <DialogTitle>Delete {supplier.name}?</DialogTitle>
           <DialogContent>
             <DialogContentText>
@@ -318,7 +299,7 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
         }}
       />
     </Container>
-  );
+  )
 }
 
-export default SupplierDetailPage;
+export default SupplierDetailPage
