@@ -16,8 +16,10 @@ import express from "express";
 
 import { authMiddleware, requireRoles } from "../middleware/authMiddleware.ts";
 import {
+  addFavourite,
   addSupplier,
   deactivateSupplier,
+  deleteFavourite,
   getAllSuppliers,
   getSupplierById,
   searchSuppliers,
@@ -29,7 +31,6 @@ const requireAnyRole = requireRoles("ADMIN", "REQUESTER", "COURIER");
 const requireAdminRole = requireRoles("ADMIN");
 
 router.get("/health", (req, res) => {
-  console.log("supplier service running")
   res.status(200).json({ status: "ok" });
 });
 
@@ -50,5 +51,11 @@ router.patch("/deactivate/:id", authMiddleware, requireAdminRole, deactivateSupp
 
 // PATCH api/suppliers/:id
 router.patch("/:id", authMiddleware, requireAdminRole, updateSupplier);
+
+// PUT api/suppliers/:id/favourite
+router.put("/:id/favourite", authMiddleware, requireAnyRole, addFavourite);
+
+// DELETE api/suppliers/:id/favourite
+router.delete("/:id/favourite", authMiddleware, requireAnyRole, deleteFavourite);
 
 export default router;

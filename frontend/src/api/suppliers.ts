@@ -1,3 +1,8 @@
+// AI Assistance Disclosure:
+// Tool: GitHub Copilot (Copilot SDK), date: 2026-11-08
+// Scope: Added frontend API calls for adding and removing supplier favourites and mapped the favourite state.
+// Author review: Read through all code and verified through testing
+
 import type { Supplier } from '../interfaces'
 import { ApiError, request, NotFoundError } from './client'
 
@@ -21,9 +26,13 @@ const DIRECT_IMAGE_HOSTS = new Set([
   'raw.githubusercontent.com',
 ])
 
-export type ApiSupplier = Omit<Supplier, 'operatingHours' | 'latitude' | 'longitude'> & {
+export type ApiSupplier = Omit<
+  Supplier,
+  'operatingHours' | 'latitude' | 'longitude' | 'isFavourite'
+> & {
   latitude: string
   longitude: string
+  is_favourite?: boolean
 }
 
 // create and update endpoints format
@@ -135,12 +144,14 @@ function toRawImageUrl(url: string | null): string | null {
 }
 
 function toSupplier(s: ApiSupplier): Supplier {
+  const { is_favourite: isFavourite, ...supplier } = s
   return {
-    ...s,
+    ...supplier,
     image_url: toRawImageUrl(s.image_url),
     latitude: Number(s.latitude),
     longitude: Number(s.longitude),
     operatingHours: formatHours(s.starting_time, s.closing_time),
+    isFavourite: Boolean(isFavourite),
   }
 }
 
@@ -179,4 +190,12 @@ export async function updateSupplier(id: string, input: SupplierInput) {
 
 export async function deleteSupplier(id: string) {
   await request(`${BASE_URL}/deactivate/${id}`, { method: 'PATCH' })
+}
+
+export async function addFavouriteSupplier(id: string) {
+  await request(`${BASE_URL}/${id}/favourite`, { method: 'PUT' })
+}
+
+export async function deleteFavouriteSupplier(id: string) {
+  await request(`${BASE_URL}/${id}/favourite`, { method: 'DELETE' })
 }

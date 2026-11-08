@@ -1,3 +1,8 @@
+// AI Assistance Disclosure:
+// Tool: GitHub Copilot (Copilot SDK), date: 2026-11-08
+// Scope: Added the supplier favourite state to the frontend Supplier type.
+// Author review: Read through all code and verified through testing
+
 export interface Supplier {
     id: string,
     name: string,
@@ -12,6 +17,7 @@ export interface Supplier {
     operatingHours: string,
     image_url: string | null,
     is_active: boolean,
+    isFavourite: boolean,
     created_at: string,
     updated_at: string
 }
