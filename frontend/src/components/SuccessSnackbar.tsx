@@ -22,7 +22,11 @@ function SuccessSnackbar({
     <Snackbar
       open={open}
       autoHideDuration={4000}
-      onClose={onClose}
+      onClose={(_event, reason) => {
+        // Ignore backdrop clicks so a save confirmation is not dismissed instantly.
+        if (reason === 'clickaway') return
+        onClose()
+      }}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
     >
       <Alert

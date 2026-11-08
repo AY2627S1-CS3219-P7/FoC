@@ -24,6 +24,13 @@ import {
   Paper,
   Stack,
   Typography,
+} from '@mui/material'
+import { Link, useLocation, useParams, useNavigate } from 'react-router-dom'
+import type { UserMode } from '../components/AppNavigation'
+import SuccessSnackbar from '../components/SuccessSnackbar'
+import SupplierHeroImage from '../components/SupplierHeroImage'
+import SupplierInfo from '../components/SupplierInfo'
+import type { Supplier } from '../interfaces'
 } from "@mui/material";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import type { UserMode } from "../components/AppNavigation";
@@ -45,7 +52,20 @@ type SupplierDetailPageProps = {
   mode: UserMode;
 };
 
+type DetailLocationState = {
+  successMessage?: string
+}
+
 function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleteSuccessOpen, setIsDeleteSuccessOpen] = useState(false)
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState('')
+  const [isSaveSuccessOpen, setIsSaveSuccessOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const navigate = useNavigate()
+  const location = useLocation()
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSuccessOpen, setIsSuccessOpen] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -75,6 +95,17 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       });
   }, [supplierId]);
 
+  // Show save confirmation after redirect from Edit Supplier.
+  useEffect(() => {
+    const state = location.state as DetailLocationState | null
+    const message = state?.successMessage?.trim()
+    if (!message) return
+
+    setSaveSuccessMessage(message)
+    setIsSaveSuccessOpen(true)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, location.state, navigate])
+
   function closeDeleteDialog() {
     setIsDeleteDialogOpen(false);
     setDeleteError("");
@@ -83,11 +114,11 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
   async function handleDelete() {
     if (!supplier) return;
     try {
-      setDeleteError("");
-      setIsDeleting(true);
-      await deleteSupplier(supplier.id);
-      setIsDeleteDialogOpen(false);
-      setIsSuccessOpen(true);
+      setDeleteError('')
+      setIsDeleting(true)
+      await deleteSupplier(supplier.id)
+      setIsDeleteDialogOpen(false)
+      setIsDeleteSuccessOpen(true)
     } catch (error) {
       console.error(error);
       setDeleteError(
@@ -273,11 +304,17 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       )}
 
       <SuccessSnackbar
-        open={isSuccessOpen}
-        message="Supplier deleted successfully (UI preview)."
+        open={isSaveSuccessOpen}
+        message={saveSuccessMessage}
+        onClose={() => setIsSaveSuccessOpen(false)}
+      />
+
+      <SuccessSnackbar
+        open={isDeleteSuccessOpen}
+        message="Supplier deleted successfully."
         onClose={() => {
-          setIsSuccessOpen(false);
-          navigate("/suppliers");
+          setIsDeleteSuccessOpen(false)
+          navigate('/suppliers')
         }}
       />
     </Container>

@@ -110,6 +110,9 @@ export function getSupplierRequestErrorMessage(
   fallback: string,
 ): string {
   if (error instanceof ApiError) {
+    if (error.status === 413) {
+      return 'Image is too large to save. Click “Clear crop / change URL”, then Save with the original image link (crop is optional).'
+    }
     const cleaned = error.message.replace(/^Error\s*:\s*/i, '').trim()
     if (cleaned) return cleaned
   }
