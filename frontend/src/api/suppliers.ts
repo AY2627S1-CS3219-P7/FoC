@@ -100,9 +100,27 @@ export function getSupplierImageUrlError(value: string): string {
   return 'Use a direct image link ending in .jpg/.png/.webp (for example https://i.imgur.com/abc.jpg), not an album or webpage URL.'
 }
 
+/**
+ * Normalize API / browser time strings to HH:MM for <input type="time">.
+ * Accepts "9:00", "09:00", "09:00:00", etc. Empty/invalid → "".
+ */
+export function toSupplierTimeInput(value: string): string {
+  const match = value.trim().match(/^(\d{1,2}):([0-5]\d)/)
+  if (!match) return ''
+  const hour = Number(match[1])
+  if (hour > 23) return ''
+  return `${String(hour).padStart(2, '0')}:${match[2]}`
+}
+
+/** HH:MM:SS for supplier-service / Postgres TIME. */
+export function toSupplierTimePayload(value: string): string {
+  const hhmm = toSupplierTimeInput(value)
+  return hhmm ? `${hhmm}:00` : ''
+}
+
 /** HH:MM in 24-hour form, matching native time inputs and Create placeholders. */
 export function isValidSupplierTime(value: string): boolean {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim())
+  return toSupplierTimeInput(value) !== ''
 }
 
 export function getSupplierRequestErrorMessage(

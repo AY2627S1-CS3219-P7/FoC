@@ -125,12 +125,10 @@ const SupplierImageField = forwardRef<
     isCroppedDataUrl(value) ? '' : value,
   )
   const [previewFailed, setPreviewFailed] = useState(false)
-  const [cropping, setCropping] = useState(false)
   const [cropError, setCropError] = useState('')
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   // Start at 1; allow zoom-out (<1) so a tall/wide photo can fit entirely in the 16:9 frame.
   const [zoom, setZoom] = useState(1)
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const croppedAreaPixelsRef = useRef<Area | null>(null)
   const valueRef = useRef(value)
   const sourceUrlRef = useRef(sourceUrl)
@@ -166,7 +164,6 @@ const SupplierImageField = forwardRef<
     setCropError('')
     setZoom(1)
     setCrop({ x: 0, y: 0 })
-    setCroppedAreaPixels(null)
     croppedAreaPixelsRef.current = null
   }, [cropImageSrc])
 
@@ -177,7 +174,6 @@ const SupplierImageField = forwardRef<
   }, [value, sourceUrl])
 
   const onCropComplete = useCallback((_area: Area, pixels: Area) => {
-    setCroppedAreaPixels(pixels)
     croppedAreaPixelsRef.current = pixels
   }, [])
 
@@ -199,7 +195,6 @@ const SupplierImageField = forwardRef<
     prepareForSubmit: async () => {
       try {
         setCropError('')
-        setCropping(true)
         return await applyCurrentCrop()
       } catch (cropApplyError) {
         console.error(cropApplyError)
@@ -209,34 +204,9 @@ const SupplierImageField = forwardRef<
             : 'Could not crop this image (the host may block canvas use). Try another direct image URL, or Save without cropping.'
         setCropError(message)
         throw new Error(message)
-      } finally {
-        setCropping(false)
       }
     },
   }))
-
-  async function handleApplyCrop() {
-    if (!cropImageSrc || !croppedAreaPixels) return
-    try {
-      setCropping(true)
-      setCropError('')
-      const dataUrl = await getNormalizedCropDataUrl(
-        cropImageSrc,
-        croppedAreaPixels,
-      )
-      onChange(dataUrl)
-      valueRef.current = dataUrl
-    } catch (cropApplyError) {
-      console.error(cropApplyError)
-      setCropError(
-        cropApplyError instanceof Error
-          ? cropApplyError.message
-          : 'Could not crop this image (the host may block canvas use). Try another direct image URL.',
-      )
-    } finally {
-      setCropping(false)
-    }
-  }
 
   function handleClearImage() {
     setSourceUrl('')
@@ -270,7 +240,7 @@ const SupplierImageField = forwardRef<
             ? getSupplierImageUrlError(sourceUrl || value)
             : isCroppedDataUrl(value) && !sourceUrl.trim()
               ? 'This supplier already has a cropped image. Re-frame it below and Save, or paste a new image URL.'
-              : 'Optional. Drag to frame the photo, then Save Changes (Save keeps your current framing).'
+              : 'Optional. Frame the photo in the window below, then Save Changes.'
         }
       />
 
@@ -281,9 +251,9 @@ const SupplierImageField = forwardRef<
             color="text.secondary"
             sx={{ display: 'block', mb: 0.75 }}
           >
-            Fixed 16∶9 frame (same as supplier cards). Drag to move. Scroll or
-            pinch to zoom out so the whole photo fits, or zoom in to crop tighter.
-            Save Changes will keep this framing.
+            Fixed 16∶9 frame (same as supplier cards). What you see here is what
+            Save keeps — drag to move, scroll/pinch to zoom. No separate preview
+            step.
           </Typography>
           {canCropSource ? (
             <Stack spacing={1.5}>
@@ -326,19 +296,9 @@ const SupplierImageField = forwardRef<
                 />
               </Box>
 
-              <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                <Button
-                  type="button"
-                  variant="outlined"
-                  onClick={handleApplyCrop}
-                  disabled={cropping || !croppedAreaPixels}
-                >
-                  {cropping ? 'Applying crop…' : 'Preview applied crop'}
-                </Button>
-                <Button type="button" size="small" onClick={handleClearImage}>
-                  Clear image
-                </Button>
-              </Stack>
+              <Button type="button" size="small" onClick={handleClearImage}>
+                Clear image
+              </Button>
               {cropError && (
                 <Typography variant="body2" color="error">
                   {cropError}
