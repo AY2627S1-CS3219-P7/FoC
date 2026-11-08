@@ -17,6 +17,7 @@ import {
 } from '@mui/material'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import nusLogo from '../assets/nus-logo.png'
+import SuccessSnackbar from '../components/SuccessSnackbar'
 import { register } from '../api/users'
 
 const allowedEmailDomains = [
@@ -43,6 +44,8 @@ function RegisterPage() {
     lastName: '',
   })
   const [errors, setErrors] = useState(emptyErrors)
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -77,20 +80,19 @@ function RegisterPage() {
     }
 
     try {
+      setSubmitError('')
       await register({
         username: formValues.username.trim(),
         email: formValues.email.trim(),
         password: formValues.password.trim(),
         firstName: formValues.firstName.trim(),
-        lastName: formValues.lastName.trim()
-      }).then((data) => {
-        console.log(data);
-        navigate('/login')
+        lastName: formValues.lastName.trim(),
       })
+      setIsSuccessOpen(true)
     } catch (error) {
       console.error(error)
+      setSubmitError('Could not create your account. Please try again.')
     }
-
   }
 
   return (
@@ -245,6 +247,12 @@ function RegisterPage() {
                 helperText={errors.lastName}
               />
 
+              {submitError && (
+                <Typography color="error" variant="body2">
+                  {submitError}
+                </Typography>
+              )}
+
               <Button type="submit" variant="contained" size="large">
                 Register
               </Button>
@@ -259,6 +267,15 @@ function RegisterPage() {
           </form>
         </Paper>
       </Box>
+
+      <SuccessSnackbar
+        open={isSuccessOpen}
+        message="Registered successfully! Taking you to login…"
+        onClose={() => {
+          setIsSuccessOpen(false)
+          navigate('/login')
+        }}
+      />
     </Box>
   )
 }

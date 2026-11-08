@@ -11,7 +11,6 @@
 
 import { useEffect, useState } from 'react'
 import {
-  Box,
   Button,
   Chip,
   Container,
@@ -27,13 +26,8 @@ import {
 } from '@mui/material'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import type { UserMode } from '../components/AppNavigation'
-import {
-  DeliveryBagIcon,
-  FoodIcon,
-  PrinterIcon,
-  StudentIcon,
-} from '../components/CampusArt'
 import SuccessSnackbar from '../components/SuccessSnackbar'
+import SupplierHeroImage from '../components/SupplierHeroImage'
 import SupplierInfo from '../components/SupplierInfo'
 import SupplierFavouriteButton from '../components/SupplierFavouriteButton'
 import type { Supplier } from '../interfaces'
@@ -42,6 +36,7 @@ import {
   deleteFavouriteSupplier,
   deleteSupplier,
   fetchSupplierById,
+  getSupplierRequestErrorMessage,
 } from '../api/suppliers'
 
 type SupplierDetailPageProps = {
@@ -92,7 +87,12 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       setIsSuccessOpen(true)
     } catch (error) {
       console.error(error)
-      setDeleteError('Could not delete supplier. Please try again.')
+      setDeleteError(
+        getSupplierRequestErrorMessage(
+          error,
+          'Could not delete supplier. Please try again.',
+        ),
+      )
     } finally {
       setIsDeleting(false)
     }
@@ -203,26 +203,12 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
             </Box>
           )}
           <Stack spacing={1.5}>
-            <Box
-              sx={{
-                display: 'grid',
-                height: 120,
-                placeItems: 'center',
-                borderRadius: 3,
-                color: isFood ? 'secondary.dark' : 'primary.dark',
-                bgcolor: isFood ? 'secondary.light' : 'primary.light',
-              }}
-            >
-              {isFood ? (
-                <FoodIcon sx={{ fontSize: 48 }} />
-              ) : supplier.type === 'Printing' ? (
-                <PrinterIcon sx={{ fontSize: 48 }} />
-              ) : supplier.type === 'Services' ? (
-                <StudentIcon sx={{ fontSize: 48 }} />
-              ) : (
-                <DeliveryBagIcon sx={{ fontSize: 48 }} />
-              )}
-            </Box>
+            <SupplierHeroImage
+              name={supplier.name}
+              type={supplier.type}
+              imageUrl={supplier.image_url}
+              height={200}
+            />
             <Typography component="h1" variant="h4">
               {supplier.name}
             </Typography>
