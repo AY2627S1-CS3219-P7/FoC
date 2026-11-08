@@ -4,19 +4,26 @@
  * Scope: Assisted with frontend implementation, debugging and UI refinement.
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
+// AI Assistance Disclosure:
+// Tool: GitHub Copilot (Copilot SDK), date: 2026-11-08
+// Scope: Added favourite filtering and toggling to the requester and courier supplier list views, with the filter switch right-aligned beside the search bar.
+// Author review: Read through all code and verified through testing
 
 import { useEffect, useState } from 'react'
 import {
+  Alert,
   Box,
   Button,
   Container,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Pagination,
   Paper,
   Select,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material'
@@ -25,7 +32,11 @@ import { CampusBuildingIcon, IconBadge } from '../components/CampusArt'
 import SupplierCard from '../components/SupplierCard'
 import SupplierListStatus from '../components/SupplierListStatus'
 import type { Supplier } from "../interfaces"
-import { fetchSuppliers } from '../api/suppliers'
+import {
+  addFavouriteSupplier,
+  deleteFavouriteSupplier,
+  fetchSuppliers,
+} from '../api/suppliers'
 
 // Temporary frontend-only data used while developing the page.
 // Shared with the supplier detail and edit pages while this stays frontend-only data.
@@ -132,8 +143,11 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
   const [selectedType, setSelectedType] = useState('All')
   const [selectedSort, setSelectedSort] = useState('name-asc')
   const [page, setPage] = useState(1)
+  const [showFavourites, setShowFavourites] = useState(false)
 
   const [supplierRecords, setSuppliers] = useState<Supplier[]>([]);
+  const [favouriteLoadingId, setFavouriteLoadingId] = useState<string | null>(null)
+  const [favouriteError, setFavouriteError] = useState('')
   useEffect(() => {
     fetchSuppliers()
       .then((data) => {
@@ -145,22 +159,48 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
         setListPreviewState('error')
       })
   }, [])
+
+  async function toggleFavourite(supplier: Supplier) {
+    try {
+      setFavouriteError('')
+      setFavouriteLoadingId(supplier.id)
+      if (supplier.isFavourite) {
+        await deleteFavouriteSupplier(supplier.id)
+      } else {
+        await addFavouriteSupplier(supplier.id)
+      }
+      setSuppliers((current) =>
+        current.map((item) =>
+          item.id === supplier.id
+            ? { ...item, isFavourite: !supplier.isFavourite }
+            : item,
+        ),
+      )
+    } catch (error) {
+      console.error(error)
+      setFavouriteError('Could not update favourite. Please try again.')
+    } finally {
+      setFavouriteLoadingId(null)
+    }
+  }
   // const supplierRecords =
   // listPreviewState === 'empty' ? [] : sampleSuppliers
 
   const normalizedSearch = searchText.toLowerCase()
 
   const filteredSuppliers = supplierRecords.filter((supplier) => {
-  const matchesSearch =
-    supplier.name.toLowerCase().includes(normalizedSearch) ||
-    supplier.type.toLowerCase().includes(normalizedSearch) ||
-    supplier.building.toLowerCase().includes(normalizedSearch) ||
-    (supplier.location_description != null && supplier.location_description.toLowerCase().includes(normalizedSearch))
+    const matchesSearch =
+      supplier.name.toLowerCase().includes(normalizedSearch) ||
+      supplier.type.toLowerCase().includes(normalizedSearch) ||
+      supplier.building.toLowerCase().includes(normalizedSearch) ||
+      (supplier.location_description != null &&
+        supplier.location_description.toLowerCase().includes(normalizedSearch))
 
     const matchesType =
       selectedType === 'All' || supplier.type.includes(selectedType)
+    const matchesFavourite = !showFavourites || supplier.isFavourite
 
-    return matchesSearch && matchesType
+    return matchesSearch && matchesType && matchesFavourite
   })
 
 
@@ -223,17 +263,36 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
           }}
         >
           <Stack spacing={2}>
-            <TextField
-              fullWidth
-              placeholder="Search suppliers"
-              value={searchText}
-              onChange={(event) => {
-                setSearchText(event.target.value)
-                setPage(1)
-              }}
-              slotProps={{ htmlInput: { 'aria-label': 'Search suppliers' } }}
-              sx={{ maxWidth: 560 }}
-            />
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', width: '100%' }}
+            >
+              <TextField
+                fullWidth
+                placeholder="Search suppliers"
+                value={searchText}
+                onChange={(event) => {
+                  setSearchText(event.target.value)
+                  setPage(1)
+                }}
+                slotProps={{ htmlInput: { 'aria-label': 'Search suppliers' } }}
+                sx={{ flex: 1, minWidth: 0 }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={showFavourites}
+                    onChange={(event) => {
+                      setShowFavourites(event.target.checked)
+                      setPage(1)
+                    }}
+                  />
+                }
+                label="Show favourites"
+                sx={{ flexShrink: 0, ml: 'auto', mr: 0 }}
+              />
+            </Stack>
 
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <FormControl fullWidth sx={{ maxWidth: 260 }}>
@@ -272,6 +331,11 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
         </Paper>
 
         <Box aria-label="Supplier results">
+          {favouriteError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {favouriteError}
+            </Alert>
+          )}
           {listPreviewState === 'ready' && sortedSuppliers.length > 0 && (
             <Typography color="text.secondary" sx={{ mb: 1.5 }}>
               Showing {paginatedSuppliers.length} of {sortedSuppliers.length}{' '}
@@ -311,6 +375,9 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
                   location={`${supplier.building}, Level ${supplier.floor}`}
                   operatingHours={supplier.operatingHours}
                   imageUrl={supplier.image_url ?? undefined}
+                  isFavourite={supplier.isFavourite}
+                  isFavouriteLoading={favouriteLoadingId === supplier.id}
+                  onToggleFavourite={() => void toggleFavourite(supplier)}
                 />
               ))
             ) : (

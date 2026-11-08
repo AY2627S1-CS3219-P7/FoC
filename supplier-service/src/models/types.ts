@@ -16,6 +16,7 @@ export interface Supplier {
   closing_time: string | null;
   image_url: string | null;
   is_active: boolean;
+  is_favourite?: boolean;
   created_at: Date;
   updated_at: Date;
 }

@@ -4,6 +4,10 @@
  * Scope: Assisted with frontend implementation, debugging and UI refinement.
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
+// AI Assistance Disclosure:
+// Tool: GitHub Copilot (Copilot SDK), date: 2026-11-08
+// Scope: Added the favourite toggle to the supplier card.
+// Author review: Read through all code and verified through testing
 
 import {useState, type ReactNode } from 'react'
 import {
@@ -18,6 +22,7 @@ import {
   Typography,
 } from '@mui/material'
 import { Link } from 'react-router-dom'
+import SupplierFavouriteButton from './SupplierFavouriteButton'
 import {
   DeliveryBagIcon,
   FoodIcon,
@@ -35,6 +40,9 @@ type SupplierCardProps = {
   // The question mark means this value is optional.
   operatingHours?: string
   imageUrl?: string
+  isFavourite: boolean
+  isFavouriteLoading: boolean
+  onToggleFavourite: () => void
 }
 
 const placeholderByType: Record<
@@ -76,6 +84,9 @@ function SupplierCard({
   location,
   operatingHours,
   imageUrl,
+  isFavourite,
+  isFavouriteLoading,
+  onToggleFavourite,
 }: SupplierCardProps) {
   const [imageFailed, setImageFailed] = useState(false)
   const placeholder = placeholderByType[type] ?? 
@@ -85,6 +96,7 @@ function SupplierCard({
     <Card
       variant="outlined"
       sx={{
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -99,6 +111,13 @@ function SupplierCard({
         },
       }}
     >
+      <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}>
+        <SupplierFavouriteButton
+          isFavourite={isFavourite}
+          isLoading={isFavouriteLoading}
+          onClick={onToggleFavourite}
+        />
+      </Box>
       {imageUrl && !imageFailed ? (
         <CardMedia
           component="img"
