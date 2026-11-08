@@ -129,13 +129,17 @@ export function getSupplierRequestErrorMessage(
 ): string {
   if (error instanceof ApiError) {
     if (error.status === 413) {
-      return 'Image is too large to save. Click “Clear crop / change URL”, then Save with the original image link (crop is optional).'
+      return 'Image is too large to save. Paste the original image link again (crop is optional), then Save.'
     }
     const cleaned = error.message.replace(/^Error\s*:\s*/i, '').trim()
     if (cleaned) return cleaned
   }
   if (error instanceof Error) {
     const cleaned = error.message.trim()
+    // Safari uses this vague message for JSON parse / selector failures.
+    if (/did not match the expected pattern/i.test(cleaned)) {
+      return fallback
+    }
     if (cleaned) return cleaned
   }
   return fallback
@@ -207,9 +211,15 @@ export async function updateSupplier(
     method: 'PATCH',
     body: JSON.stringify(input),
   })
-  const data: ApiSupplier | null = await response.json()
-  if (!data || !data.is_active) return null
-  return toSupplier(data)
+  // Safari throws a vague "expected pattern" SyntaxError if the body is empty/non-JSON.
+  // Treat a successful PATCH as saved even when the response body cannot be parsed.
+  try {
+    const data: ApiSupplier | null = await response.json()
+    if (!data || !data.is_active) return null
+    return toSupplier(data)
+  } catch {
+    return null
+  }
 }
 
 export async function deleteSupplier(id: string) {
