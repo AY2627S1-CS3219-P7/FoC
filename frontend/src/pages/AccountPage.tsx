@@ -5,7 +5,7 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useState, type FormEvent, type SyntheticEvent } from 'react'
+import { useRef, useState, type FormEvent, type SyntheticEvent } from 'react'
 import {
   Alert,
   Avatar,
@@ -24,7 +24,9 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { IconBadge, StudentIcon } from '../components/CampusArt'
 import CreditsPanel from '../components/CreditsPanel'
+import SuccessSnackbar from '../components/SuccessSnackbar'
 import { useAuth } from '../auth/AuthContext'
+import { setLoginFlash } from '../auth/loginFlash'
 import {
   ApiError,
   UnauthorizedError,
@@ -32,6 +34,9 @@ import {
   updateCurrentUser,
 } from '../api/users'
 import type { Role } from '../interfaces'
+
+const PASSWORD_CHANGED_MESSAGE =
+  'Password changed successfully. Please log in with your new password.'
 
 type AccountTab = 'profile' | 'security' | 'credits'
 
@@ -108,10 +113,28 @@ function ChangePasswordSection() {
   const [errors, setErrors] = useState<PasswordFormErrors>({})
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [successOpen, setSuccessOpen] = useState(false)
+  const finishingRef = useRef(false)
 
   function updateField(field: keyof typeof emptyPasswordForm, value: string) {
     setValues((previous) => ({ ...previous, [field]: value }))
     setErrors((previous) => ({ ...previous, [field]: undefined }))
+  }
+
+  async function finishAfterSuccess() {
+    if (finishingRef.current) {
+      return
+    }
+    finishingRef.current = true
+    setSuccessOpen(false)
+
+    // Persist flash before logout so RequireAuth's redirect cannot drop the message.
+    setLoginFlash(PASSWORD_CHANGED_MESSAGE)
+    await logout()
+    navigate('/login', {
+      replace: true,
+      state: { successMessage: PASSWORD_CHANGED_MESSAGE },
+    })
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -143,14 +166,8 @@ function ChangePasswordSection() {
       return
     }
 
-    // The backend has revoked every refresh token, so end this session too.
-    await logout()
-    navigate('/login', {
-      replace: true,
-      state: {
-        successMessage: 'Password changed successfully. Please log in with your new password.',
-      },
-    })
+    // Show success first; logout after the snackbar so the user sees confirmation.
+    setSuccessOpen(true)
   }
 
   function handleClear() {
@@ -160,83 +177,97 @@ function ChangePasswordSection() {
   }
 
   return (
-    <Paper
-      variant="outlined"
-      component="section"
-      sx={{
-        p: { xs: 2, md: 3 },
-        borderColor: 'divider',
-        boxShadow: '0 8px 24px rgba(23, 35, 45, 0.05)',
-      }}
-    >
-      <form onSubmit={handleSubmit} noValidate>
-        <Stack spacing={2}>
-          <Box>
-            <Typography component="h2" variant="h6" sx={{ fontWeight: 600 }}>
-              Change Password
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-              You will be logged out on all devices after changing your password.
-            </Typography>
-          </Box>
+    <>
+      <Paper
+        variant="outlined"
+        component="section"
+        sx={{
+          p: { xs: 2, md: 3 },
+          borderColor: 'divider',
+          boxShadow: '0 8px 24px rgba(23, 35, 45, 0.05)',
+        }}
+      >
+        <form onSubmit={handleSubmit} noValidate>
+          <Stack spacing={2}>
+            <Box>
+              <Typography component="h2" variant="h6" sx={{ fontWeight: 600 }}>
+                Change Password
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                You will be logged out on all devices after changing your password.
+              </Typography>
+            </Box>
 
-          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+            {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
 
-          <TextField
-            required
-            type="password"
-            label="Current Password"
-            autoComplete="current-password"
-            value={values.currentPassword}
-            onChange={(event) => updateField('currentPassword', event.target.value)}
-            error={Boolean(errors.currentPassword)}
-            helperText={errors.currentPassword}
-            disabled={submitting}
-          />
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
-              gap: 2,
-            }}
-          >
             <TextField
               required
               type="password"
-              label="New Password"
-              autoComplete="new-password"
-              value={values.newPassword}
-              onChange={(event) => updateField('newPassword', event.target.value)}
-              error={Boolean(errors.newPassword)}
-              helperText={
-                errors.newPassword || `Use at least ${MIN_PASSWORD_LENGTH} characters.`
-              }
-              disabled={submitting}
+              label="Current Password"
+              autoComplete="current-password"
+              value={values.currentPassword}
+              onChange={(event) => updateField('currentPassword', event.target.value)}
+              error={Boolean(errors.currentPassword)}
+              helperText={errors.currentPassword}
+              disabled={submitting || successOpen}
             />
-            <TextField
-              required
-              type="password"
-              label="Confirm New Password"
-              autoComplete="new-password"
-              value={values.confirmPassword}
-              onChange={(event) => updateField('confirmPassword', event.target.value)}
-              error={Boolean(errors.confirmPassword)}
-              helperText={errors.confirmPassword}
-              disabled={submitting}
-            />
-          </Box>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                gap: 2,
+              }}
+            >
+              <TextField
+                required
+                type="password"
+                label="New Password"
+                autoComplete="new-password"
+                value={values.newPassword}
+                onChange={(event) => updateField('newPassword', event.target.value)}
+                error={Boolean(errors.newPassword)}
+                helperText={
+                  errors.newPassword || `Use at least ${MIN_PASSWORD_LENGTH} characters.`
+                }
+                disabled={submitting || successOpen}
+              />
+              <TextField
+                required
+                type="password"
+                label="Confirm New Password"
+                autoComplete="new-password"
+                value={values.confirmPassword}
+                onChange={(event) => updateField('confirmPassword', event.target.value)}
+                error={Boolean(errors.confirmPassword)}
+                helperText={errors.confirmPassword}
+                disabled={submitting || successOpen}
+              />
+            </Box>
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-            <Button type="submit" variant="contained" disabled={submitting}>
-              {submitting ? 'Changing...' : 'Change Password'}
-            </Button>
-            <Button variant="outlined" onClick={handleClear} disabled={submitting}>
-              Clear
-            </Button>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <Button type="submit" variant="contained" disabled={submitting || successOpen}>
+                {submitting && !successOpen ? 'Changing...' : 'Change Password'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleClear}
+                disabled={submitting || successOpen}
+              >
+                Clear
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
-      </form>
-    </Paper>
+        </form>
+      </Paper>
+
+      <SuccessSnackbar
+        open={successOpen}
+        message="Password changed successfully. Logging you out…"
+        onClose={() => {
+          void finishAfterSuccess()
+        }}
+      />
+    </>
   )
 }
 

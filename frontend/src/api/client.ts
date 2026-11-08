@@ -134,23 +134,25 @@ export async function request(
   }
 
   if (!response.ok) {
-    if (response.status === 401 && authenticated) {
-      clearToken();
-      throw new UnauthorizedError("Unauthorized");
-    }
-    if (response.status === 403) {
-      throw new ForbiddenError("Forbidden");
-    }
-    if (response.status === 404) {
-      throw new NotFoundError("Not Found");
-    }
-
     const errorBody = await response.json().catch(() => null);
     const details = Array.isArray(errorBody?.errors)
       ? errorBody.errors.filter((item: unknown) => typeof item === "string").join(" ")
       : "";
     const message = errorBody?.message ?? `Request failed: ${response.status}`;
-    throw new ApiError(response.status, details ? `${message}: ${details}` : message);
+    const fullMessage = details ? `${message}: ${details}` : message;
+
+    if (response.status === 401 && authenticated) {
+      clearToken();
+      throw new UnauthorizedError(fullMessage);
+    }
+    if (response.status === 403) {
+      throw new ForbiddenError(fullMessage);
+    }
+    if (response.status === 404) {
+      throw new NotFoundError(fullMessage);
+    }
+
+    throw new ApiError(response.status, fullMessage);
   }
 
   return response;

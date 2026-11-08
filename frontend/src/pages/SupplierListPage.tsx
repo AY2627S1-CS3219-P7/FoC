@@ -26,6 +26,7 @@ import SupplierCard from '../components/SupplierCard'
 import SupplierListStatus from '../components/SupplierListStatus'
 import type { Supplier } from "../interfaces"
 import { fetchSuppliers } from '../api/suppliers'
+import { getSupplierTypeFilterOptions } from '../suppliers/supplierTypes'
 
 // Temporary frontend-only data used while developing the page.
 // Shared with the supplier detail and edit pages while this stays frontend-only data.
@@ -148,6 +149,12 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
   // const supplierRecords =
   // listPreviewState === 'empty' ? [] : sampleSuppliers
 
+  const typeFilterOptions = getSupplierTypeFilterOptions(supplierRecords)
+  const activeTypeFilter =
+    selectedType === 'All' || typeFilterOptions.includes(selectedType)
+      ? selectedType
+      : 'All'
+
   const normalizedSearch = searchText.toLowerCase()
 
   const filteredSuppliers = supplierRecords.filter((supplier) => {
@@ -158,7 +165,7 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
     (supplier.location_description != null && supplier.location_description.toLowerCase().includes(normalizedSearch))
 
     const matchesType =
-      selectedType === 'All' || supplier.type.includes(selectedType)
+      activeTypeFilter === 'All' || supplier.type === activeTypeFilter
 
     return matchesSearch && matchesType
   })
@@ -240,7 +247,7 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
                 <InputLabel id="supplier-type-label">Supplier type</InputLabel>
                 <Select
                   labelId="supplier-type-label"
-                  value={selectedType}
+                  value={activeTypeFilter}
                   label="Supplier type"
                   onChange={(event) => {
                     setSelectedType(event.target.value)
@@ -248,10 +255,11 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
                   }}
                 >
                   <MenuItem value="All">All</MenuItem>
-                  <MenuItem value="Food">Food</MenuItem>
-                  <MenuItem value="Food/Coffee">Food/Coffee</MenuItem>
-                  <MenuItem value="Printing">Printing</MenuItem>
-                  <MenuItem value="Shopping">Shopping</MenuItem>
+                  {typeFilterOptions.map((type) => (
+                    <MenuItem key={type} value={type}>
+                      {type}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
 

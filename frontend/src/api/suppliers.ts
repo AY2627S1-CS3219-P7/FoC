@@ -1,7 +1,25 @@
 import type { Supplier } from '../interfaces'
-import { request, NotFoundError } from './client'
+import { ApiError, request, NotFoundError } from './client'
 
 const BASE_URL = '/suppliers'
+
+const DIRECT_IMAGE_EXTENSIONS = new Set([
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.avif',
+  '.svg',
+  '.bmp',
+])
+
+const DIRECT_IMAGE_HOSTS = new Set([
+  'i.imgur.com',
+  'i.ibb.co',
+  'images.unsplash.com',
+  'raw.githubusercontent.com',
+])
 
 export type ApiSupplier = Omit<Supplier, 'operatingHours' | 'latitude' | 'longitude'> & {
   latitude: string
@@ -19,6 +37,78 @@ export type SupplierInput = {
   closing_time: string
   latitude: number
   longitude: number
+  image_url: string | null
+}
+
+/** Empty/whitespace → null. Non-empty must be an absolute http(s) URL. */
+export function normalizeSupplierImageUrl(value: string): string | null {
+  const trimmed = value.trim()
+  return trimmed === '' ? null : trimmed
+}
+
+/**
+ * Optional field: blank is fine.
+ * Non-empty values must be a direct image URL (not an album/page like imgur.com/a/...),
+ * or a cropped data URL produced by the Create/Edit image framer.
+ */
+export function isValidSupplierImageUrl(value: string): boolean {
+  const trimmed = value.trim()
+  if (trimmed === '') return true
+
+  if (/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(trimmed)) {
+    return true
+  }
+
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+
+    const host = parsed.hostname.toLowerCase()
+    const path = parsed.pathname.toLowerCase()
+
+    // Reject common album/gallery/page URLs that are not image files.
+    if (
+      path.includes('/a/') ||
+      path.includes('/gallery/') ||
+      path.includes('/album/')
+    ) {
+      return false
+    }
+
+    const lastDot = path.lastIndexOf('.')
+    const extension = lastDot >= 0 ? path.slice(lastDot) : ''
+    if (DIRECT_IMAGE_EXTENSIONS.has(extension)) return true
+    if (DIRECT_IMAGE_HOSTS.has(host)) return true
+
+    return false
+  } catch {
+    return false
+  }
+}
+
+export function getSupplierImageUrlError(value: string): string {
+  if (isValidSupplierImageUrl(value)) return ''
+  return 'Use a direct image link ending in .jpg/.png/.webp (for example https://i.imgur.com/abc.jpg), not an album or webpage URL.'
+}
+
+/** HH:MM in 24-hour form, matching native time inputs and Create placeholders. */
+export function isValidSupplierTime(value: string): boolean {
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim())
+}
+
+export function getSupplierRequestErrorMessage(
+  error: unknown,
+  fallback: string,
+): string {
+  if (error instanceof ApiError) {
+    const cleaned = error.message.replace(/^Error\s*:\s*/i, '').trim()
+    if (cleaned) return cleaned
+  }
+  if (error instanceof Error) {
+    const cleaned = error.message.trim()
+    if (cleaned) return cleaned
+  }
+  return fallback
 }
 
 export function formatTime(time: string) {

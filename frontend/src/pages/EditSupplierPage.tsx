@@ -10,22 +10,35 @@ import {
   Box,
   Button,
   Container,
-  FormControl,
   FormHelperText,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Stack,
   TextField,
   Typography,
 } from '@mui/material'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import SuccessSnackbar from '../components/SuccessSnackbar'
+import SupplierImageField from '../components/SupplierImageField'
+import SupplierLocationFields, {
+  hasValidCoordinates,
+} from '../components/SupplierLocationFields'
+import SupplierTypeField from '../components/SupplierTypeField'
 import type { Supplier } from '../interfaces'
-import { updateSupplier , fetchSupplierById } from '../api/suppliers'
+import {
+  updateSupplier,
+  fetchSupplierById,
+  getSupplierRequestErrorMessage,
+  isValidSupplierImageUrl,
+  isValidSupplierTime,
+  normalizeSupplierImageUrl,
+} from '../api/suppliers'
+import {
+  isValidSupplierType,
+  normalizeSupplierType,
+} from '../suppliers/supplierTypes'
 
 function EditSupplierPage() {
+  const navigate = useNavigate()
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
@@ -41,6 +54,7 @@ function EditSupplierPage() {
     building: '',
     floor: '',
     locationDescription: '',
+    imageUrl: '',
     startingTime: '',
     closingTime: '',
     latitude: '',
@@ -51,12 +65,12 @@ function EditSupplierPage() {
     supplierName: false,
     type: false,
     building: false,
+    imageUrl: false,
     startingTime: false,
     closingTime: false,
-    latitude: false,
-    longitude: false
+    location: false,
   })
-  
+
   useEffect(() => {
     if (!supplierId) return
     fetchSupplierById(supplierId)
@@ -71,6 +85,7 @@ function EditSupplierPage() {
             building: data.building,
             floor: data.floor,
             locationDescription: data.location_description,
+            imageUrl: data.image_url ?? '',
             startingTime: data.starting_time.slice(0, 5), // remove seconds
             closingTime: data.closing_time.slice(0, 5),
             latitude: String(data.latitude),
@@ -91,19 +106,27 @@ function EditSupplierPage() {
     event.preventDefault()
     if (!supplier) return
 
+    const trimmedType = normalizeSupplierType(formValues.type)
+    const openingValid = isValidSupplierTime(formValues.startingTime)
+    const closingValid = isValidSupplierTime(formValues.closingTime)
     const newErrors = {
       supplierName: formValues.supplierName.trim() === '',
-      type: formValues.type === '',
+      type: !isValidSupplierType(formValues.type),
       building: formValues.building.trim() === '',
-      startingTime: formValues.startingTime === '',
-      closingTime: formValues.closingTime === '',
-      latitude: formValues.latitude.trim() === '' || Number.isNaN(Number(formValues.latitude)),
-      longitude: formValues.longitude.trim() === '' || Number.isNaN(Number(formValues.longitude))
+      imageUrl: !isValidSupplierImageUrl(formValues.imageUrl),
+      startingTime: !openingValid,
+      closingTime: !closingValid,
+      location: !hasValidCoordinates(formValues.latitude, formValues.longitude),
     }
 
     setErrors(newErrors)
 
     if (Object.values(newErrors).some((hasError) => hasError)) {
+      if (!openingValid || !closingValid) {
+        setSubmitError('Please enter a valid opening and closing time.')
+      } else {
+        setSubmitError('')
+      }
       return
     }
 
@@ -113,19 +136,25 @@ function EditSupplierPage() {
       setSubmitError("")
       await updateSupplier(supplier.id, {
         name: formValues.supplierName.trim(),
-        type: formValues.type,
+        type: trimmedType,
         building: formValues.building.trim(),
         floor: formValues.floor.trim(),
         location_description: formValues.locationDescription.trim(),
         starting_time: `${formValues.startingTime}:00`, // format in db is "HH:MM:SS"
         closing_time: `${formValues.closingTime}:00`,
         latitude: Number(formValues.latitude),
-        longitude: Number(formValues.longitude)
+        longitude: Number(formValues.longitude),
+        image_url: normalizeSupplierImageUrl(formValues.imageUrl),
       })
       setIsSuccessOpen(true)
     } catch (error) {
       console.error(error)
-      setSubmitError("Uh oh, we could not save your changes. Please try again.")
+      setSubmitError(
+        getSupplierRequestErrorMessage(
+          error,
+          'Uh oh, we could not save your changes. Please try again.',
+        ),
+      )
     }
   }
 
@@ -168,7 +197,7 @@ function EditSupplierPage() {
   }
 
   return (
-    <Container component="main" maxWidth="sm" sx={{ py: { xs: 3, md: 6 } }}>
+    <Container component="main" maxWidth="md" sx={{ py: { xs: 3, md: 6 } }}>
       <Stack spacing={3}>
         <Box>
           <Typography component="h1" variant="h4">
@@ -194,10 +223,10 @@ function EditSupplierPage() {
                 label="Supplier Name"
                 value={formValues.supplierName}
                 onChange={(event) =>
-                  setFormValues({
-                    ...formValues,
+                  setFormValues((current) => ({
+                    ...current,
                     supplierName: event.target.value,
-                  })
+                  }))
                 }
                 error={errors.supplierName}
                 helperText={
@@ -205,40 +234,44 @@ function EditSupplierPage() {
                 }
               />
 
-              <FormControl required error={errors.type}>
-                <InputLabel id="edit-supplier-type-label">Type</InputLabel>
-                <Select
-                  labelId="edit-supplier-type-label"
-                  label="Type"
-                  value={formValues.type}
-                  onChange={(event) =>
-                    setFormValues({ ...formValues, type: event.target.value })
-                  }
-                >
-                  <MenuItem value="Food">Food</MenuItem>
-                  <MenuItem value="Food/Coffee">Food/Coffee</MenuItem>
-                  <MenuItem value="Printing">Printing</MenuItem>
-                  <MenuItem value="Printing">Shopping</MenuItem>
-                </Select>
-                {errors.type && <FormHelperText>Type is required</FormHelperText>}
-              </FormControl>
-
-              <TextField
-                required
-                label="Building"
-                value={formValues.building}
-                onChange={(event) =>
-                  setFormValues({ ...formValues, building: event.target.value })
+              <SupplierTypeField
+                value={formValues.type}
+                error={errors.type}
+                onChange={(type) =>
+                  setFormValues((current) => ({ ...current, type }))
                 }
-                error={errors.building}
-                helperText={errors.building ? 'Building is required' : ''}
+              />
+
+              <SupplierLocationFields
+                building={formValues.building}
+                latitude={formValues.latitude}
+                longitude={formValues.longitude}
+                buildingError={errors.building}
+                coordinatesError={errors.location}
+                onBuildingChange={(building) =>
+                  setFormValues((current) => ({ ...current, building }))
+                }
+                onCoordinatesChange={(latitude, longitude) =>
+                  setFormValues((current) => ({ ...current, latitude, longitude }))
+                }
+                onKnownLocationSelect={(place) =>
+                  setFormValues((current) => ({
+                    ...current,
+                    building: place.name,
+                    latitude: String(place.latitude),
+                    longitude: String(place.longitude),
+                  }))
+                }
               />
 
               <TextField
                 label="Floor"
                 value={formValues.floor}
                 onChange={(event) =>
-                  setFormValues({ ...formValues, floor: event.target.value })
+                  setFormValues((current) => ({
+                    ...current,
+                    floor: event.target.value,
+                  }))
                 }
               />
 
@@ -246,7 +279,18 @@ function EditSupplierPage() {
                 label="Location Description"
                 value={formValues.locationDescription}
                 onChange={(event) =>
-                  setFormValues({ ...formValues, locationDescription: event.target.value })
+                  setFormValues((current) => ({
+                    ...current,
+                    locationDescription: event.target.value,
+                  }))
+                }
+              />
+
+              <SupplierImageField
+                value={formValues.imageUrl}
+                error={errors.imageUrl}
+                onChange={(imageUrl) =>
+                  setFormValues((current) => ({ ...current, imageUrl }))
                 }
               />
 
@@ -257,10 +301,16 @@ function EditSupplierPage() {
                 label="Opening Time"
                 value={formValues.startingTime}
                 onChange={(event) =>
-                  setFormValues({ ...formValues, startingTime: event.target.value })
+                  setFormValues((current) => ({
+                    ...current,
+                    startingTime: event.target.value,
+                  }))
                 }
                 error={errors.startingTime}
-                helperText={errors.startingTime ? 'Opening time is required' : ''}
+                helperText={
+                  errors.startingTime ? 'Please enter a valid opening time.' : ''
+                }
+                slotProps={{ inputLabel: { shrink: true } }}
               />
               <TextField
                 required
@@ -269,65 +319,17 @@ function EditSupplierPage() {
                 label="Closing Time"
                 value={formValues.closingTime}
                 onChange={(event) =>
-                  setFormValues({ ...formValues, closingTime: event.target.value })
+                  setFormValues((current) => ({
+                    ...current,
+                    closingTime: event.target.value,
+                  }))
                 }
                 error={errors.closingTime}
-                helperText={errors.closingTime ? 'Closing time is required' : ''}
-              />
-
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  required
-                  fullWidth
-                  type="number"
-                  label="Latitude"
-                  value={formValues.latitude}
-                  onChange={(event) =>
-                    setFormValues({ ...formValues, latitude: event.target.value })
-                  }
-                  error={errors.latitude}
-                  helperText={errors.latitude ? 'Valid latitude is required' : ''}
-                  slotProps={{ htmlInput: { step: 'any' } }}
-                />
-                <TextField
-                  required
-                  fullWidth
-                  type="number"
-                  label="Longitude"
-                  value={formValues.longitude}
-                  onChange={(event) =>
-                    setFormValues({ ...formValues, longitude: event.target.value })
-                  }
-                  error={errors.longitude}
-                  helperText={errors.longitude ? 'Valid longitude is required' : ''}
-                  slotProps={{ htmlInput: { step: 'any' } }}
-                />
-              </Stack>
-
-              {/* <TextField
-                required
-                label="Location"
-                value={formValues.location}
-                onChange={(event) =>
-                  setFormValues({
-                    ...formValues,
-                    location: event.target.value,
-                  })
+                helperText={
+                  errors.closingTime ? 'Please enter a valid closing time.' : ''
                 }
-                error={errors.location}
-                helperText={errors.location ? 'Location is required' : ''}
+                slotProps={{ inputLabel: { shrink: true } }}
               />
-
-              <TextField
-                label="Operating Hours"
-                value={formValues.operatingHours}
-                onChange={(event) =>
-                  setFormValues({
-                    ...formValues,
-                    operatingHours: event.target.value,
-                  })
-                }
-              /> */}
 
               {submitError && <FormHelperText error>{submitError}</FormHelperText>}
 
@@ -351,7 +353,10 @@ function EditSupplierPage() {
       <SuccessSnackbar
         open={isSuccessOpen}
         message="Supplier changes saved successfully."
-        onClose={() => setIsSuccessOpen(false)}
+        onClose={() => {
+          setIsSuccessOpen(false)
+          navigate(`/suppliers/${supplier.id}`)
+        }}
       />
     </Container>
   )

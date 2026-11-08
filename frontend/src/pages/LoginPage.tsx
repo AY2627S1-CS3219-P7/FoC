@@ -3,9 +3,10 @@
  * Tool: Cursor (GPT-5.6 Sol Medium)
  * Scope: Assisted with frontend implementation, debugging and UI refinement.
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
+ *
  */
 
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import {
   Alert,
   Box,
@@ -20,6 +21,8 @@ import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import nusLogo from '../assets/nus-logo.png'
 import { ApiError } from '../api/users'
 import { useAuth } from '../auth/AuthContext'
+import { consumeLoginFlash } from '../auth/loginFlash'
+import SuccessSnackbar from '../components/SuccessSnackbar'
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -29,10 +32,17 @@ function LoginPage() {
     | { from?: { pathname: string }; successMessage?: string }
     | null
   const from = locationState?.from?.pathname ?? '/home'
-  const successMessage = locationState?.successMessage
+  const [successMessage] = useState(
+    () => locationState?.successMessage ?? consumeLoginFlash() ?? '',
+  )
+  const [successSnackOpen, setSuccessSnackOpen] = useState(() => Boolean(successMessage))
   const [usernameOrEmail, setUsernameOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
+  const hasSuccess = useMemo(
+    () => Boolean(successMessage) && !errorMessage,
+    [successMessage, errorMessage],
+  )
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -138,9 +148,7 @@ function LoginPage() {
                 </Typography>
               </Box>
 
-              {successMessage && !errorMessage && (
-                <Alert severity="success">{successMessage}</Alert>
-              )}
+              {hasSuccess && <Alert severity="success">{successMessage}</Alert>}
               {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
 
               <TextField
@@ -180,6 +188,12 @@ function LoginPage() {
           </form>
         </Paper>
       </Box>
+
+      <SuccessSnackbar
+        open={successSnackOpen && hasSuccess}
+        message={successMessage}
+        onClose={() => setSuccessSnackOpen(false)}
+      />
     </Box>
   )
 }
