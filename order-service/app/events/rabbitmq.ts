@@ -29,7 +29,19 @@ let connecting: Promise<ConfirmChannel> | null = null;
 const returned = new Set<string>(); // messageIds the broker could not route
 
 async function connect(): Promise<ConfirmChannel> {
-  const conn = await amqp.connect(env.RABBITMQ_URL);
+  const brokerUrl = new URL(env.RABBITMQ_URL);
+  if (env.RABBITMQ_USER || env.RABBITMQ_PASSWORD) {
+    if (!env.RABBITMQ_USER || !env.RABBITMQ_PASSWORD) {
+      throw new Error("Both RABBITMQ_USER and RABBITMQ_PASSWORD must be set");
+    }
+    brokerUrl.username = env.RABBITMQ_USER;
+    brokerUrl.password = env.RABBITMQ_PASSWORD;
+  }
+  if (!brokerUrl.username || !brokerUrl.password) {
+    throw new Error("RabbitMQ credentials must be set in the URL or environment");
+  }
+
+  const conn = await amqp.connect(brokerUrl.toString());
   conn.on("error", (err: Error) => console.error(`RabbitMQ connection error: ${err.message}`));
   conn.on("close", () => {
     connection = null;

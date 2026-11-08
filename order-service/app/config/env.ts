@@ -32,6 +32,8 @@ export const env = {
 
   // RabbitMQ (e.g. amqp://user:pass@rabbitmq:5672)
   RABBITMQ_URL: required("RABBITMQ_URL"),
+  RABBITMQ_USER: process.env.RABBITMQ_USER,
+  RABBITMQ_PASSWORD: process.env.RABBITMQ_PASSWORD,
   RABBITMQ_EXCHANGE: process.env.RABBITMQ_EXCHANGE || "orders",
 
   CREDIT_SERVICE_URL: required("CREDIT_SERVICE_URL").replace(/\/+$/, ""),
