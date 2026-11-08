@@ -83,6 +83,12 @@ function AppContent() {
     navigate(newMode === 'admin' ? '/admin' : '/home')
   }
 
+  /** Home shortcuts: switch workspace first so mode-gated routes (e.g. /fulfil) do not bounce back. */
+  function enterWorkspace(targetMode: UserMode, path: string) {
+    setPreferredMode(targetMode)
+    navigate(path)
+  }
+
   if (loading) {
     return (
       <Box sx={{ minHeight: '100svh', display: 'grid', placeItems: 'center' }}>
@@ -121,7 +127,7 @@ function AppContent() {
           path="/home"
           element={
             <RequireAuth>
-              <HomePage />
+              <HomePage onWorkspaceNavigate={enterWorkspace} />
             </RequireAuth>
           }
         />

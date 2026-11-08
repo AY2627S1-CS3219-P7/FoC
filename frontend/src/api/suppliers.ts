@@ -181,11 +181,17 @@ export async function createSupplier(input: SupplierInput) {
   })
 }
 
-export async function updateSupplier(id: string, input: SupplierInput) {
-  await request(`${BASE_URL}/${id}`, {
+export async function updateSupplier(
+  id: string,
+  input: SupplierInput,
+): Promise<Supplier | null> {
+  const response = await request(`${BASE_URL}/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
   })
+  const data: ApiSupplier | null = await response.json()
+  if (!data || !data.is_active) return null
+  return toSupplier(data)
 }
 
 export async function deleteSupplier(id: string) {

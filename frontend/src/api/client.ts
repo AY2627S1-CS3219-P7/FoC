@@ -108,10 +108,14 @@ export async function request(
     ...((init.headers as Record<string, string>) || {}),
   };
 
-  let response = await fetch(url, {
+  // Avoid CloudFront/browser serving a stale GET after supplier image updates.
+  const fetchInit: RequestInit = {
     ...init,
     headers,
-  });
+    cache: init.cache ?? "no-store",
+  };
+
+  let response = await fetch(url, fetchInit);
 
   if (response.status === 401 && authenticated && !url.includes("/auth/refresh")) {
     if (!refreshPromise) {
@@ -127,7 +131,7 @@ export async function request(
       };
 
       response = await fetch(url, {
-        ...init,
+        ...fetchInit,
         headers: retryHeaders,
       });
     }

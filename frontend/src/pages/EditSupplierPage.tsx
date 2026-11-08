@@ -145,7 +145,7 @@ function EditSupplierPage() {
         return
       }
 
-      await updateSupplier(supplier.id, {
+      const updated = await updateSupplier(supplier.id, {
         name: formValues.supplierName.trim(),
         type: trimmedType,
         building: formValues.building.trim(),
@@ -157,10 +157,13 @@ function EditSupplierPage() {
         longitude: Number(formValues.longitude),
         image_url: normalizeSupplierImageUrl(imageUrlForSave),
       })
-      // Show success on the detail page (where the user lands), not on the edit form.
+      // Pass the PATCH response so detail can show the new image even if GET is cached.
       navigate(`/suppliers/${supplier.id}`, {
         replace: true,
-        state: { successMessage: 'Supplier changes saved successfully.' },
+        state: {
+          successMessage: 'Supplier changes saved successfully.',
+          supplier: updated,
+        },
       })
     } catch (error) {
       console.error(error)
