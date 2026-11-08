@@ -5,7 +5,7 @@
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
   Box,
   Button,
@@ -17,7 +17,9 @@ import {
   Typography,
 } from '@mui/material'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import SupplierImageField from '../components/SupplierImageField'
+import SupplierImageField, {
+  type SupplierImageFieldHandle,
+} from '../components/SupplierImageField'
 import SupplierLocationFields, {
   hasValidCoordinates,
 } from '../components/SupplierLocationFields'
@@ -26,6 +28,7 @@ import type { Supplier } from '../interfaces'
 import {
   updateSupplier,
   fetchSupplierById,
+  getSupplierImageUrlError,
   getSupplierRequestErrorMessage,
   isValidSupplierImageUrl,
   isValidSupplierTime,
@@ -38,6 +41,7 @@ import {
 
 function EditSupplierPage() {
   const navigate = useNavigate()
+  const imageFieldRef = useRef<SupplierImageFieldHandle>(null)
   const [submitError, setSubmitError] = useState('')
 
   const { supplierId } = useParams()
@@ -131,7 +135,16 @@ function EditSupplierPage() {
     // Send the validated updates to the team's existing Supplier Service API.
 
     try {
-      setSubmitError("")
+      setSubmitError('')
+      // Capture current crop framing even if the user skipped "Apply crop".
+      const imageUrlForSave =
+        (await imageFieldRef.current?.prepareForSubmit()) ?? formValues.imageUrl
+      if (!isValidSupplierImageUrl(imageUrlForSave)) {
+        setErrors((current) => ({ ...current, imageUrl: true }))
+        setSubmitError(getSupplierImageUrlError(imageUrlForSave))
+        return
+      }
+
       await updateSupplier(supplier.id, {
         name: formValues.supplierName.trim(),
         type: trimmedType,
@@ -142,7 +155,7 @@ function EditSupplierPage() {
         closing_time: `${formValues.closingTime}:00`,
         latitude: Number(formValues.latitude),
         longitude: Number(formValues.longitude),
-        image_url: normalizeSupplierImageUrl(formValues.imageUrl),
+        image_url: normalizeSupplierImageUrl(imageUrlForSave),
       })
       // Show success on the detail page (where the user lands), not on the edit form.
       navigate(`/suppliers/${supplier.id}`, {
@@ -289,6 +302,7 @@ function EditSupplierPage() {
               />
 
               <SupplierImageField
+                ref={imageFieldRef}
                 value={formValues.imageUrl}
                 error={errors.imageUrl}
                 onChange={(imageUrl) =>
