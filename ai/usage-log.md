@@ -523,3 +523,65 @@ Files affected:
 - user-service/.env.example
 - credit-service/.env.example
 - supplier-service/.env.example
+
+## Supplier favourite frontend controls
+Author: Maegan Tan
+Tool: GitHub Copilot (Copilot SDK)
+Date: 2026-11-08
+
+Exact Prompt:
+> Make only frontend changes, do not change backend APIs, architecture, database schemas, authentication, routing, or authorization.
+> Please:
+> - add the new backend API for deleting and adding favourite suppliers to the frontend/src/api/suppliers.ts files
+> - on the SupplierListPage for requester and courier views, add a star button to the top right corner of each modal that displays the supplier. This button should send requests to the backend to add or delete favourites. If the current supplier.isFavourite is true when suppliers are first loaded, the star should have already been pressed.
+> - On the SupplierDetailPage, a similar functionality should be added to display whether it is a favourite
+> - Use Material UI
+>
+Key response:
+Added the frontend favourite API calls, mapped the response flag, and implemented Material UI favourite controls for supplier cards and the detail page. Investigated the error and found the existing backend favourite routes are wired to the supplier search and get-by-ID handlers instead of favourite handlers. No backend changes were made because the request is frontend-only; the backend route handler mapping must be corrected for these calls to work.
+
+Files affected:
+- frontend/src/api/suppliers.ts
+- frontend/src/components/SupplierCard.tsx
+- frontend/src/components/SupplierFavouriteButton.tsx
+- frontend/src/interfaces.ts
+- frontend/src/pages/SupplierDetailPage.tsx
+- frontend/src/pages/SupplierListPage.tsx
+- ai/usage-log.md
+
+Author review: Read through all code and verified through testing
+
+## Align supplier favourite switch
+Author: Maegan Tan
+Tool: GitHub Copilot (Copilot SDK)
+Date: 2026-11-08
+
+Exact Prompt:
+> Please move the show favourites toggle to the right side of the box
+
+Key response:
+Aligned the "Show favourites" switch to the right side of the supplier filters box.
+
+Files affected:
+- frontend/src/pages/SupplierListPage.tsx
+- ai/usage-log.md
+
+Author review: Read through all code and verified through testing
+
+## Supplier favourite filtering
+Author: Maegan Tan
+Tool: GitHub Copilot (Copilot SDK)
+Date: 2026-11-08
+
+Exact Prompt:
+> Please:
+> - Include a new toggle "Show favourites" on the top left of the SupplierList page. When pressed, show only favourited suppliers. On load, the toggle should be toggled off.
+
+Key response:
+Added a Material UI "Show favourites" switch to the supplier list, off by default.
+
+Files affected:
+- frontend/src/pages/SupplierListPage.tsx
+- ai/usage-log.md
+
+Author review: Read through all code and verified through testing

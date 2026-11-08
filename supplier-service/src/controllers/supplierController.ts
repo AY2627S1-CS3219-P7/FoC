@@ -10,12 +10,15 @@ import {
     addSupplierService,
     updateSupplierService,
     deactivateSupplierService,
-    getSupplierByIdService
+    getSupplierByIdService,
+    addFavouriteService,
+    deleteFavouriteService
 } from '../service/supplierService.ts';
 
 export const getAllSuppliers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const suppliers = await getAllSuppliersService();
+        const userId = (req as any).user.id;
+        const suppliers = await getAllSuppliersService(userId);
         res.status(200).json(suppliers);
     } catch (error: any) {
         const errorWithMessage = new Error(`Failed to fetch suppliers: ${error.message}`);
@@ -25,7 +28,8 @@ export const getAllSuppliers = async (req: Request, res: Response, next: NextFun
 
 export const getSupplierById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const supplier = await getSupplierByIdService(req.params.id as string);
+        const userId = (req as any).user.id;
+        const supplier = await getSupplierByIdService(req.params.id as string, userId);
         res.status(200).json(supplier);
     } catch (error: any) {
         const errorWithMessage = new Error(`Failed to fetch supplier by id: ${error.message}`);
@@ -36,11 +40,12 @@ export const getSupplierById = async (req: Request, res: Response, next: NextFun
 export const searchSuppliers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const searchTerm = req.query.q as string; 
+        const userId = (req as any).user.id;
         if (!searchTerm) {
             res.status(400).json({ message: "Search term 'q' is required" });
             return;
         }
-        const suppliers = await searchSuppliersService(searchTerm);
+        const suppliers = await searchSuppliersService(searchTerm, userId);
         res.status(200).json(suppliers);
     } catch (error: any) {
         const errorWithMessage = new Error(`Failed to search suppliers: ${error.message}`);
@@ -84,5 +89,32 @@ export const deactivateSupplier = async (req: Request, res: Response, next: Next
         res.status(200).json(deactivatedSupplier);
     } catch (error: any) {
         next(new Error(`Failed to deactivate supplier: ${error.message}`));
+    }
+};
+
+export const addFavourite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const supplierId = req.params.id as string;
+        const userId = (req as any).user.id;
+        const favouritedSupplier = await addFavouriteService(supplierId, userId);
+        res.status(200).json(favouritedSupplier);
+    } catch (error: any) {
+        next(new Error(`Failed to add favourite: ${error.message}`));
+    }
+};
+
+
+export const deleteFavourite = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const supplierId = req.params.id as string;
+        const userId = (req as any).user.id;
+        const isDeleted = await deleteFavouriteService(supplierId, userId);
+        if (!isDeleted) {
+            res.status(404).json({ message: "Favourite not found" });
+            return;
+        }
+        res.status(200).json({message: "Favourite deleted"});
+    } catch (error: any) {
+        next(new Error(`Failed to remove favourite: ${error.message}`));
     }
 };

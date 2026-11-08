@@ -4,12 +4,17 @@
  * Scope: Assisted with frontend implementation, debugging and UI refinement.
  * Author review: The generated code was reviewed, tested, and iteratively refined by the author through follow-up instructions.
  */
+// AI Assistance Disclosure:
+// Tool: GitHub Copilot (Copilot SDK), date: 2026-11-08
+// Scope: Added supplier favourite status and toggling to the supplier detail page.
+// Author review: Read through all code and verified through testing
 
 import { useEffect, useState } from 'react'
 import {
   Button,
   Chip,
   Container,
+  Alert,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,8 +29,11 @@ import type { UserMode } from '../components/AppNavigation'
 import SuccessSnackbar from '../components/SuccessSnackbar'
 import SupplierHeroImage from '../components/SupplierHeroImage'
 import SupplierInfo from '../components/SupplierInfo'
+import SupplierFavouriteButton from '../components/SupplierFavouriteButton'
 import type { Supplier } from '../interfaces'
 import {
+  addFavouriteSupplier,
+  deleteFavouriteSupplier,
   deleteSupplier,
   fetchSupplierById,
   getSupplierRequestErrorMessage,
@@ -41,6 +49,8 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isFavouriteLoading, setIsFavouriteLoading] = useState(false)
+  const [favouriteError, setFavouriteError] = useState('')
 
   const navigate = useNavigate()
 
@@ -85,6 +95,25 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
       )
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  async function toggleFavourite() {
+    if (!supplier) return
+    try {
+      setFavouriteError('')
+      setIsFavouriteLoading(true)
+      if (supplier.isFavourite) {
+        await deleteFavouriteSupplier(supplier.id)
+      } else {
+        await addFavouriteSupplier(supplier.id)
+      }
+      setSupplier({ ...supplier, isFavourite: !supplier.isFavourite })
+    } catch (error) {
+      console.error(error)
+      setFavouriteError('Could not update favourite. Please try again.')
+    } finally {
+      setIsFavouriteLoading(false)
     }
   }
 
@@ -158,11 +187,21 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
         <Paper
           variant="outlined"
           sx={{
+            position: 'relative',
             p: { xs: 2.5, md: 3.5 },
             borderColor: 'divider',
             boxShadow: '0 8px 24px rgba(23, 35, 45, 0.06)',
           }}
         >
+          {!isAdmin && (
+            <Box sx={{ position: 'absolute', top: 16, right: 16, zIndex: 1 }}>
+              <SupplierFavouriteButton
+                isFavourite={supplier.isFavourite}
+                isLoading={isFavouriteLoading}
+                onClick={() => void toggleFavourite()}
+              />
+            </Box>
+          )}
           <Stack spacing={1.5}>
             <SupplierHeroImage
               name={supplier.name}
@@ -184,6 +223,9 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
               location={`${supplier.building}, Level ${supplier.floor}`}
               operatingHours={supplier.operatingHours}
             />
+            {favouriteError && (
+              <Alert severity="error">{favouriteError}</Alert>
+            )}
             {mode === 'requester' && (
               <Button
                 component={Link}

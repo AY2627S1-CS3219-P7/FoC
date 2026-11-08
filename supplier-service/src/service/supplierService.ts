@@ -6,26 +6,35 @@
 import pool from "../config/db.ts";
 import { type Supplier, type CreateSupplierDTO } from "../models/types.ts"
 
-export const getAllSuppliersService = async (): Promise<Supplier[]> => {
-    const query = `SELECT * FROM suppliers;`
-    const result = await pool.query<Supplier>(query);
+export const getAllSuppliersService = async (userId: string): Promise<Supplier[]> => {
+    const query = `SELECT s.* , 
+        EXISTS (SELECT 1 FROM favourites f WHERE f.supplier_id = s.id AND f.user_id = $1) AS is_favourite
+        FROM suppliers s;
+    `;
+    const result = await pool.query<Supplier>(query, [userId || null]);
     return result.rows;
 };
 
-export const getSupplierByIdService = async (id: string): Promise<Supplier> => {
-    const query = `SELECT * FROM suppliers WHERE id = $1;`
-    const result = await pool.query<Supplier>(query, [id]);
+export const getSupplierByIdService = async (id: string, userId: string): Promise<Supplier> => {
+    const query = `SELECT s.* , 
+        EXISTS (SELECT 1 FROM favourites f WHERE f.supplier_id = s.id AND f.user_id = $1) AS is_favourite
+        FROM suppliers s
+        WHERE s.id = $2;
+    `;
+    const result = await pool.query<Supplier>(query, [userId || null, id]);
     return result.rows[0];
 };
 
 
-export const searchSuppliersService = async (searchTerm: string): Promise<Supplier[]> => {
+export const searchSuppliersService = async (searchTerm: string, userId: string): Promise<Supplier[]> => {
     const query = `
-        SELECT * FROM suppliers 
-        WHERE name ILIKE $1 OR type ILIKE $1 OR building ILIKE $1
-        ORDER BY name ASC;
+        SELECT *, 
+        EXISTS (SELECT 1 FROM favourites f WHERE f.supplier_id = s.id AND f.user_id = $1) AS is_favourite
+        FROM suppliers s
+        WHERE s.name ILIKE $2 OR s.type ILIKE $2 OR s.building ILIKE $2
+        ORDER BY s.name ASC;
     `;
-    const result = await pool.query<Supplier>(query, [`%${searchTerm}%`]);
+    const result = await pool.query<Supplier>(query, [userId, `%${searchTerm}%`]);
     return result.rows;
 };
 
@@ -76,4 +85,25 @@ export const deactivateSupplierService = async (id: string): Promise<Supplier | 
     
     const result = await pool.query<Supplier>(query, [id]);
     return result.rows[0] || null;
+};
+
+export const addFavouriteService = async (supplierId: string, userId: string): Promise<{ user_id: string, supplier_id: string }> => {
+    const query = `
+        INSERT INTO favourites (user_id, supplier_id) 
+        VALUES ($1, $2) 
+        RETURNING *;
+    `;
+    
+    const result = await pool.query(query, [userId, supplierId]);
+    return result.rows[0];
+};
+
+export const deleteFavouriteService = async (supplierId: string, userId: string): Promise<boolean> => {
+    const query = `
+        DELETE FROM favourites 
+        WHERE user_id = $1 AND supplier_id = $2;
+    `;
+    
+    const result = await pool.query(query, [userId, supplierId]);
+    return (result.rowCount ?? 0) > 0;
 };
