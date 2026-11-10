@@ -21,7 +21,7 @@ app.use('/api/credit/', router)
 
 app.use(errorHandling)
 
-// Server
+// Server 
 app.listen(PORT, async () => {
   console.log(`Server running on PORT ${PORT}`);
   await connectAndConsume();

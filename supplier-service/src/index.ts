@@ -16,7 +16,7 @@ app.use(express.json({ limit: "2mb" }));
 
 app.use(cors({ origin: process.env.CORS_ORIGIN }));
 
-// Routes
+// Routes 
 app.use('/api/suppliers/', router)
 
 app.use(errorHandling)

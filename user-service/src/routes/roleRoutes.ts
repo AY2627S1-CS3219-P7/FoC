@@ -2,7 +2,7 @@
  * AI Assistance Disclosure
  * Tool: GitHub Copilot, date: 2026-10-20
  * Scope: Use User Service-local authentication and role authorization on role routes.
- * Author review: Review pending.
+ * Author review: Review pending. 
  */
 
 import { Router } from "express";
