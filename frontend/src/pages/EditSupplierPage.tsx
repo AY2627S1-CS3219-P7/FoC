@@ -28,13 +28,11 @@ import type { Supplier } from '../interfaces'
 import {
   updateSupplier,
   fetchSupplierById,
-  formatHours,
   getSupplierImageUrlError,
   getSupplierRequestErrorMessage,
   isValidSupplierImageUrl,
   isValidSupplierTime,
   normalizeSupplierImageUrl,
-  rememberSupplierImage,
   toSupplierTimeInput,
   toSupplierTimePayload,
 } from '../api/suppliers'
@@ -152,7 +150,8 @@ function EditSupplierPage() {
       const startingTime = toSupplierTimePayload(formValues.startingTime)
       const closingTime = toSupplierTimePayload(formValues.closingTime)
       const imageUrl = normalizeSupplierImageUrl(imageUrlForSave)
-      const updated = await updateSupplier(supplier.id, {
+      // PATCHes then refetches from API; throws if image_url was not persisted.
+      await updateSupplier(supplier.id, {
         name: formValues.supplierName.trim(),
         type: trimmedType,
         building: formValues.building.trim(),
@@ -164,28 +163,10 @@ function EditSupplierPage() {
         longitude: Number(formValues.longitude),
         image_url: imageUrl,
       })
-      // Prefer API body; if Safari cannot parse it, still show the values we just saved.
-      const savedSupplier = updated ?? {
-        ...supplier,
-        name: formValues.supplierName.trim(),
-        type: trimmedType,
-        building: formValues.building.trim(),
-        floor: formValues.floor.trim(),
-        location_description: formValues.locationDescription.trim(),
-        starting_time: startingTime,
-        closing_time: closingTime,
-        operatingHours: formatHours(startingTime, closingTime),
-        latitude: Number(formValues.latitude),
-        longitude: Number(formValues.longitude),
-        image_url: imageUrl,
-      }
-      // So Supplier List shows this crop even if GET /api/suppliers is CDN-stale.
-      rememberSupplierImage(savedSupplier.id, savedSupplier.image_url)
       navigate(`/suppliers/${supplier.id}`, {
         replace: true,
         state: {
           successMessage: 'Supplier changes saved successfully.',
-          supplier: savedSupplier,
         },
       })
     } catch (error) {

@@ -135,10 +135,6 @@ type SupplierListPageProps = {
 
 type SupplierListPreviewState = 'ready' | 'loading' | 'empty' | 'error'
 
-type ListLocationState = {
-  updatedSupplier?: Supplier | null
-}
-
 function SupplierListPage({ isAdmin }: SupplierListPageProps) {
   // Change 'ready' to 'loading', 'empty', or 'error' to preview each list state.
   // TODO: Replace this preview state with results from the Supplier Service.
@@ -159,33 +155,12 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
   // list after Edit→Detail→Back when GET /api/suppliers was CDN-cached.
   useEffect(() => {
     let cancelled = false
-    const navState = location.state as ListLocationState | null
-    const updatedSupplier = navState?.updatedSupplier
 
     setListPreviewState('loading')
     fetchSuppliers()
       .then((data) => {
         if (cancelled) return
-        const withNavUpdate =
-          updatedSupplier && updatedSupplier.id
-            ? data.map((supplier) =>
-                supplier.id === updatedSupplier.id
-                  ? {
-                      ...supplier,
-                      image_url: updatedSupplier.image_url,
-                      name: updatedSupplier.name,
-                      type: updatedSupplier.type,
-                      building: updatedSupplier.building,
-                      floor: updatedSupplier.floor,
-                      location_description: updatedSupplier.location_description,
-                      operatingHours: updatedSupplier.operatingHours,
-                      starting_time: updatedSupplier.starting_time,
-                      closing_time: updatedSupplier.closing_time,
-                    }
-                  : supplier,
-              )
-            : data
-        setSuppliers(withNavUpdate)
+        setSuppliers(data)
         setListPreviewState('ready')
       })
       .catch((error) => {
@@ -197,7 +172,7 @@ function SupplierListPage({ isAdmin }: SupplierListPageProps) {
     return () => {
       cancelled = true
     }
-  }, [location.key, location.state])
+  }, [location.key])
 
   async function toggleFavourite(supplier: Supplier) {
     try {
