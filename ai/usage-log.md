@@ -415,6 +415,279 @@ Files affected:
 Author review:
 The map was reviewed and tested locally. Follow-up instructions were used to simplify the controls and improve the UI.
 
+## Order Service frontend Phase 1 integration
+Author: Brenda Tan Kai Xin
+Date: 2026-10-23
+Time: 4:22 PM SGT
+Tool: Cursor
+Model: GPT-5.6 Sol Medium
+
+Exact prompt:
+> We have finished the inspection.
+>
+> Proceed with the Order frontend integration, but do NOT modify Credit Service or Order-Credit request payload yet
+>
+> Implement only:
+>
+> 1. Gateway Order routing
+> 2. Real frontend Order API types/mapping
+> 3. Real requester order listing
+> 4. Real order details where possible
+> 5. Supplier/current-user enrichment
+>
+> Do NOT implement/create backend contract work yet.
+> Do NOT modify Order Service business logic.
+> Do NOT modify Credit Service.
+> Do NOT commit or push automatically.
+>
+> Detailed requirements:
+>
+> A. Gateway
+> - Add ORDER_SERVICE_URL following the existing User/Supplier service configuration style.
+> - Proxy /api/orders and /api/orders/* to Order Service.
+> - Preserve Authorization/authenticated headers using the same approach as existing services.
+> - Use configuration/env, not a hard-coded localhost URL.
+> - For root Docker networking, prepare the URL for:
+>   http://order-service-api:3003
+>   but inspect the existing compose/service naming before assuming this exact hostname works.
+>
+> B. frontend/src/api/orders.ts
+> Replace preview/mock API behaviour with real API functions through the existing shared client.
+>
+> Create explicit raw backend types using snake_case response:
+> - order_id, requester_id, courier_id, status, title, description, supplier_id,
+>   delivery_location, credit_amount, accept_by, created_at, accepted_at, picked_up_at,
+>   completed_at, cancelled_at, expired_at
+>
+> Also model the paginated response { data, total, limit, offset }.
+> Keep these raw API types separate from the existing frontend Order view model.
+>
+> C. Mapping
+> Create one mapping/enrichment function rather than converting fields throughout React pages.
+> Map snake_case API fields to the frontend Order view model.
+> For itemDescription, preserve backend title and description without inventing timestamps.
+>
+> D. Enrichment
+> For requester-owned orders:
+> - use fetchCurrentUser() for requester information
+> - use fetchSupplierById(supplier_id) for supplier name/building/floor
+> - courier may remain unresolved for now if needed
+> Handle failed supplier enrichment gracefully.
+>
+> E. My Requests
+> Replace preview data in fetchMyRequests with GET /orders?requester_id={current user id}.
+> Preserve Active/Past tabs, pagination UI, styling, loading/error states.
+>
+> F. Order Details
+> Connect fetchOrderById to GET /orders/{id} with the same mapping/enrichment.
+>
+> G. Important workflow correction
+> Follow actual backend:
+> - COURIER accepts
+> - COURIER marks pickup
+> - REQUESTER completes
+> - REQUESTER cancels
+> Do NOT keep a frontend assumption that the Courier completes the order.
+>
+> H. Preview flag
+> Do NOT globally set isOrderApiConnected() to true until screens are genuinely integrated.
+
+Key response:
+Added gateway `/api/orders` proxying to Order Service, replaced preview order API types with snake_case rows, centralised mapping/enrichment (supplier + current user), and connected requester My Requests / order details to the real API while keeping courier-completes assumptions out of the flow.
+
+Files affected:
+- gateway/.env.example
+- gateway/docker-compose.yml
+- gateway/src/config/env.ts
+- gateway/src/server.ts
+- frontend/src/api/client.ts
+- frontend/src/api/orders.ts
+- frontend/src/api/users.ts
+- frontend/src/components/OrderCard.tsx
+- frontend/src/orders/orderTypes.ts
+- frontend/src/pages/MyRequestsPage.tsx
+- frontend/src/pages/OrderDetailsPage.tsx
+- frontend/src/pages/RequestCreationPage.tsx
+
+Author review:
+The output was reviewed and tested, and follow-up instructions were given for courier integration and admin order monitoring.
+
+## Courier Order Service integration
+Author: Brenda Tan Kai Xin
+Date: 2026-10-23
+Time: 4:56 PM SGT
+Tool: Cursor
+Model: GPT-5.6 Sol Medium
+
+Exact prompt:
+> Now integrate the Courier side with real Order Service.
+>
+> Do not change Order Service business logic.
+> Do not change Credit Service.
+> Do not commit or push automatically.
+> Preserve the current UI styling and pagination where possible.
+>
+> Current backend endpoints:
+> GET /api/orders (OPEN unexpired when no owner filter)
+> GET /api/orders/{order_id}
+> POST /api/orders/{order_id}/accept (COURIER only)
+> POST /api/orders/{order_id}/pickup (COURIER only)
+>
+> Important: Completion is NOT a Courier action.
+> POST /api/orders/{order_id}/complete is REQUESTER only.
+>
+> Please implement:
+> 1. Fulfil Requests — real GET /orders, enrich supplier/requester, remove preview banner when connected
+> 2. Available Request Details — GET /orders/{id}, Accept when appropriate, back to Fulfil Requests
+> 3. Accept — POST accept, handle conflict, redirect to My Tasks Active on success
+> 4. My Tasks — GET /orders?courier_id={current user}; Active = ACCEPTED/PICKED_UP; Past = COMPLETED/CANCELLED/EXPIRED as returned
+> 5. Pickup — POST pickup; after PICKED_UP wait for requester confirmation; no Courier Complete action
+> 6. API layer — replace fake fetchAvailableRequests / fetchMyCourierTasks / acceptOrder / markOrderPickedUp; reuse mapping
+> 7. User lookup — helper or batch User Service lookup; do not query User DB directly
+
+Key response:
+Connected Fulfil Requests, courier order details, Accept, My Tasks, and Pickup to the real Order Service through the shared orders API mapper, with requester/supplier enrichment and no courier-complete action.
+
+Files affected:
+- frontend/src/api/orders.ts
+- frontend/src/api/users.ts
+- frontend/src/pages/FulfilRequestsPage.tsx
+- frontend/src/pages/MyTasksPage.tsx
+- frontend/src/pages/OrderDetailsPage.tsx
+- frontend/src/components/OrderCard.tsx
+
+Author review:
+The output was reviewed and tested against the requester-create → courier-accept → pickup flow.
+
+## Admin Dashboard Orders monitoring
+Author: Brenda Tan Kai Xin
+Date: 2026-10-26
+Time: 5:14 PM SGT
+Tool: Cursor
+Model: GPT-5.6 Sol Medium
+
+Exact prompt:
+> Implement the Admin Dashboard -> Orders tab using the existing real Order Service integration.
+>
+> Current state:
+> - Admin Dashboard already has Users / Suppliers / Orders tabs.
+> - Orders tab is only a placeholder saying order monitoring is pending Order Service integration.
+> - Requester and Courier order screens are already connected to Order Service through the gateway.
+> - Reuse the existing order API types, mapping, supplier enrichment, and user-name enrichment from frontend/src/api/orders.ts.
+> - Do NOT duplicate order mapping logic.
+> - Do NOT modify Order Service business logic.
+> - Do NOT modify Credit Service.
+> - Do NOT change unrelated Admin Dashboard styling.
+> - Do NOT commit or push automatically.
+>
+> Goal:
+> Turn the Admin Orders tab into a real read-only administrative order-monitoring view.
+>
+> Requirements:
+> 1. Admin order list from Order Service through the gateway (inspect ADMIN query behaviour; do not invent endpoints)
+> 2. Display order id, title, requester, courier, supplier, delivery location, credits, status, acceptance deadline, created time
+> 3. Status filter + page search if backend search is unavailable; pagination via limit/offset
+> 4. Support OPEN, ACCEPTED, PICKED_UP, COMPLETED, CANCELLED, EXPIRED
+> 5. Admin order detail via existing OrderDetailsPage — read-only, no Accept/Pickup/Complete/Cancel; back to Admin Orders
+> 6. Reuse enrichment helpers; keep ADMIN route/role protection
+> 7. Loading / error / empty / retry states
+> 8. Remove the Orders placeholder copy
+
+Key response:
+Replaced the Admin Orders placeholder with a real status-filtered, paginated monitoring table and `/admin/orders/:orderId` read-only detail reuse of OrderDetailsPage, using `fetchAdminOrders` on top of the existing mapper.
+
+Files affected:
+- frontend/src/App.tsx
+- frontend/src/api/orders.ts
+- frontend/src/pages/AdminDashboardPage.tsx
+- frontend/src/pages/OrderDetailsPage.tsx
+
+Author review:
+The output was reviewed and tested; Admin order monitoring was verified against live Order Service data.
+
+## Automatic order expiry and credit release
+Author: Brenda Tan Kai Xin
+Date: 2026-10-26
+Time: 6:15 PM SGT
+Tool: Cursor
+Model: GPT-5.6 Sol Medium
+
+Exact prompt:
+> Implement the complete automatic order expiry workflow across Order Service, Credit Service, and frontend.
+>
+> Current known behaviour:
+> - Orders have OPEN, ACCEPTED, PICKED_UP, COMPLETED, CANCELLED, EXPIRED statuses.
+> - accept_by exists.
+> - expired_at exists.
+> - Public OPEN listing already hides overdue orders.
+> - Accept already rejects orders past accept_by.
+> - But overdue orders remain OPEN in the DB.
+> - expired_at is never set.
+> - ORDER_EXPIRED is not currently published.
+> - Reserved credits therefore remain reserved.
+> - Frontend already understands EXPIRED in some places, including Admin status filtering, but no real orders reach that state.
+>
+>
+> IMPORTANT:
+> First inspect the current implementation of:
+> 1. Order state-transition/repository/service logic
+> 2. Existing ORDER_COMPLETED and ORDER_CANCELLED event publishing
+> 3. RabbitMQ publisher/consumer setup
+> 4. Credit Service order-event switch/consumer
+> 5. Existing credit release transaction logic
+> 6. Existing idempotency handling
+> 7. Frontend handling of EXPIRED orders
+>
+> Do not invent a new event architecture if an existing pattern can be reused.
+> Then implement the smallest safe solution.
+>
+> ORDER SERVICE REQUIREMENTS
+> 1. Add a background expiry process inside Order Service.
+> 2. Periodically find orders with status = OPEN and accept_by <= now.
+> 3. Transition atomically OPEN -> EXPIRED and set expired_at.
+> 4. Ensure an order cannot be expired twice and cannot expire if accepted concurrently.
+> 5. Publish ORDER_EXPIRED only for successfully transitioned orders, following existing event/RabbitMQ conventions.
+>
+> CREDIT SERVICE REQUIREMENTS
+> 1. Handle ORDER_EXPIRED in the existing consumer/switch.
+> 2. Reuse cancellation credit-release logic where possible.
+> 3. Release the reservation back to the requester; keep release idempotent.
+>
+> FRONTEND REQUIREMENTS
+> 1. EXPIRED is a past request; Order Details and Admin EXPIRED filter show real expired orders.
+> 2. No requester/courier action buttons for EXPIRED.
+> 3. Backend remains the source of truth — no frontend timer that invents status.
+>
+> BACKGROUND PROCESS
+> Prefer a lightweight periodic worker inside Order Service:
+> - do not block startup
+> - handle errors safely
+> - no overlapping scans
+> - sensible interval
+> - clean stop on shutdown if supported
+> Do not introduce Redis/cron/a new service unless already used.
+>
+> After implementation, report files changed, worker interval, event payload, concurrency/idempotency mechanism, and remaining limitations.
+> Do not commit or push.
+
+Key response:
+Added Order Service `expiryWorker` + `expireDueOpenOrders` (locked, skipLocked, status-guarded UPDATE), published `ORDER_EXPIRED`, and extended Credit Service to release reserved credits idempotently. Frontend already treated EXPIRED as past/admin-filterable, so no separate status invention was added on the client.
+
+Files affected:
+- order-service/.env.example
+- order-service/app/config/env.ts
+- order-service/app/events/expiryWorker.ts
+- order-service/app/index.ts
+- order-service/app/models/types.ts
+- order-service/app/service/orderService.ts
+- credit-service/src/events/processOrderEvent.ts
+- credit-service/src/events/rabbitmq.ts
+- credit-service/src/service/transactionService.ts
+- credit-service/src/types/eventTypes.ts
+
+Author review:
+The output was reviewed and tested for OPEN→EXPIRED transition, credit release, and that accepted orders are not expired by a concurrent worker scan.
+
 
 ## Development Guidance
 Tool: ChatGPT
