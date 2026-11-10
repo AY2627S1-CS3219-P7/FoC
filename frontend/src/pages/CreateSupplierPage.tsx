@@ -29,6 +29,7 @@ import {
   createSupplier,
   getSupplierImageUrlError,
   getSupplierRequestErrorMessage,
+  isImagePersistError,
   isValidSupplierImageUrl,
   isValidSupplierTime,
   normalizeSupplierImageUrl,
@@ -101,7 +102,8 @@ function CreateSupplierPage() {
     // Send the validated form to the team's existing Supplier Service.
     try {
       setSubmitError('')
-      // Capture current crop framing even if the user skipped "Apply crop".
+      const sourceLink =
+        imageFieldRef.current?.getSourceUrl() || formValues.imageUrl.trim()
       const imageUrlForSave =
         (await imageFieldRef.current?.prepareForSubmit()) ?? formValues.imageUrl
       if (!isValidSupplierImageUrl(imageUrlForSave)) {
@@ -110,7 +112,7 @@ function CreateSupplierPage() {
         return
       }
 
-      await createSupplier({
+      const basePayload = {
         name: formValues.supplierName.trim(),
         type: trimmedType,
         building: formValues.building.trim(),
@@ -120,8 +122,30 @@ function CreateSupplierPage() {
         closing_time: toSupplierTimePayload(formValues.closingTime),
         latitude: Number(formValues.latitude),
         longitude: Number(formValues.longitude),
-        image_url: normalizeSupplierImageUrl(imageUrlForSave),
-      })
+      }
+
+      try {
+        await createSupplier({
+          ...basePayload,
+          image_url: normalizeSupplierImageUrl(imageUrlForSave),
+        })
+      } catch (persistError) {
+        const sourceHttp =
+          /^https?:\/\//i.test(sourceLink) && isValidSupplierImageUrl(sourceLink)
+            ? normalizeSupplierImageUrl(sourceLink)
+            : null
+        if (
+          !isImagePersistError(persistError) ||
+          !imageUrlForSave.trim().startsWith('data:image/') ||
+          !sourceHttp
+        ) {
+          throw persistError
+        }
+        await createSupplier({
+          ...basePayload,
+          image_url: sourceHttp,
+        })
+      }
       setIsSuccessOpen(true)
     } catch (error) {
       console.error(error)

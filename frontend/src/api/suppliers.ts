@@ -201,15 +201,19 @@ function imagePersisted(sent: string | null, received: string | null): boolean {
   return false
 }
 
+export const IMAGE_PERSIST_ERROR =
+  'Image was not saved to the server. Try cropping again with a smaller frame, or paste the original image link and Save.'
+
 function assertImagePersisted(
   sent: string | null,
   received: string | null,
 ): void {
   if (imagePersisted(sent, received)) return
-  throw new ApiError(
-    500,
-    'Image was not saved to the server. Try cropping again with a smaller frame, or paste the original image link and Save.',
-  )
+  throw new ApiError(500, IMAGE_PERSIST_ERROR)
+}
+
+export function isImagePersistError(error: unknown): boolean {
+  return error instanceof ApiError && error.message === IMAGE_PERSIST_ERROR
 }
 
 function delay(ms: number): Promise<void> {
