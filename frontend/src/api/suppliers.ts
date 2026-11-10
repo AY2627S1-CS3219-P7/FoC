@@ -260,17 +260,15 @@ export async function updateSupplier(
     method: 'PATCH',
     body: JSON.stringify(input),
   })
-  // Safari can throw on empty/non-JSON bodies — do not treat that as a soft success.
+  // PATCH may return a huge body (image_url data URL). Safari sometimes fails
+  // to parse it — ignore the body. HTTP ok from request() means the write ran;
+  // GET below is the source of truth.
   try {
     await response.json()
   } catch {
-    throw new ApiError(
-      500,
-      'Save response was invalid. Please try again.',
-    )
+    /* empty / truncated / Safari parse — fall through to refetch */
   }
 
-  // Backend is source of truth: always refetch after PATCH.
   const fresh = await fetchSupplierById(id)
   if (!fresh) {
     throw new ApiError(
