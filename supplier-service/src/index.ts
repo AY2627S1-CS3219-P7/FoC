@@ -11,8 +11,8 @@ const app: Express = express();
 
 const PORT = process.env.PORT || 3001
 
-// Match gateway: cropped image_url data URLs can exceed Express's default 100kb JSON limit.
-app.use(express.json({ limit: "2mb" }));
+// Cropped image_url data URLs are base64 JPEG strings; keep headroom above the ~55kb crop target.
+app.use(express.json({ limit: "5mb" }));
 
 app.use(cors({ origin: process.env.CORS_ORIGIN }));
 

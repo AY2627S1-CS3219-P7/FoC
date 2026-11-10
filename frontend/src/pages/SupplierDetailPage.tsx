@@ -48,7 +48,6 @@ type SupplierDetailPageProps = {
 
 type DetailLocationState = {
   successMessage?: string
-  supplier?: Supplier | null
 }
 
 function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
@@ -72,19 +71,7 @@ function SupplierDetailPage({ isAdmin, mode }: SupplierDetailPageProps) {
     if (!supplierId) return
 
     const state = location.state as DetailLocationState | null
-    // Prefer the supplier from Save so a cached GET cannot show the old image.
-    if (state?.supplier && state.supplier.id === supplierId) {
-      setSupplier(state.supplier)
-      setStatus('ready')
-      const message = state.successMessage?.trim()
-      if (message) {
-        setSaveSuccessMessage(message)
-        setIsSaveSuccessOpen(true)
-      }
-      navigate(location.pathname, { replace: true, state: null })
-      return
-    }
-
+    // Snackbar only from Save navigation — supplier data always comes from GET.
     if (state?.successMessage?.trim()) {
       setSaveSuccessMessage(state.successMessage.trim())
       setIsSaveSuccessOpen(true)

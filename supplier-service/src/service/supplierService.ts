@@ -57,12 +57,33 @@ export const addSupplierService = async (data: CreateSupplierDTO): Promise<Suppl
     return result.rows[0];
 };
 
+/** Only real suppliers-table columns — blocks fields like is_favourite from breaking UPDATE. */
+const SUPPLIER_UPDATE_COLUMNS = [
+    "name",
+    "type",
+    "building",
+    "floor",
+    "location_description",
+    "latitude",
+    "longitude",
+    "starting_time",
+    "closing_time",
+    "image_url",
+    "is_active",
+] as const;
+
+type SupplierUpdateColumn = (typeof SUPPLIER_UPDATE_COLUMNS)[number];
+
 export const updateSupplierService = async (id: string, data: Partial<CreateSupplierDTO>): Promise<Supplier | null> => {
-    const keys = Object.keys(data);
+    const keys = (Object.keys(data) as (keyof CreateSupplierDTO)[]).filter(
+        (key): key is SupplierUpdateColumn =>
+            (SUPPLIER_UPDATE_COLUMNS as readonly string[]).includes(key) &&
+            data[key] !== undefined
+    );
     if (keys.length === 0) return null;
 
     const setString = keys.map((key, index) => `${key} = $${index + 2}`).join(', ');
-    const values = keys.map(key => data[key as keyof typeof data]);
+    const values = keys.map((key) => data[key]);
 
     const query = `
         UPDATE suppliers 

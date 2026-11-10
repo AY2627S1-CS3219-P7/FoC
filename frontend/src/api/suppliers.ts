@@ -179,85 +179,107 @@ function toSupplier(s: ApiSupplier): Supplier {
 
 const SUPPLIER_IMAGE_OVERRIDE_KEY = 'foc:supplier-image-overrides'
 
-/** Remember a just-saved crop so Supplier List can show it even if GET /suppliers is stale. */
-export function rememberSupplierImage(
-  id: string,
-  imageUrl: string | null,
-): void {
+/** Drop legacy client-only crop cache — DB/API is the source of truth. */
+function clearLegacySupplierImageOverrides(): void {
   try {
-    const current = JSON.parse(
-      sessionStorage.getItem(SUPPLIER_IMAGE_OVERRIDE_KEY) || '{}',
-    ) as Record<string, string | null>
-    current[id] = imageUrl
-    sessionStorage.setItem(SUPPLIER_IMAGE_OVERRIDE_KEY, JSON.stringify(current))
+    sessionStorage.removeItem(SUPPLIER_IMAGE_OVERRIDE_KEY)
   } catch {
-    /* ignore quota / private mode */
+    /* ignore private mode */
   }
 }
 
-export function applySupplierImageOverrides(suppliers: Supplier[]): Supplier[] {
-  try {
-    const raw = sessionStorage.getItem(SUPPLIER_IMAGE_OVERRIDE_KEY)
-    if (!raw) return suppliers
-    const overrides = JSON.parse(raw) as Record<string, string | null>
-    return suppliers.map((supplier) =>
-      Object.prototype.hasOwnProperty.call(overrides, supplier.id)
-        ? { ...supplier, image_url: overrides[supplier.id] }
-        : supplier,
-    )
-  } catch {
-    return suppliers
-  }
+function assertImagePersisted(
+  sent: string | null,
+  received: string | null,
+): void {
+  if (sent === null) return
+  const expected = toRawImageUrl(sent) ?? sent
+  if (received === sent || received === expected) return
+  throw new ApiError(
+    500,
+    'Image was not saved to the server. Try cropping again with a smaller frame, or paste the original image link and Save.',
+  )
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
+  clearLegacySupplierImageOverrides()
   // Bust CloudFront/browser caches so list images match a just-saved crop.
   const response = await request(`${BASE_URL}?_=${Date.now()}`)
   const data: ApiSupplier[] = await response.json()
-  return applySupplierImageOverrides(
-    data.filter((s) => s.is_active).map(toSupplier),
-  )
+  return data.filter((s) => s.is_active).map(toSupplier)
 }
 
 
 export async function fetchSupplierById(id: string): Promise<Supplier | null> {
   try {
+    clearLegacySupplierImageOverrides()
     const response = await request(`${BASE_URL}/${id}?_=${Date.now()}`)
     const data: ApiSupplier | null = await response.json()
     if (!data || !data.is_active) return null
-    // Same session override as the list — View Details was showing a CDN-stale
-    // GET /:id image while the list already showed the just-saved crop.
-    return applySupplierImageOverrides([toSupplier(data)])[0] ?? null
+    return toSupplier(data)
   } catch (error) {
     if (error instanceof NotFoundError) return null
     throw error
   }
 }
 
-export async function createSupplier(input: SupplierInput) {
-  await request(BASE_URL, {
+export async function createSupplier(input: SupplierInput): Promise<Supplier | null> {
+  const response = await request(BASE_URL, {
     method: 'POST',
     body: JSON.stringify(input),
   })
+  let created: ApiSupplier | null = null
+  try {
+    created = (await response.json()) as ApiSupplier | null
+  } catch {
+    throw new ApiError(
+      500,
+      'Supplier was created but the server response was invalid. Refresh the list to confirm.',
+    )
+  }
+  if (!created?.id) {
+    // Older deployments may omit a body — persistence cannot be verified here.
+    return null
+  }
+  const fresh = await fetchSupplierById(created.id)
+  if (!fresh) {
+    throw new ApiError(
+      500,
+      'Supplier was created but could not be reloaded from the server.',
+    )
+  }
+  assertImagePersisted(input.image_url, fresh.image_url)
+  return fresh
 }
 
 export async function updateSupplier(
   id: string,
   input: SupplierInput,
-): Promise<Supplier | null> {
+): Promise<Supplier> {
   const response = await request(`${BASE_URL}/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
   })
-  // Safari throws a vague "expected pattern" SyntaxError if the body is empty/non-JSON.
-  // Treat a successful PATCH as saved even when the response body cannot be parsed.
+  // Safari can throw on empty/non-JSON bodies — do not treat that as a soft success.
   try {
-    const data: ApiSupplier | null = await response.json()
-    if (!data || !data.is_active) return null
-    return toSupplier(data)
+    await response.json()
   } catch {
-    return null
+    throw new ApiError(
+      500,
+      'Save response was invalid. Please try again.',
+    )
   }
+
+  // Backend is source of truth: always refetch after PATCH.
+  const fresh = await fetchSupplierById(id)
+  if (!fresh) {
+    throw new ApiError(
+      500,
+      'Changes may have saved but the supplier could not be reloaded. Refresh and check the image.',
+    )
+  }
+  assertImagePersisted(input.image_url, fresh.image_url)
+  return fresh
 }
 
 export async function deleteSupplier(id: string) {
