@@ -925,12 +925,12 @@ connection module with lazy reconnection, an HTTP client for credit reservation,
 centralised environment validation.
 
 Files affected:
-- order-service/app/events/rabbitmq.js
-- order-service/app/events/outboxRelay.js
-- order-service/app/events/orderEvents.js
-- order-service/app/models/outboxEventModel.js
-- order-service/app/clients/creditClient.js
-- order-service/app/config/env.js
+- order-service/app/events/rabbitmq.ts
+- order-service/app/events/outboxRelay.ts
+- order-service/app/events/orderEvents.ts
+- order-service/app/models/outboxEventModel.ts
+- order-service/app/clients/creditClient.ts
+- order-service/app/config/env.ts
 
 Author review: Reviewed, adapted to the project's order lifecycle, and tested locally with Docker Compose.
 

@@ -17,7 +17,7 @@ withdrawn, or exchanged for money, and only circulate within the platform.
 | Maegan-Ruth Tan Hui En | Supplier service, Credit service, Cloud Deployment, CI/CD, secret and config management, Bookmarking suppliers |
 | Huang Yining | User service, Credit integration with frontend, Reordering flow |
 | Brenda Tan Kai Xin | Frontend (React/Vite UI, auth screens, suppliers, campus map, account/credits UX), Admin Dashboard |
-| Low Chloe | MS2 frontend integration (user and supplier), Order service |
+| Low Chloe | MS2 frontend integration (user and supplier), Order service, Notification service |
 
 
 ---
