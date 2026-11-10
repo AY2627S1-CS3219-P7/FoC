@@ -20,6 +20,7 @@ export function buildOrderEvent(eventType: OrderEventType, order: EventOrderFiel
       requester_id: order.requester_id,
       courier_id: order.courier_id ?? null,
       credit_amount: order.credit_amount,
+      title: order.title ?? null,
     },
   };
 }
