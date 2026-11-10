@@ -55,7 +55,12 @@ describe("auto-subscribe", () => {
   });
 
   it("validates USER_REGISTERED events", () => {
-    const ok = { event_id: "e", event_type: "USER_REGISTERED", timestamp: "t", data: { user_id: "u1", email: "a@u.nus.edu" } };
+    const ok = {
+      event_id: "e",
+      event_type: "USER_REGISTERED",
+      timestamp: "t",
+      data: { user_id: "u1", email: "a@u.nus.edu" },
+    };
     assert.equal(parseUserRegisteredEvent(ok).data.email, "a@u.nus.edu");
     assert.throws(() => parseUserRegisteredEvent({ ...ok, data: { user_id: "u1", email: "nope" } }));
     assert.throws(() => parseUserRegisteredEvent({ ...ok, event_type: "ORDER_CREATED" }));

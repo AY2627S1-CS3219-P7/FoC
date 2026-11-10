@@ -10,7 +10,12 @@ export function parseUserRegisteredEvent(raw: unknown): UserRegisteredEvent {
   if (!e || typeof e.event_id !== "string" || e.event_type !== "USER_REGISTERED") {
     throw new Error("Not a USER_REGISTERED event");
   }
-  if (!e.data || typeof e.data.user_id !== "string" || typeof e.data.email !== "string" || !e.data.email.includes("@")) {
+  if (
+    !e.data ||
+    typeof e.data.user_id !== "string" ||
+    typeof e.data.email !== "string" ||
+    !e.data.email.includes("@")
+  ) {
     throw new Error(`Event ${e.event_id} has invalid data`);
   }
   return e as UserRegisteredEvent;

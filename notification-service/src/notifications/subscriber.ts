@@ -21,7 +21,7 @@ export async function subscribeUser(userId: string, email: string): Promise<void
           FilterPolicyScope: "MessageAttributes",
           FilterPolicy: filterPolicyFor(userId),
         },
-      })
+      }),
     );
     console.log(`[Notification] Subscribed ${email} for user ${userId} (confirmation email sent)`);
   } catch (err) {

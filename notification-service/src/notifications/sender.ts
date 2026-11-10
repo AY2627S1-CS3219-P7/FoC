@@ -21,6 +21,6 @@ export async function send(n: Notification): Promise<void> {
       Subject: subject,
       Message: n.body,
       MessageAttributes: { userId: { DataType: "String", StringValue: n.userId } },
-    })
+    }),
   );
 }

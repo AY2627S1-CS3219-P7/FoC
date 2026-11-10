@@ -15,7 +15,9 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(env.PORT, () => {
-  console.log(`Notification service on port ${env.PORT} (SNS ${snsEnabled() ? "enabled" : "disabled: logging emails only"})`);
+  console.log(
+    `Notification service on port ${env.PORT} (SNS ${snsEnabled() ? "enabled" : "disabled: logging emails only"})`,
+  );
   void consumer.start();
 });
 

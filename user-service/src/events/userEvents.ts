@@ -95,8 +95,8 @@ async function publish(data: UserRegisteredData): Promise<void> {
             messageId: event.event_id,
             type: event.event_type,
           },
-          (err: unknown) => (err ? reject(err) : resolve())
-        )
+          (err: unknown) => (err ? reject(err) : resolve()),
+        ),
       ),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error("Timed out waiting for broker confirmation")), PUBLISH_TIMEOUT_MS);
@@ -110,7 +110,7 @@ async function publish(data: UserRegisteredData): Promise<void> {
 /** Fire-and-forget. Never throws. */
 export function publishUserRegistered(data: UserRegisteredData): void {
   publish(data).catch((err: Error) =>
-    console.error(`[UserEvents] Could not publish USER_REGISTERED for ${data.user_id}: ${err.message}`)
+    console.error(`[UserEvents] Could not publish USER_REGISTERED for ${data.user_id}: ${err.message}`),
   );
 }
 

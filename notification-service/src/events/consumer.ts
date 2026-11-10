@@ -65,7 +65,8 @@ export async function start(): Promise<void> {
     conn.on("close", () => {
       connection = null;
       channel = null;
-      if (!stopping) console.error(`[Notification] RabbitMQ connection closed, reconnecting in ${RECONNECT_MS / 1000}s`);
+      if (!stopping)
+        console.error(`[Notification] RabbitMQ connection closed, reconnecting in ${RECONNECT_MS / 1000}s`);
       scheduleReconnect();
     });
 
@@ -82,7 +83,7 @@ export async function start(): Promise<void> {
     connection = conn;
     channel = ch;
     console.log(
-      `[Notification] Consuming "order.#" from "${env.RABBITMQ_EXCHANGE}" and "user.registered" from "${env.USER_EVENTS_EXCHANGE}" via queue "${env.QUEUE_NAME}"`
+      `[Notification] Consuming "order.#" from "${env.RABBITMQ_EXCHANGE}" and "user.registered" from "${env.USER_EVENTS_EXCHANGE}" via queue "${env.QUEUE_NAME}"`,
     );
 
     await ch.consume(
@@ -118,21 +119,23 @@ export async function start(): Promise<void> {
           markSeen(eventId);
           ch.ack(msg);
           console.log(
-            `[Notification] ${event.event_type} for order ${event.data.order_id}: sent ${notifications.length} email(s)`
+            `[Notification] ${event.event_type} for order ${event.data.order_id}: sent ${notifications.length} email(s)`,
           );
         } catch (err) {
           const retry = !msg.fields.redelivered && !(err instanceof SyntaxError);
           console.error(
             `[Notification] Failed on ${msg.fields.routingKey} (${eventId ?? "no id"}): ${(err as Error).message}` +
-              (retry ? " - requeueing once" : " - dropping")
+              (retry ? " - requeueing once" : " - dropping"),
           );
           ch.nack(msg, false, retry);
         }
       },
-      { noAck: false }
+      { noAck: false },
     );
   } catch (err) {
-    console.error(`[Notification] Could not connect to RabbitMQ (${(err as Error).message}), retrying in ${RECONNECT_MS / 1000}s`);
+    console.error(
+      `[Notification] Could not connect to RabbitMQ (${(err as Error).message}), retrying in ${RECONNECT_MS / 1000}s`,
+    );
     scheduleReconnect();
   }
 }
