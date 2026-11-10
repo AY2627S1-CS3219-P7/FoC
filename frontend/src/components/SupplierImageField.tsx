@@ -34,6 +34,8 @@ type SupplierImageFieldProps = {
 export type SupplierImageFieldHandle = {
   /** Ensure the current crop framing is written into the form value before submit. */
   prepareForSubmit: () => Promise<string>
+  /** Raw URL field value (http link), before crop becomes a data URL. */
+  getSourceUrl: () => string
 }
 
 /** Matches SupplierCard / SupplierHeroImage. */
@@ -262,6 +264,7 @@ const SupplierImageField = forwardRef<
         throw new Error(message)
       }
     },
+    getSourceUrl: () => sourceUrlRef.current.trim(),
   }))
 
   function handleUrlFieldChange(next: string) {
