@@ -231,12 +231,15 @@ export async function fetchSuppliers(): Promise<Supplier[]> {
 }
 
 
-export async function fetchSupplierById(id: string): Promise<Supplier | null> {
+export async function fetchSupplierById(
+  id: string,
+  options: { includeInactive?: boolean } = {},
+): Promise<Supplier | null> {
   try {
     clearLegacySupplierImageOverrides()
     const response = await request(`${BASE_URL}/${id}?_=${Date.now()}`)
     const data: ApiSupplier | null = await response.json()
-    if (!data || !data.is_active) return null
+    if (!data || (!options.includeInactive && !data.is_active)) return null
     return toSupplier(data)
   } catch (error) {
     if (error instanceof NotFoundError) return null

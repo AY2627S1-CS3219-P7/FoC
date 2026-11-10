@@ -132,7 +132,7 @@ export function mapOrderRow(
 
 async function loadSupplier(supplierId: string) {
   try {
-    return await fetchSupplierById(supplierId)
+    return await fetchSupplierById(supplierId, { includeInactive: true })
   } catch (error) {
     console.error(error)
     return null
