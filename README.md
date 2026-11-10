@@ -14,10 +14,10 @@ withdrawn, or exchanged for money, and only circulate within the platform.
 
 | Name | Ownership |
 | ---- | --------- |
-| Maegan-Ruth Tan Hui En | Supplier service, Credit service, gateway/compose wiring, CI/CD & deployment |
-| Huang Yining | Order service features / request fulfilment flows |
-| Brenda Tan Kai Xin | Frontend (React/Vite UI, auth screens, suppliers, campus map, account/credits UX) |
-| Low Chloe | Order service; integration across user/credit flows (auth/RBAC and related frontend wiring) |
+| Maegan-Ruth Tan Hui En | Supplier service, Credit service, Cloud Deployment, CI/CD, secret and config management, Bookmarking suppliers |
+| Huang Yining | User service, Credit integration with frontend, Reordering flow |
+| Brenda Tan Kai Xin | Frontend (React/Vite UI, auth screens, suppliers, campus map, account/credits UX), Admin Dashboard |
+| Low Chloe | MS2 frontend integration (user and supplier), Order service |
 
 
 ---
