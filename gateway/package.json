@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "rm -rf dist && tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "echo 'No Gateway tests configured; skipping.'"
   },
   "dependencies": {
     "cors": "^2.8.5",

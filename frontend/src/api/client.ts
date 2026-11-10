@@ -26,7 +26,7 @@ export function setTokens(accessToken: string, refreshToken?: string) {
       localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     }
   } catch {
-    //ignore
+    //ignore 
   }
 }
 
