@@ -81,8 +81,11 @@ describe("order creation and lookup", () => {
       payload = JSON.parse(String(init?.body));
       return new Response(null, { status: 200 });
     });
+    transactionMock(t);
     const created = makeOrder({ order_id: "generated-order-id" });
     const create = t.mock.method(Order, "create", async () => created as never);
+    const createEvent = t.mock.method(OutboxEvent, "create", async (values: unknown) => values as never);
+    t.mock.method(OutboxEvent, "findAll", async () => []);
 
     const result = await orderService.createOrder(requester, newOrderBody({
       title: " Lunch ",
@@ -100,6 +103,10 @@ describe("order creation and lookup", () => {
     assert.equal(values.delivery_location, "Science");
     assert.equal(values.status, "OPEN");
     assert.equal(typeof values.order_id, "string");
+    // ORDER_CREATED is recorded in the same transaction (notification service)
+    const event = createEvent.mock.calls[0].arguments[0] as { event_type: string; payload: { data: { title: string } } };
+    assert.equal(event.event_type, "ORDER_CREATED");
+    assert.equal(event.payload.data.title, "Lunch");
   });
 
   it("rejects malformed, missing, overlong, and expired create fields before reserving credits", async (t) => {
@@ -234,8 +241,11 @@ describe("order listing and lifecycle", () => {
     const openOrder = makeOrder();
     t.mock.method(Order, "findByPk", async () => openOrder as never);
     const update = t.mock.method(Order, "update", async () => [1, [makeOrder({ status: "ACCEPTED", courier_id: courier.id })] as never]);
+    const createEvent = t.mock.method(OutboxEvent, "create", async (values: unknown) => values as never);
+    t.mock.method(OutboxEvent, "findAll", async () => []);
     const accepted = await orderService.accept(courier, validId);
     assert.equal(accepted.status, "ACCEPTED");
+    assert.equal((createEvent.mock.calls[0].arguments[0] as { event_type: string }).event_type, "ORDER_ACCEPTED");
     const values = update.mock.calls[0].arguments[0] as Record<string, unknown>;
     assert.equal(values.status, "ACCEPTED");
     assert.equal(values.courier_id, courier.id);
@@ -252,7 +262,10 @@ describe("order listing and lifecycle", () => {
     transactionMock(t);
     t.mock.method(Order, "findByPk", async () => makeOrder({ status: "ACCEPTED", courier_id: courier.id }) as never);
     t.mock.method(Order, "update", async () => [1, [makeOrder({ status: "PICKED_UP" })] as never]);
+    const createEvent = t.mock.method(OutboxEvent, "create", async (values: unknown) => values as never);
+    t.mock.method(OutboxEvent, "findAll", async () => []);
     assert.equal((await orderService.pickup(courier, validId)).status, "PICKED_UP");
+    assert.equal((createEvent.mock.calls[0].arguments[0] as { event_type: string }).event_type, "ORDER_PICKED_UP");
 
     t.mock.method(Order, "findByPk", async () =>
       makeOrder({ status: "ACCEPTED", courier_id: "another-courier" }) as never);

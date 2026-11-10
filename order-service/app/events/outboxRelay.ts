@@ -1,7 +1,8 @@
 /**
- * AI Assistance Disclosure
- * Tool: Claude (Sonnet 5.5)
+ * AI Assistance Disclosure:
+ * Tool: Claude (Sonnet 5.5), date: 2026-10-19
  * Scope: Background relay that publishes outbox rows to RabbitMQ
+ * Author review: Reviewed and tested locally
  *
  * Polls the outbox table and publishes unpublished events in order.
  * - Safe to run on several instances at once (cloud scaling): rows are

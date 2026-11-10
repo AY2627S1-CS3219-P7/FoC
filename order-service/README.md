@@ -36,6 +36,24 @@ docker compose down          # stop (data kept)
 docker compose down -v       # stop and DELETE the database volume
 ```
 
+## Events
+
+Status changes are written to an outbox table in the same transaction as the
+order, then published to the `orders` topic exchange (routing key = event type
+lower-cased with dots, e.g. `ORDER_PICKED_UP` -> `order.picked.up`).
+
+| Event | Consumers |
+| ---- | ---- |
+| `ORDER_CREATED`, `ORDER_ACCEPTED`, `ORDER_PICKED_UP` | notification service |
+| `ORDER_COMPLETED`, `ORDER_CANCELLED`, `ORDER_EXPIRED` | credit service, notification service |
+
+Event `data`: `order_id`, `requester_id`, `courier_id`, `credit_amount`, `title`.
+
+Publishing uses `mandatory`, so an event nobody is bound to stays in the
+outbox and is retried. The three notification-only events are the exception:
+if no queue is bound they are dropped with a warning, so they can never hold
+up the credit events behind them.
+
 ## Notes
 
 - Schema is created by `sequelize.sync()` on startup. Replace with

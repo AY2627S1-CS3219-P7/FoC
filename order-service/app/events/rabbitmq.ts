@@ -1,7 +1,8 @@
 /**
- * AI Assistance Disclosure
- * Tool: Claude (Sonnet 5.5)
+ * AI Assistance Disclosure:
+ * Tool: Claude (Sonnet 5.5), date: 2026-10-19
  * Scope: RabbitMQ connection management and confirmed publishing
+ * Author review: Reviewed and tested locally
  *
  * - Topic exchange (default name "orders", durable). Routing key is the event
  *   type lower-cased with dots, e.g. ORDER_COMPLETED -> "order.completed".
@@ -22,6 +23,8 @@ type Connection = Awaited<ReturnType<typeof amqp.connect>>;
 type ConfirmChannel = Awaited<ReturnType<Connection["createConfirmChannel"]>>;
 
 const PUBLISH_TIMEOUT_MS = 10000;
+
+const BEST_EFFORT_EVENTS = new Set<string>(["ORDER_CREATED", "ORDER_ACCEPTED", "ORDER_PICKED_UP"]);
 
 let connection: Connection | null = null;
 let channel: ConfirmChannel | null = null;
@@ -115,6 +118,10 @@ export async function publishEvent(event: OrderEvent): Promise<void> {
 
   // The 'return' event arrives before the confirm for unroutable messages
   if (returned.delete(event.event_id)) {
+    if (BEST_EFFORT_EVENTS.has(event.event_type)) {
+      console.warn(`No queue bound to "${routingKey}"; dropping informational event ${event.event_id}`);
+      return;
+    }
     throw new Error(
       `No queue is bound to "${routingKey}" on exchange "${env.RABBITMQ_EXCHANGE}" (is the credit service consuming yet?)`
     );

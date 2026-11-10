@@ -55,6 +55,9 @@ export interface NewOrderFields {
 
 /** Event types the order service publishes to RabbitMQ. */
 export const EVENT_TYPES = {
+  ORDER_CREATED: "ORDER_CREATED", // notification service
+  ORDER_ACCEPTED: "ORDER_ACCEPTED", // notification service
+  ORDER_PICKED_UP: "ORDER_PICKED_UP", // notification service
   ORDER_CANCELLED: "ORDER_CANCELLED", // credit service: release the reservation
   ORDER_COMPLETED: "ORDER_COMPLETED", // credit service: transfer requester -> courier
   ORDER_EXPIRED: "ORDER_EXPIRED", // credit service: release the reservation
@@ -67,6 +70,8 @@ export interface EventOrderFields {
     requester_id: string;
     courier_id: string | null;
     credit_amount: number;
+    /** for human-readable notifications; absent on compensation events */
+    title?: string | null;
 }
 
 /** Envelope from the "Example event" in the project doc. */

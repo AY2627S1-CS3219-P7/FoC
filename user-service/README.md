@@ -215,6 +215,8 @@ Default roles assigned on registration:
 
 Registration also initializes a Credit Service wallet with the configured initial credit balance. Set `CREDIT_SERVICE_URL` to the Credit Service base URL (for example, `http://localhost:3004` when running locally). If wallet initialization fails, registration returns `503` and the user registration is rolled back.
 
+After the registration commits, the service publishes a `USER_REGISTERED` event (`user_id`, `email`) to the `users` RabbitMQ topic exchange (routing key `user.registered`). The notification service uses it to subscribe the new user's email to SNS notifications. Publishing is best-effort: a broker failure is logged and never fails the sign-up. Set `RABBITMQ_URL` (and `RABBITMQ_USER` / `RABBITMQ_PASSWORD`) to enable it; when `RABBITMQ_URL` is unset, publishing is disabled.
+
 Success response: `201`
 
 ```json

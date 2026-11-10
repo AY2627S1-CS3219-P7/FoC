@@ -906,3 +906,60 @@ Files affected:
 - ai/usage-log.md
 
 Author review: Tests reviewed and verified by author
+
+## Order Service: transactional outbox and RabbitMQ event publishing
+
+Author: Chloe Low
+Tool: Claude (Sonnet 5.5)
+Date: 2026-10-19
+
+Prompt:
+> I am implementing an order service API. When an order is completed, cancelled or expires, the credit service must transfer or release reserved credits. Help me implement event publishing to RabbitMQ, ensuring that the order status change and the event are committed atomically. Use durable topic exchange and ensure events are not silently dropped if no consumer queue is bound.
+
+Key response:
+Suggested writing events to an outbox table in the same database transaction as the order
+status change, and a background relay that polls unpublished rows (FOR UPDATE SKIP LOCKED),
+publishes them with publisher confirms and the `mandatory` flag, and marks them as published.
+Provided a standard event envelope (event_id, event_type, timestamp, data), a RabbitMQ
+connection module with lazy reconnection, an HTTP client for credit reservation, and
+centralised environment validation.
+
+Files affected:
+- order-service/app/events/rabbitmq.ts
+- order-service/app/events/outboxRelay.ts
+- order-service/app/events/orderEvents.ts
+- order-service/app/models/outboxEventModel.ts
+- order-service/app/clients/creditClient.ts
+- order-service/app/config/env.ts
+
+Author review: Reviewed, adapted to the project's order lifecycle, and tested locally with Docker Compose.
+
+## Auto-subscribe new users to SNS notifications
+Author: Chloe Low
+Tool: Claude (Opus 5.5)
+Date: 2026-11-10
+
+Prompt:
+> My app uses AWS SNS to send email notifications and I want users to be automatically subscribed after sign up. Help me implement best-effort event publishing to RabbitMQ. When a user signs up, the user service should publish a UserRegistered event, and the notification service should consume it and subscribe the user’s email address to the SNS topic.
+
+Key response:
+User service now publishes a best-effort USER_REGISTERED event (user_id, email) to a "users" topic exchange after registration commits. The notification service binds its queue to user.registered and calls SNS Subscribe with a per-user filter policy, so SNS sends the confirmation email at sign-up. Added RabbitMQ config to the user service compose file and ECS task definition, plus unit tests.
+
+Files affected:
+- user-service/src/events/userEvents.ts (new)
+- user-service/src/services/authService.ts
+- user-service/package.json
+- user-service/package-lock.json
+- user-service/docker-compose.yml
+- user-service/task-definition.json
+- user-service/.env.example
+- notification-service/src/notifications/subscriber.ts (new)
+- notification-service/src/notifications/filterPolicy.ts (new)
+- notification-service/src/events/userEvent.ts (new)
+- notification-service/src/events/consumer.ts
+- notification-service/src/config.ts
+- notification-service/test/templates.test.ts
+- notification-service/README.md
+- ai/usage-log.md
+
+Author review: Reviewed and tested locally.

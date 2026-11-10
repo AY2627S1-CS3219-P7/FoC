@@ -74,6 +74,10 @@
             {
                "name": "REFRESH_TOKEN_EXPIRES_DAYS",
                "value": "30"
+            },
+            {
+               "name": "RABBITMQ_URL",
+               "value": "amqps://b-5ce46c1c-10ae-474d-92a7-f9d2cdb6c436.mq.ap-southeast-1.on.aws:5671"
             }
             ],
          "secrets": [
@@ -92,6 +96,14 @@
             {
                "name": "INITIAL_ADMIN_PASSWORD",
                "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:551162198630:secret:initial-admin-password-1IMJ7y"
+            },
+            {
+               "name": "RABBITMQ_USER",
+               "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:551162198630:secret:rabbitmq-orders-WHwhLb:username::"
+            },
+            {
+               "name": "RABBITMQ_PASSWORD",
+               "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:551162198630:secret:rabbitmq-orders-WHwhLb:password::"
             }
          ]
       }

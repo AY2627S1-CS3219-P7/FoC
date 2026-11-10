@@ -74,12 +74,22 @@ export async function createOrder(user: AuthenticatedUser, body: unknown): Promi
   await creditClient.reserve({ orderId, userId: user.id, amount: fields.credit_amount });
 
   try {
-    return await Order.create({
-      order_id: orderId,
-      requester_id: user.id,
-      status: "OPEN",
-      ...fields,
+    // Order row + ORDER_CREATED outbox event commit together
+    const order = await sequelize.transaction(async (t: Transaction) => {
+      const created = await Order.create(
+        {
+          order_id: orderId,
+          requester_id: user.id,
+          status: "OPEN",
+          ...fields,
+        },
+        { transaction: t }
+      );
+      await recordOrderEvent(EVENT_TYPES.ORDER_CREATED, created, t);
+      return created;
     });
+    outboxRelay.kick();
+    return order;
   } catch (err) {
     await compensateReservation(orderId, user.id, fields.credit_amount);
     throw err;
@@ -268,6 +278,7 @@ export const accept = (user: AuthenticatedUser, orderId: string) =>
     to: "ACCEPTED",
     stampField: "accepted_at",
     set: { courier_id: user.id },
+    eventType: EVENT_TYPES.ORDER_ACCEPTED, // notification service
     // Can't be accepted once its accept-by time has passed
     extraWhere: () => ({ accept_by: { [Op.gt]: new Date() } }),
     authorize: (order, u) => {
@@ -283,6 +294,7 @@ export const pickup = (user: AuthenticatedUser, orderId: string) =>
     allowedFrom: ["ACCEPTED"],
     to: "PICKED_UP",
     stampField: "picked_up_at",
+    eventType: EVENT_TYPES.ORDER_PICKED_UP, // notification service
     authorize: (order, u) => {
       if (order.courier_id !== u.id) throw forbidden("Only the assigned courier can do this");
     },
