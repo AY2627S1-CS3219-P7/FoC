@@ -585,3 +585,51 @@ Files affected:
 - ai/usage-log.md
 
 Author review: Read through all code and verified through testing
+
+## Supplier and credit service unit tests
+Author: Maegan Tan
+Tool: GitHub Copilot (Copilot SDK in VS Code)
+Date: 2026-11-10
+
+Exact Prompt:
+> Write unit tests for functions in supplier-service and credit-service.
+>
+> For each function, consider the following test cases
+> - Happy paths: Verify that the function produces the expected result under normal conditions.
+> - Edge cases: Test boundary values, empty inputs, missing or optional fields, and other unusual but valid inputs.
+> - Error handling: Verify that errors and exceptions are handled correctly, including invalid inputs and dependency failures.
+> - Business logic: Ensure that the function behaves correctly according to its intended business rules.
+
+Key response:
+Added database-isolated unit tests for supplier CRUD and favourite operations, plus wallet initialization/lookups and credit reservation, transfer, release, and idempotent release behavior. Tests cover successful results, missing records and empty inputs, database failures, and transaction rollback/cleanup.
+
+Files affected:
+- supplier-service/test/supplierService.test.ts
+- credit-service/test/creditService.test.ts
+- ai/usage-log.md
+
+Author review: Tests reviewed and verified by author
+
+## User and order service unit tests
+Author: Maegan Tan
+Tool: GitHub Copilot (Copilot SDK in VS Code)
+Date: 2026-11-10
+
+Exact Prompt:
+> Write unit tests for functions in user-service and order-service.
+>
+> For each function, consider the following test cases
+> - Happy paths: Verify that the function produces the expected result under normal conditions.
+> - Edge cases: Test boundary values, empty inputs, missing or optional fields, and other unusual but valid inputs.
+> - Error handling: Verify that errors and exceptions are handled correctly, including invalid inputs and dependency failures.
+> - Business logic: Ensure that the function behaves correctly according to its intended business rules.
+
+Key response:
+Added database- and network-isolated tests for user authentication, profiles, passwords, role administration, wallet initialization, order creation and state transitions, event recording, and credit reservation. Tests include validation and authorization errors, missing records, rollback/compensation, token rotation, expiry, pagination, and dependency failures.
+
+Files affected:
+- user-service/test/userServices.test.ts
+- order-service/test/orderServices.test.ts
+- ai/usage-log.md
+
+Author review: Tests reviewed and verified by author
