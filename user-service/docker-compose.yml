@@ -1,3 +1,8 @@
+# AI Assistance Disclosure:
+# Tool: Claude (Opus 5.5), date: 2026-11-10
+# Scope: RabbitMQ settings so the user service can publish USER_REGISTERED
+# Author review: Reviewed and tested locally
+
 services:
   user-service-postgres:
     image: postgres:15-alpine

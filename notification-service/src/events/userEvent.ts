@@ -1,3 +1,10 @@
+/**
+ * AI Assistance Disclosure:
+ * Tool: Claude (Opus 5.5), date: 2026-11-10
+ * Scope: USER_REGISTERED event envelope and validation
+ * Author review: Reviewed and tested locally
+ */
+
 export interface UserRegisteredEvent {
   event_id: string;
   event_type: "USER_REGISTERED";

@@ -1,3 +1,10 @@
+/**
+ * AI Assistance Disclosure:
+ * Tool: Claude (Opus 5.5), date: 2026-11-10
+ * Scope: Auto-subscribes a newly registered user's email to the SNS topic with a per-user filter policy
+ * Author review: Reviewed and tested locally
+ */
+
 import { SNSClient, SubscribeCommand } from "@aws-sdk/client-sns";
 import { env } from "../config.ts";
 import { snsEnabled } from "./sender.ts";

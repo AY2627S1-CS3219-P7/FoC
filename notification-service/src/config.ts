@@ -1,3 +1,10 @@
+/**
+ * AI Assistance Disclosure:
+ * Tool: Claude (Opus 5.5), date: 2026-11-10
+ * Scope: Notification service configuration, including the users exchange for USER_REGISTERED
+ * Author review: Reviewed and tested locally
+ */
+
 const required = (name: string): string => {
   const value = process.env[name];
   if (!value) throw new Error(`Missing required environment variable: ${name}`);

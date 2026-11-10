@@ -1,3 +1,8 @@
+// AI Assistance Disclosure:
+// Tool: Claude (Opus 5.5), date: 2026-11-10
+// Scope: Publish USER_REGISTERED after successful registration
+// Author review: Reviewed and tested locally
+
 import { env } from "../config/env.js";
 import { pool, query } from "../config/db.js";
 import {

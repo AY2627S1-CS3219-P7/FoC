@@ -2,7 +2,7 @@
  * AI Assistance Disclosure:
  * Tool: Claude (Opus 5.5), date: 2026-11-10
  * Scope: Best-effort publishing of USER_REGISTERED events to RabbitMQ
- * Author review: Review pending
+ * Author review: Reviewed and tested locally
  *
  * - Topic exchange "users" (durable), routing key "user.registered".
  *   The notification service binds to it and subscribes the new user's

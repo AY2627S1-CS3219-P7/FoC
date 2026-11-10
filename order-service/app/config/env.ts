@@ -1,7 +1,8 @@
 /**
- * AI Assistance Disclosure
- * Tool: Claude (Sonnet 5.5)
+ * AI Assistance Disclosure:
+ * Tool: Claude (Sonnet 5.5), date: 2026-10-19
  * Scope: Centralised, validated environment configuration
+ * Author review: Reviewed and tested locally
  *
  * Every setting the service needs beyond the database lives here, so a
  * missing variable fails at startup with a clear message instead of

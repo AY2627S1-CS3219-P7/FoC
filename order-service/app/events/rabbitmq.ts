@@ -1,7 +1,8 @@
 /**
- * AI Assistance Disclosure
- * Tool: Claude (Sonnet 5.5)
+ * AI Assistance Disclosure:
+ * Tool: Claude (Sonnet 5.5), date: 2026-10-19
  * Scope: RabbitMQ connection management and confirmed publishing
+ * Author review: Reviewed and tested locally
  *
  * - Topic exchange (default name "orders", durable). Routing key is the event
  *   type lower-cased with dots, e.g. ORDER_COMPLETED -> "order.completed".

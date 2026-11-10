@@ -1,7 +1,8 @@
 /**
- * AI Assistance Disclosure
- * Tool: Claude (Sonnet 5.5)
+ * AI Assistance Disclosure:
+ * Tool: Claude (Sonnet 5.5), date: 2026-10-19
  * Scope: Order event envelope and outbox recording
+ * Author review: Reviewed and tested locally
  *
  */
 

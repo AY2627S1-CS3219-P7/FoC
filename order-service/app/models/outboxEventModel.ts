@@ -1,7 +1,8 @@
 /**
- * AI Assistance Disclosure
- * Tool: Claude (Sonnet 5.5)
+ * AI Assistance Disclosure:
+ * Tool: Claude (Sonnet 5.5), date: 2026-10-19
  * Scope: Transactional outbox table for reliable RabbitMQ publishing
+ * Author review: Reviewed and tested locally
  *
  * Doing both order status change and a RabbitMQ publish directly can fail halfway
  * Instead, the event is written to this table in the SAME database

@@ -17,7 +17,7 @@ withdrawn, or exchanged for money, and only circulate within the platform.
 | Maegan-Ruth Tan Hui En | Supplier service, Credit service, gateway/compose wiring, CI/CD & deployment |
 | Huang Yining | Order service features / request fulfilment flows |
 | Brenda Tan Kai Xin | Frontend (React/Vite UI, auth screens, suppliers, campus map, account/credits UX) |
-| Low Chloe | Order service; integration across user/credit flows (auth/RBAC and related frontend wiring) |
+| Low Chloe | Order service; integration across user/supplier flows; notification service |
 
 
 ---
@@ -35,6 +35,7 @@ and API gateway live alongside the microservices.
 ├── supplier-service/
 ├── order-service/
 ├── credit-service/
+├── notification-service/  # N2H: email notifications
 ├── compose.yaml        # Root Docker Compose orchestration
 ├── ai/                 # AI usage log for coursework disclosure
 └── README.md
@@ -78,6 +79,7 @@ Tools used:
 
 - Cursor (GPT-5.6 Sol Medium / Composer) — frontend implementation, debugging, and UI refinement (suppliers, campus map clustering, account/password UX, forms).
 - ChatGPT (GPT-5.6 Sol) — learning support, code explanations and debugging guidance.
+- Claude (Opus 5.5) — notification service implementation (RabbitMQ consumer, SNS publishing and auto-subscribe), related order event changes, tests, and local Docker troubleshooting.
 
 Prohibited phases avoided:
 

@@ -1,7 +1,7 @@
 // AI Assistance Disclosure:
 // Tool: Claude (Opus 5.5), date: 2026-11-10
 // Scope: Unit tests for event -> email mapping
-// Author review: Review pending
+// Author review: Reviewed and tested locally
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";

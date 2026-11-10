@@ -2,7 +2,7 @@
  * AI Assistance Disclosure:
  * Tool: Claude (Opus 5.5), date: 2026-11-10
  * Scope: RabbitMQ consumer for order events, with reconnects, de-duplication and retry
- * Author review: Review pending
+ * Author review: Reviewed and tested locally
  *
  * - Also bound to "user.registered" on the "users" exchange: a new user's email
  *   is subscribed to SNS automatically (see notifications/subscriber.ts).
