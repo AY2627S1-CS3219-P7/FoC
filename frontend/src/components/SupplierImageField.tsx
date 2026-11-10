@@ -192,28 +192,31 @@ const SupplierImageField = forwardRef<
   }, [])
 
   function handleCropChange(next: { x: number; y: number }) {
+    // Keep last pixels — Safari sometimes never fires onCropComplete after pan.
     cropDirtyRef.current = true
-    croppedAreaPixelsRef.current = null
     setCrop(next)
   }
 
   function handleZoomChange(next: number) {
     cropDirtyRef.current = true
-    croppedAreaPixelsRef.current = null
     setZoom(next)
   }
 
-  /** Wait until react-easy-crop reports pixels for the *current* pan/zoom. */
-  function waitForFreshCropPixels(timeoutMs = 1500): Promise<Area | null> {
+  /**
+   * Prefer a fresh onCropComplete frame; if Safari stalls, reuse the last known
+   * pixels so Save is not blocked after drag/zoom.
+   */
+  function waitForFreshCropPixels(timeoutMs = 400): Promise<Area | null> {
     if (!cropDirtyRef.current && croppedAreaPixelsRef.current) {
       return Promise.resolve(croppedAreaPixelsRef.current)
     }
     return new Promise((resolve) => {
       const started = Date.now()
       const timer = window.setInterval(() => {
-        const ready =
+        const fresh =
           !cropDirtyRef.current && croppedAreaPixelsRef.current !== null
-        if (ready || Date.now() - started >= timeoutMs) {
+        const timedOut = Date.now() - started >= timeoutMs
+        if (fresh || timedOut) {
           window.clearInterval(timer)
           resolve(croppedAreaPixelsRef.current)
         }
@@ -234,7 +237,7 @@ const SupplierImageField = forwardRef<
     const pixels = await waitForFreshCropPixels()
     if (!pixels) {
       throw new Error(
-        'Crop is still loading. Wait a moment after zooming/dragging, then Save again.',
+        'Could not read the crop frame yet. Nudge the image slightly, then Save again.',
       )
     }
 
