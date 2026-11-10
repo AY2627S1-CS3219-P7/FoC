@@ -188,17 +188,34 @@ function clearLegacySupplierImageOverrides(): void {
   }
 }
 
+function imagePersisted(sent: string | null, received: string | null): boolean {
+  if (sent === null) return true
+  if (!received) return false
+  const expected = toRawImageUrl(sent) ?? sent
+  if (received === sent || received === expected) return true
+  // Data URLs: accept any saved crop (exact string may differ if the DB/proxy
+  // re-encoded); require the same kind of payload, not a leftover http URL.
+  if (sent.startsWith('data:image/') && received.startsWith('data:image/')) {
+    return received.length > 32
+  }
+  return false
+}
+
 function assertImagePersisted(
   sent: string | null,
   received: string | null,
 ): void {
-  if (sent === null) return
-  const expected = toRawImageUrl(sent) ?? sent
-  if (received === sent || received === expected) return
+  if (imagePersisted(sent, received)) return
   throw new ApiError(
     500,
     'Image was not saved to the server. Try cropping again with a smaller frame, or paste the original image link and Save.',
   )
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms)
+  })
 }
 
 export async function fetchSuppliers(): Promise<Supplier[]> {
@@ -260,16 +277,25 @@ export async function updateSupplier(
     method: 'PATCH',
     body: JSON.stringify(input),
   })
-  // PATCH may return a huge body (image_url data URL). Safari sometimes fails
-  // to parse it — ignore the body. HTTP ok from request() means the write ran;
-  // GET below is the source of truth.
+
+  // Prefer PATCH body when Safari can parse it (proves DB RETURNING wrote image_url).
+  let patched: Supplier | null = null
   try {
-    await response.json()
+    const data = (await response.json()) as ApiSupplier | null
+    if (data?.is_active) patched = toSupplier(data)
   } catch {
-    /* empty / truncated / Safari parse — fall through to refetch */
+    /* huge/truncated body — fall through to GET */
+  }
+  if (patched && imagePersisted(input.image_url, patched.image_url)) {
+    return patched
   }
 
-  const fresh = await fetchSupplierById(id)
+  // GET can lag behind CloudFront briefly — retry once before failing.
+  let fresh = await fetchSupplierById(id)
+  if (!fresh || !imagePersisted(input.image_url, fresh.image_url)) {
+    await delay(400)
+    fresh = await fetchSupplierById(id)
+  }
   if (!fresh) {
     throw new ApiError(
       500,

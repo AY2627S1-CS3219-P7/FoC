@@ -41,13 +41,13 @@ const CROP_ASPECT = 16 / 9
 
 /**
  * Normalized export size — independent of the source image.
- * Sized to stay under Express's default ~100kb JSON limit on undeployed gateways.
+ * Kept small so PATCH JSON stays well under gateway/service body limits.
  */
-const OUTPUT_WIDTH = 480
-const OUTPUT_HEIGHT = 270
-const OUTPUT_QUALITY = 0.55
+const OUTPUT_WIDTH = 320
+const OUTPUT_HEIGHT = 180
+const OUTPUT_QUALITY = 0.45
 
-const MAX_CROPPED_DATA_URL_CHARS = 55_000
+const MAX_CROPPED_DATA_URL_CHARS = 28_000
 
 function isCroppedDataUrl(value: string): boolean {
   return value.trim().startsWith('data:image/')
@@ -112,14 +112,14 @@ async function getNormalizedCropDataUrl(
     )
   }
 
-  for (const quality of [OUTPUT_QUALITY, 0.45, 0.35, 0.28]) {
+  for (const quality of [OUTPUT_QUALITY, 0.35, 0.28, 0.22]) {
     const dataUrl = canvas.toDataURL('image/jpeg', quality)
     if (dataUrl.length <= MAX_CROPPED_DATA_URL_CHARS) {
       return dataUrl
     }
   }
 
-  const fallback = canvas.toDataURL('image/jpeg', 0.22)
+  const fallback = canvas.toDataURL('image/jpeg', 0.18)
   if (fallback.length > MAX_CROPPED_DATA_URL_CHARS) {
     throw new Error(
       'Could not prepare this crop for upload. Paste the original image link again (crop is optional), then Save.',
