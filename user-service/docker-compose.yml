@@ -25,6 +25,8 @@ services:
     depends_on:
       user-service-postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     ports:
       - "${PORT:-3002}:3002"
     environment:
@@ -38,6 +40,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # USER_REGISTERED events -> notification service (auto SNS subscribe)
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672
 
 volumes:
   user_db_data:

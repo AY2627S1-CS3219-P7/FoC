@@ -45,3 +45,19 @@ describe("buildNotifications", () => {
     assert.deepEqual(buildNotifications(ev("SOMETHING_ELSE")), []);
   });
 });
+
+import { parseUserRegisteredEvent } from "../src/events/userEvent.ts";
+import { filterPolicyFor } from "../src/notifications/filterPolicy.ts";
+
+describe("auto-subscribe", () => {
+  it("builds a per-user filter policy", () => {
+    assert.deepEqual(JSON.parse(filterPolicyFor("u1")), { userId: ["u1"] });
+  });
+
+  it("validates USER_REGISTERED events", () => {
+    const ok = { event_id: "e", event_type: "USER_REGISTERED", timestamp: "t", data: { user_id: "u1", email: "a@u.nus.edu" } };
+    assert.equal(parseUserRegisteredEvent(ok).data.email, "a@u.nus.edu");
+    assert.throws(() => parseUserRegisteredEvent({ ...ok, data: { user_id: "u1", email: "nope" } }));
+    assert.throws(() => parseUserRegisteredEvent({ ...ok, event_type: "ORDER_CREATED" }));
+  });
+});

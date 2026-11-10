@@ -13,6 +13,7 @@ import {
 } from "../utils/validators.js";
 import { hashPassword, comparePassword } from "../utils/password.js";
 import { initializeWallet } from "./creditService.js";
+import { publishUserRegistered } from "../events/userEvents.js";
 import type { Role, User } from "../models/types.js";
 
 // ============================================================
@@ -120,6 +121,8 @@ export const register = async (input: RegisterInput): Promise<User> => {
     await initializeWallet(userRow.id);
 
     await client.query("COMMIT");
+
+    publishUserRegistered({ user_id: userRow.id, email: userRow.email });
 
     // Return the user domain model without exposing the password hash.
     return {

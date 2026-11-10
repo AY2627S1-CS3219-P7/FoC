@@ -4,6 +4,8 @@
  * Scope: RabbitMQ consumer for order events, with reconnects, de-duplication and retry
  * Author review: Review pending
  *
+ * - Also bound to "user.registered" on the "users" exchange: a new user's email
+ *   is subscribed to SNS automatically (see notifications/subscriber.ts).
  * - Owns a DURABLE queue bound to "order.#" on the shared topic exchange, so it
  *   receives every order event without competing with the credit service
  *   (each service has its own queue; the exchange fans out a copy to each).
@@ -19,6 +21,8 @@
 import amqp from "amqplib";
 import { env } from "../config.ts";
 import { parseOrderEvent } from "./orderEvent.ts";
+import { parseUserRegisteredEvent } from "./userEvent.ts";
+import { subscribeUser } from "../notifications/subscriber.ts";
 import { buildNotifications } from "../notifications/templates.ts";
 import { send } from "../notifications/sender.ts";
 
@@ -71,11 +75,15 @@ export async function start(): Promise<void> {
     await ch.assertExchange(env.RABBITMQ_EXCHANGE, "topic", { durable: true });
     await ch.assertQueue(env.QUEUE_NAME, { durable: true });
     await ch.bindQueue(env.QUEUE_NAME, env.RABBITMQ_EXCHANGE, "order.#");
+    await ch.assertExchange(env.USER_EVENTS_EXCHANGE, "topic", { durable: true });
+    await ch.bindQueue(env.QUEUE_NAME, env.USER_EVENTS_EXCHANGE, "user.registered");
     await ch.prefetch(10);
 
     connection = conn;
     channel = ch;
-    console.log(`[Notification] Consuming "order.#" from exchange "${env.RABBITMQ_EXCHANGE}" via queue "${env.QUEUE_NAME}"`);
+    console.log(
+      `[Notification] Consuming "order.#" from "${env.RABBITMQ_EXCHANGE}" and "user.registered" from "${env.USER_EVENTS_EXCHANGE}" via queue "${env.QUEUE_NAME}"`
+    );
 
     await ch.consume(
       env.QUEUE_NAME,
@@ -83,7 +91,20 @@ export async function start(): Promise<void> {
         if (!msg) return;
         let eventId = msg.properties.messageId as string | undefined;
         try {
-          const event = parseOrderEvent(JSON.parse(msg.content.toString()));
+          const raw = JSON.parse(msg.content.toString());
+
+          if (msg.fields.routingKey === "user.registered") {
+            const userEvent = parseUserRegisteredEvent(raw);
+            eventId = userEvent.event_id;
+            if (!seen.has(eventId)) {
+              await subscribeUser(userEvent.data.user_id, userEvent.data.email);
+              markSeen(eventId);
+            }
+            ch.ack(msg);
+            return;
+          }
+
+          const event = parseOrderEvent(raw);
           eventId = event.event_id;
 
           if (seen.has(eventId)) {

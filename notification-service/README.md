@@ -33,14 +33,21 @@ Order Service --(outbox)--> RabbitMQ topic exchange "orders"
 
 Part of the root `docker compose up --build`. With `SNS_TOPIC_ARN` empty, emails are printed to the container log. To send real emails, set `SNS_TOPIC_ARN` and temporary AWS credentials in `notification-service/.env`.
 
-## Subscribing a user (manual for now)
+## Subscribing users (automatic)
 
-SNS console -> topic `foc-notifications` -> Create subscription -> Email -> filter policy (message attributes) `{"userId": ["<user id>"]}` -> user clicks the confirmation email.
+```
+User Service --USER_REGISTERED--> RabbitMQ exchange "users" (user.registered)
+                                       '--> Notification Service --SNS Subscribe (email + filter {"userId":[id]})
+```
+
+On sign-up the user service publishes `USER_REGISTERED` (best-effort, after commit). The notification service subscribes the email to the topic with a per-user filter policy. SNS then emails a **confirmation link**; notifications are delivered once the user clicks it (SNS consent / anti-spam rule).
+
+Users created before this feature (or if the event was lost) can be subscribed manually: SNS console -> topic `foc-notifications` -> Create subscription -> Email -> filter policy (message attributes) `{"userId": ["<user id>"]}`.
 
 ## Cloud
 
-ECS service `notification-service` (Fargate, no load balancer). Task role needs `sns:Publish` on the topic. Deploy this service **before** the order-service changes so its queue exists.
+ECS service `notification-service` (Fargate, no load balancer). Task role needs `sns:Publish` and `sns:Subscribe` on the topic. The user service task definition needs `RABBITMQ_URL` / credentials to publish `USER_REGISTERED`. Deploy this service **before** the order-service changes so its queue exists.
 
 ## Future work
 
-Auto-subscribe users at sign-up; SMS; dead-letter queue for failed notifications; persistent de-duplication.
+Unsubscribe / change email when a profile changes; SMS; dead-letter queue for failed notifications; persistent de-duplication.

@@ -11,7 +11,9 @@ export const env = {
   RABBITMQ_USER: process.env.RABBITMQ_USER,
   RABBITMQ_PASSWORD: process.env.RABBITMQ_PASSWORD,
   RABBITMQ_EXCHANGE: process.env.RABBITMQ_EXCHANGE || "orders",
-  // Durable queue owned by this service, bound to every order event
+  // Exchange the user service publishes USER_REGISTERED to
+  USER_EVENTS_EXCHANGE: process.env.USER_EVENTS_EXCHANGE || "users",
+  // Durable queue owned by this service, bound to every order event and to user.registered
   QUEUE_NAME: process.env.NOTIFICATION_QUEUE || "notification-service.order-events",
 
   // Empty = log emails to stdout instead of sending (local dev)
