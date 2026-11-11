@@ -188,21 +188,22 @@ function clearLegacySupplierImageOverrides(): void {
   }
 }
 
+/**
+ * Exact persistence check only.
+ * - null sent → nothing to verify
+ * - http(s) may be rewritten github→raw by toRawImageUrl
+ * - cropped data URLs must match byte-for-byte (no "any data:image" soft pass)
+ */
 function imagePersisted(sent: string | null, received: string | null): boolean {
   if (sent === null) return true
   if (!received) return false
-  const expected = toRawImageUrl(sent) ?? sent
-  if (received === sent || received === expected) return true
-  // Data URLs: accept any saved crop (exact string may differ if the DB/proxy
-  // re-encoded); require the same kind of payload, not a leftover http URL.
-  if (sent.startsWith('data:image/') && received.startsWith('data:image/')) {
-    return received.length > 32
-  }
-  return false
+  if (received === sent) return true
+  const expected = toRawImageUrl(sent)
+  return expected !== null && received === expected
 }
 
 export const IMAGE_PERSIST_ERROR =
-  'Image was not saved to the server. Try cropping again with a smaller frame, or paste the original image link and Save.'
+  'Image was not saved to the server. The server still has the previous image (or none). Try a smaller crop, or paste a direct image link and Save without relying on crop.'
 
 function assertImagePersisted(
   sent: string | null,
@@ -249,7 +250,7 @@ export async function createSupplier(input: SupplierInput): Promise<Supplier | n
     method: 'POST',
     body: JSON.stringify(input),
   })
-  let created: ApiSupplier | null = null
+  let created: ApiSupplier | null
   try {
     created = (await response.json()) as ApiSupplier | null
   } catch {
@@ -262,6 +263,8 @@ export async function createSupplier(input: SupplierInput): Promise<Supplier | n
     // Older deployments may omit a body — persistence cannot be verified here.
     return null
   }
+  // POST body (if present) must already match the exact image we sent.
+  assertImagePersisted(input.image_url, toSupplier(created).image_url)
   const fresh = await fetchSupplierById(created.id)
   if (!fresh) {
     throw new ApiError(
@@ -282,19 +285,21 @@ export async function updateSupplier(
     body: JSON.stringify(input),
   })
 
-  // Prefer PATCH body when Safari can parse it (proves DB RETURNING wrote image_url).
-  let patched: Supplier | null = null
+  // If PATCH body parses, it must already match the exact image we sent.
+  // Never treat "some other data:image/..." as success.
   try {
     const data = (await response.json()) as ApiSupplier | null
-    if (data?.is_active) patched = toSupplier(data)
-  } catch {
-    /* huge/truncated body — fall through to GET */
-  }
-  if (patched && imagePersisted(input.image_url, patched.image_url)) {
-    return patched
+    if (data?.is_active) {
+      assertImagePersisted(input.image_url, toSupplier(data).image_url)
+    }
+  } catch (error) {
+    if (error instanceof ApiError && error.message === IMAGE_PERSIST_ERROR) {
+      throw error
+    }
+    /* empty / truncated / Safari parse — still require GET match below */
   }
 
-  // GET can lag behind CloudFront briefly — retry once before failing.
+  // Backend source of truth: GET must return the exact same image_url.
   let fresh = await fetchSupplierById(id)
   if (!fresh || !imagePersisted(input.image_url, fresh.image_url)) {
     await delay(400)
