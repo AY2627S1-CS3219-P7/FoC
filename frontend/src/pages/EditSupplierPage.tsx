@@ -30,7 +30,6 @@ import {
   fetchSupplierById,
   getSupplierImageUrlError,
   getSupplierRequestErrorMessage,
-  isImagePersistError,
   isValidSupplierImageUrl,
   isValidSupplierTime,
   normalizeSupplierImageUrl,
@@ -139,10 +138,8 @@ function EditSupplierPage() {
 
     try {
       setSubmitError('')
-      // Prefer cropped data URL; keep the http(s) source for fallback if crop
-      // cannot be stored in the shared DB (payload / proxy limits).
-      const sourceLink =
-        imageFieldRef.current?.getSourceUrl() || formValues.imageUrl.trim()
+      // prepareForSubmit returns a new crop data URL when the cropper is open,
+      // otherwise the current http(s)/existing form value.
       const imageUrlForSave =
         (await imageFieldRef.current?.prepareForSubmit()) ?? formValues.imageUrl
       if (!isValidSupplierImageUrl(imageUrlForSave)) {
@@ -153,7 +150,9 @@ function EditSupplierPage() {
 
       const startingTime = toSupplierTimePayload(formValues.startingTime)
       const closingTime = toSupplierTimePayload(formValues.closingTime)
-      const basePayload = {
+      // updateSupplier PATCHes then requires GET image_url === exact value sent.
+      // No silent fallback to an old http(s) source after a failed crop save.
+      await updateSupplier(supplier.id, {
         name: formValues.supplierName.trim(),
         type: trimmedType,
         building: formValues.building.trim(),
@@ -163,31 +162,8 @@ function EditSupplierPage() {
         closing_time: closingTime,
         latitude: Number(formValues.latitude),
         longitude: Number(formValues.longitude),
-      }
-
-      try {
-        await updateSupplier(supplier.id, {
-          ...basePayload,
-          image_url: normalizeSupplierImageUrl(imageUrlForSave),
-        })
-      } catch (persistError) {
-        const sourceHttp =
-          /^https?:\/\//i.test(sourceLink) && isValidSupplierImageUrl(sourceLink)
-            ? normalizeSupplierImageUrl(sourceLink)
-            : null
-        if (
-          !isImagePersistError(persistError) ||
-          !imageUrlForSave.trim().startsWith('data:image/') ||
-          !sourceHttp
-        ) {
-          throw persistError
-        }
-        // Same approach as Cafe+ seed images: store a public http(s) link.
-        await updateSupplier(supplier.id, {
-          ...basePayload,
-          image_url: sourceHttp,
-        })
-      }
+        image_url: normalizeSupplierImageUrl(imageUrlForSave),
+      })
       navigate(`/suppliers/${supplier.id}`, {
         replace: true,
         state: {
